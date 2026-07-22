@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Miscellanies (search your notes)</title>
+<style>
+  body{margin:0; background:#E8E1D0; color:#2A241C; font-family:Georgia,serif; font-size:17px; line-height:1.55;}
+  .wrap{max-width:700px; margin:0 auto; padding:28px 18px 80px;}
+  h1{font-size:34px; margin:0 0 4px;}
+  .sub{font-style:italic; color:#57503e; font-size:14px; margin-bottom:16px;}
+  .note{font-size:13px; color:#33465C; background:#dbe1e8; border-radius:6px; padding:10px 14px; margin-bottom:18px;}
+  .error{font-size:13.5px; color:#7A2E2A; background:#f0dcd6; border-radius:6px; padding:12px 14px; margin-bottom:18px;}
+  .field{margin-bottom:14px;}
+  label{display:block; font-size:13px; color:#57503e; margin-bottom:4px;}
+  input[type=text], textarea{width:100%; box-sizing:border-box; font-size:16px; padding:10px 12px; border:1px solid #b9ac8e; border-radius:6px; background:#f3eddd; font-family:inherit;}
+  textarea{min-height:120px; font-family:monospace; font-size:13px;}
+  button{font-size:15px; padding:10px 16px; border:1px solid #33465C; background:#33465C; color:#fff; border-radius:6px; cursor:pointer; margin-right:8px; margin-top:4px;}
+  button.ghost{background:transparent; color:#33465C;}
+  #search{width:100%; box-sizing:border-box; font-size:16px; padding:10px 12px; border:1px solid #b9ac8e; border-radius:6px; margin-bottom:20px; background:#f3eddd;}
+  .nbname{font-size:22px; border-bottom:2px solid #b9ac8e; padding-bottom:6px; margin-top:30px;}
+  .entry{display:flex; gap:12px; border-bottom:1px solid #b9ac8e; padding:16px 0;}
+  .entry.hide{display:none;}
+  .num{font-family:monospace; font-size:13px; color:#8b8370; min-width:40px; text-align:right; flex-shrink:0;}
+  .head{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:baseline;}
+  .head h3{font-size:20px; margin:0;}
+  .badge{font-family:monospace; font-size:11px; background:#dbe1e8; color:#33465C; padding:2px 8px; border-radius:4px; white-space:nowrap;}
+  .tag{display:inline-block; font-family:monospace; font-size:10.5px; border:1px solid #b9ac8e; padding:1px 6px; border-radius:4px; margin:5px 5px 0 0; color:#57503e;}
+  .book{font-size:13px; color:#8a7038; margin-top:6px;}
+  .photo{max-width:220px; border-radius:5px; margin-top:10px; display:block;}
+  .text{margin-top:10px; white-space:pre-wrap;}
+  .video a{color:#33465C;}
+  .empty{font-style:italic; color:#57503e;}
+  .setupbox{border:1px solid #b9ac8e; border-radius:8px; padding:16px; background:#f3eddd; margin-bottom:20px;}
+  a.reset{font-size:12.5px; color:#8b8370;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Miscellanies</h1>
+  <div class="sub">a searchable, read-only view of your notes</div>
+  <div id="setup"></div>
+  <div id="content"></div>
+</div>
+
+<script>
+(function(){
+
+  function escapeHtml(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function qsParam(name){
+    var m = new RegExp('[?&]'+name+'=([^&]*)').exec(window.location.search);
+    return m ? decodeURIComponent(m[1].replace(/\+/g,' ')) : null;
+  }
+
+  // Turn a share-page link from Dropbox / Google Drive into a direct-content URL
+  // where possible, since a share *page* (with buttons and a preview) can't be
+  // fetched as raw JSON the way a direct file link can.
+  function normalizeLink(url){
+    try{
+      var u = new URL(url);
+      if(/dropbox\.com$/.test(u.hostname)){
+        u.searchParams.set('dl','1');
+        return u.toString();
+      }
+      if(/drive\.google\.com$/.test(u.hostname)){
+        var m = u.pathname.match(/\/file\/d\/([^/]+)/) || [null, u.searchParams.get('id')];
+        if(m[1]) return 'https://drive.google.com/uc?export=download&id=' + m[1];
+      }
+    }catch(e){}
+    return url;
+  }
+
+  function render(data){
+    var html = data.notebooks.map(function(n){
+      var entries = n.entries || [];
+      var rows = entries.map(function(e){
+        var tags = (e.tags||[]).map(function(t){ return '<span class="tag">'+escapeHtml(t)+'</span>'; }).join('');
+        var photos = (e.photos||[]).map(function(p){ return '<img class="photo" src="'+p+'">'; }).join('');
+        var searchBlob = (e.title+' '+e.body+' '+e.ref+' '+(e.tags||[]).join(' ')).toLowerCase();
+        return '<div class="entry" data-search="'+escapeHtml(searchBlob)+'">'+
+          '<div class="num">no. '+escapeHtml(e.id)+'</div>'+
+          '<div class="body">'+
+            '<div class="head"><h3>'+escapeHtml(e.title||'untitled')+'</h3>'+
+              (e.ref ? '<span class="badge">'+escapeHtml(e.ref)+'</span>' : '')+
+            '</div>'+
+            (tags ? '<div>'+tags+'</div>' : '')+
+            (e.book ? '<div class="book">'+escapeHtml(e.book)+(e.page?', p. '+escapeHtml(e.page):'')+'</div>' : '')+
+            photos+
+            '<div class="text">'+escapeHtml(e.body||'').replace(/\n/g,'<br>')+'</div>'+
+            (e.videoLink ? '<div class="video"><a href="'+escapeHtml(e.videoLink)+'">watch related video &rarr;</a></div>' : '')+
+          '</div>'+
+        '</div>';
+      }).join('');
+      return '<section><h2 class="nbname">'+escapeHtml(n.name)+'</h2>'+(rows||'<p class="empty">No entries yet.</p>')+'</section>';
+    }).join('');
+
+    var when = data.generatedAt ? new Date(data.generatedAt).toLocaleString() : '';
+    document.getElementById('content').innerHTML =
+      '<div class="note">Last updated from your computer: '+escapeHtml(when)+'. '+
+        '<a class="reset" href="javascript:void(0)" id="resetLink">use a different link</a></div>'+
+      '<input type="text" id="search" placeholder="Search&hellip;">'+
+      html;
+
+    document.getElementById('search').addEventListener('input', function(e){
+      var q = e.target.value.toLowerCase();
+      document.querySelectorAll('.entry').forEach(function(el){
+        el.classList.toggle('hide', q && el.getAttribute('data-search').indexOf(q) === -1);
+      });
+    });
+    document.getElementById('resetLink').addEventListener('click', function(){
+      try{ localStorage.removeItem('miscellanies-viewer-src'); }catch(e){}
+      window.location.search = '';
+    });
+  }
+
+  function showError(msg, rawUrl){
+    document.getElementById('content').innerHTML =
+      '<div class="error"><b>Couldn\'t load your notes automatically.</b><br>'+escapeHtml(msg)+'</div>'+
+      '<div class="setupbox">'+
+        '<p style="margin-top:0;">As a fallback, open <b>miscellanies-data.json</b> in your cloud storage app, '+
+        'select all its text, copy it, and paste it below.</p>'+
+        '<div class="field"><textarea id="pastebox" placeholder="Paste the contents of miscellanies-data.json here"></textarea></div>'+
+        '<button id="pasteLoad">Show my notes</button>'+
+        '<button class="ghost" id="pasteRetry">Try the link again</button>'+
+      '</div>';
+    document.getElementById('pasteLoad').addEventListener('click', function(){
+      try{
+        var data = JSON.parse(document.getElementById('pastebox').value);
+        render(data);
+      }catch(e){ alert('That didn\'t look like valid notebook data — check you copied the whole file.'); }
+    });
+    document.getElementById('pasteRetry').addEventListener('click', function(){
+      loadFrom(rawUrl, true);
+    });
+  }
+
+  function loadFrom(url, forceNoCache){
+    var fetchUrl = normalizeLink(url) + (forceNoCache ? (url.indexOf('?')===-1?'?':'&')+'_ts='+Date.now() : '');
+    fetch(fetchUrl, {cache:'no-store'}).then(function(r){
+      if(!r.ok) throw new Error('Server responded with an error (status '+r.status+')');
+      return r.json();
+    }).then(function(data){
+      if(!data || !data.notebooks) throw new Error('The file didn\'t look like Miscellanies data.');
+      render(data);
+    }).catch(function(err){
+      showError(err.message || 'The link couldn\'t be reached from here — this can happen with some cloud services.', url);
+    });
+  }
+
+  function showSetup(){
+    document.getElementById('setup').innerHTML =
+      '<div class="setupbox">'+
+        '<p style="margin-top:0;">This page hasn\'t been pointed at a notebook yet. Open the Miscellanies app on '+
+        'your computer, go to Advanced &rarr; <b>"Phone link&hellip;"</b>, and it will build the exact link to '+
+        'bookmark here &mdash; or paste your data link directly below.</p>'+
+        '<div class="field"><label for="manualsrc">Data link</label><input type="text" id="manualsrc" placeholder="https://www.dropbox.com/... or https://drive.google.com/..."></div>'+
+        '<button id="manualGo">Show my notes</button>'+
+      '</div>';
+    document.getElementById('manualGo').addEventListener('click', function(){
+      var v = document.getElementById('manualsrc').value.trim();
+      if(!v) return;
+      try{ localStorage.setItem('miscellanies-viewer-src', v); }catch(e){}
+      document.getElementById('setup').innerHTML = '';
+      loadFrom(v);
+    });
+  }
+
+  var src = qsParam('src');
+  if(src){
+    try{ localStorage.setItem('miscellanies-viewer-src', src); }catch(e){}
+    loadFrom(src);
+  }else{
+    var saved = null;
+    try{ saved = localStorage.getItem('miscellanies-viewer-src'); }catch(e){}
+    if(saved) loadFrom(saved);
+    else showSetup();
+  }
+
+})();
+</script>
+</body>
+</html>
