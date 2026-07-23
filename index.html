@@ -1,0 +1,2633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digging Deep: Notetaker Deluxe — Inspired by Jonathan Edwards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #E8E1D0;
+    --paper-2: #DDD4BE;
+    --paper-deep: #cfc4a8;
+    --ink: #2A241C;
+    --ink-soft: #57503e;
+    --ink-faint: #8b8370;
+    --rubric: #7A2E2A;
+    --rubric-bg: #f0dcd6;
+    --blue: #33465C;
+    --blue-bg: #dbe1e8;
+    --brass: #8a7038;
+    --brass-bg: #e9dcb8;
+    --line: #b9ac8e;
+    --card: #f3eddd;
+    --shadow: 0 2px 10px rgba(42,36,28,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: radial-gradient(ellipse at top, #efe8d8, var(--paper) 60%);
+    color: var(--ink);
+    font-family:'EB Garamond', serif;
+    font-size:17px;
+    line-height:1.55;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:44px 22px 100px;}
+
+  .masthead{text-align:center; margin-bottom:28px;}
+  .masthead h1{
+    font-family:'Cormorant Garamond', serif;
+    font-weight:700; font-size:54px; letter-spacing:0.03em; margin:0 0 2px;
+  }
+  .masthead .sub{font-style:italic; color:var(--ink-soft); font-size:15.5px;}
+  .masthead .brand{
+    font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.06em;
+    text-transform:uppercase; color:var(--brass); margin-top:10px;
+  }
+  .masthead .epigraph{
+    max-width:480px; margin:16px auto 0; font-style:italic; font-size:14.5px;
+    color:var(--ink-soft); line-height:1.5; border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line); padding:12px 4px;
+  }
+  .masthead .epigraph .epi-attr{
+    display:block; margin-top:6px; font-style:normal;
+    font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--ink-faint);
+  }
+  #studyBibleLink{margin-top:10px;}
+  #studyBibleLink a{
+    font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--rubric);
+    text-decoration:underline;
+  }
+
+  .modebar{
+    display:flex; justify-content:center; align-items:center; gap:14px;
+    margin-bottom:22px; flex-wrap:wrap;
+  }
+  .pillgroup{
+    display:inline-flex; background:var(--card); border:1px solid var(--line);
+    border-radius:999px; padding:3px;
+  }
+  .pillgroup button{
+    border:none; background:transparent; padding:7px 16px; border-radius:999px;
+    font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.03em;
+    color:var(--ink-soft); cursor:pointer;
+  }
+  .pillgroup button.active{background:var(--ink); color:var(--paper);}
+
+  .notebooktabs{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+  .nbtab{
+    font-family:'JetBrains Mono', monospace; font-size:12px;
+    padding:7px 14px; border-radius:6px 6px 0 0;
+    background:var(--brass-bg); color:var(--brass); border:1px solid var(--line);
+    border-bottom:none; cursor:pointer;
+  }
+  .nbtab.active{background:var(--card); color:var(--ink); font-weight:600;}
+  .nbtab.addnb{background:transparent; border-style:dashed; color:var(--ink-faint);}
+
+  .toolbar{display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; align-items:center;}
+  .toolbar input[type="text"], .toolbar select{
+    font-family:'EB Garamond', serif; font-size:15.5px; padding:9px 12px;
+    background:var(--card); border:1px solid var(--line); border-radius:5px; color:var(--ink);
+  }
+  .toolbar input[type="text"]{flex:1; min-width:180px;}
+  button.btn{
+    font-family:'EB Garamond', serif; font-size:15px; cursor:pointer;
+    border-radius:5px; border:1px solid var(--line); background:var(--card);
+    color:var(--ink); padding:9px 16px; transition:background .12s ease;
+  }
+  button.btn:hover{background:var(--paper-2);}
+  button.btn.primary{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  button.btn.primary:hover{background:#463d2e;}
+  button.btn.rubric{color:var(--rubric); border-color:var(--rubric); background:transparent;}
+  button.btn.rubric:hover{background:var(--rubric-bg);}
+  button.btn.small{font-size:13px; padding:6px 12px;}
+  button.btn.ghost{background:transparent; border-color:transparent; color:var(--ink-soft);}
+  button.btn.ghost:hover{background:var(--paper-2);}
+
+  .count{font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--ink-faint); text-align:right; margin-bottom:14px;}
+
+  /* STREAM */
+  .entry{display:flex; gap:16px; border-bottom:1px solid var(--line); padding:18px 0;}
+  .entry-num{
+    font-family:'JetBrains Mono', monospace; font-size:14px; font-weight:600;
+    color:var(--ink-faint); min-width:44px; text-align:right; padding-top:3px; flex-shrink:0;
+  }
+  .entry-body{flex:1; min-width:0;}
+  .entry-head{display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; cursor:pointer;}
+  .entry-title{font-family:'Cormorant Garamond', serif; font-weight:600; font-size:22px; margin:0;}
+  .entry-badges{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+  .badge{
+    font-family:'JetBrains Mono', monospace; font-size:11.5px; padding:2px 8px; border-radius:4px; white-space:nowrap;
+  }
+  .badge.ref{color:var(--blue); background:var(--blue-bg);}
+  .badge.book{color:var(--brass); background:var(--brass-bg);}
+  .tag{
+    display:inline-block; font-family:'JetBrains Mono', monospace; font-size:11px;
+    color:var(--ink-soft); border:1px solid var(--line); padding:1px 7px; border-radius:4px; margin:5px 5px 0 0;
+  }
+  .entry-photo{max-width:220px; border-radius:5px; margin-top:10px; border:1px solid var(--line); display:block;}
+  .entry-text{margin-top:10px; white-space:pre-wrap; display:none;}
+  .entry-text.open{display:block;}
+  .entry-related{margin-top:10px; font-size:14px; color:var(--rubric); font-style:italic; display:none;}
+  .entry-related.open{display:block;}
+  .entry-related a{color:var(--rubric); cursor:pointer; text-decoration:underline;}
+  .entry-video{margin-top:8px; font-size:13.5px; display:none;}
+  .entry-video.open{display:block;}
+  .entry-video a{color:var(--blue);}
+  .passage-panel{
+    margin-top:10px; padding:12px 14px; background:var(--blue-bg); border-radius:6px;
+    font-size:15px; color:var(--ink); display:none; line-height:1.6;
+  }
+  .passage-panel.open{display:block;}
+  .passage-panel .pref{font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--blue); margin-bottom:6px; display:block;}
+  .passage-panel .pfallback{font-size:12.5px; margin-top:6px; display:block;}
+  .passage-panel .pfallback a{color:var(--blue);}
+  .pswitch{display:flex; gap:6px; margin-bottom:8px;}
+  .ptbtn{
+    font-family:'JetBrains Mono', monospace; font-size:11px; padding:3px 9px;
+    border-radius:4px; border:1px solid var(--blue); background:transparent;
+    color:var(--blue); cursor:pointer; text-decoration:none; display:inline-block;
+  }
+  .ptbtn.active{background:var(--blue); color:var(--paper);}
+  .entry-actions{margin-top:10px; display:none; gap:8px;}
+  .entry-actions.open{display:flex;}
+
+  .empty{text-align:center; padding:60px 20px; color:var(--ink-soft); font-style:italic;}
+
+  /* FORM */
+  .form{background:var(--card); border:1px solid var(--line); border-radius:8px; padding:24px; margin-bottom:26px; display:none; box-shadow:var(--shadow);}
+  .form.open{display:block;}
+  .form h2{font-family:'Cormorant Garamond', serif; font-size:23px; margin:0 0 16px; font-weight:600;}
+  .field{margin-bottom:13px;}
+  .field label{
+    display:block; font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--ink-soft);
+    margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;
+  }
+  .field input, .field textarea, .field select{
+    width:100%; font-family:'EB Garamond', serif; font-size:15.5px; padding:9px 11px;
+    background:var(--paper); border:1px solid var(--line); border-radius:5px; color:var(--ink);
+  }
+  .field textarea{resize:vertical; min-height:110px; line-height:1.5;}
+  .field-row{display:flex; gap:14px; flex-wrap:wrap;}
+  .field-row .field{flex:1; min-width:140px;}
+  .form-actions{display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;}
+  .hint{font-size:12px; color:var(--ink-faint); margin-top:4px;}
+  .advonly{border-top:1px dashed var(--line); margin-top:16px; padding-top:14px;}
+  .advonly .advlabel{font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--brass); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;}
+
+  /* LIBRARY */
+  .shelfbox{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:28px 24px 0; box-shadow:var(--shadow);}
+  .shelf-head{text-align:center; margin-bottom:22px;}
+  .shelf-head .t{font-family:'Cormorant Garamond', serif; font-weight:700; font-size:30px; color:var(--ink);}
+  .shelf-head .s{font-size:13.5px; font-style:italic; color:var(--ink-soft); margin-top:2px;}
+  .books-row{display:flex; align-items:flex-end; gap:9px; padding:0 8px 16px; overflow-x:auto; min-height:140px;}
+  .book-spine{
+    border-radius:4px 4px 0 0; position:relative; cursor:pointer;
+    box-shadow: inset -5px 0 10px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.12);
+    transition: transform .12s ease;
+  }
+  .book-spine:hover{transform:translateY(-4px);}
+  .book-spine .spine-label{
+    position:absolute; bottom:12px; left:0; right:0; text-align:center;
+    writing-mode:vertical-rl; letter-spacing:0.03em; font-family:'EB Garamond', serif;
+  }
+  .book-spine .reading-flag{
+    position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+    font-family:'JetBrains Mono', monospace; font-size:9px; background:var(--blue); color:var(--blue-bg);
+    padding:2px 7px; border-radius:3px; white-space:nowrap;
+  }
+  .shelf-surface{height:12px; background:var(--brass); border-radius:0 0 4px 4px; margin:0 4px; opacity:0.55;}
+  .addbook-spine{
+    width:40px; min-height:120px; border:1px dashed var(--line); border-radius:4px 4px 0 0;
+    display:flex; align-items:center; justify-content:center; color:var(--ink-faint);
+    font-size:22px; cursor:pointer; background:transparent; align-self:flex-end;
+  }
+  .lib-hint{text-align:center; font-size:11.5px; color:var(--ink-faint); padding:8px 0 16px; font-style:italic;}
+
+  /* OPEN BOOK */
+  .openbook{background:linear-gradient(180deg, #d7cca9, #cabb94); border-radius:10px; padding:22px; box-shadow:var(--shadow);}
+  .openbook-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;}
+  .openbook-title{font-family:'Cormorant Garamond', serif; font-weight:700; font-size:24px; color:var(--ink);}
+  .openbook-author{font-size:13.5px; font-style:italic; color:var(--ink-soft);}
+  .spread{
+    display:flex; background:var(--paper); border-radius:6px; overflow:hidden;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.18); min-height:340px;
+  }
+  .tabs-rail{
+    width:120px; background:var(--paper-deep); border-right:1px solid var(--line);
+    padding:14px 0; overflow-y:auto; max-height:520px;
+  }
+  .tabitem{
+    font-family:'JetBrains Mono', monospace; font-size:11.5px; padding:9px 12px;
+    cursor:pointer; color:var(--ink-soft); border-left:3px solid transparent;
+  }
+  .tabitem.active{background:var(--paper); color:var(--ink); border-left-color:var(--rubric); font-weight:600;}
+  .tabitem:hover{background:var(--paper-2);}
+  .page-pane{flex:1; padding:26px 30px; position:relative;}
+  .page-pane::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:1px; background:var(--line); opacity:0.5;
+  }
+  .page-num-corner{
+    position:absolute; top:14px; right:20px; font-family:'JetBrains Mono', monospace;
+    font-size:11px; color:var(--ink-faint);
+  }
+
+  .status{font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--ink-faint); text-align:center; padding:40px 0;}
+  .flash{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:var(--paper); font-size:13.5px; padding:9px 18px;
+    border-radius:5px; opacity:0; pointer-events:none; transition:opacity .25s ease; z-index:50;
+  }
+  .flash.show{opacity:1;}
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(42,36,28,0.45); display:none;
+    align-items:center; justify-content:center; z-index:40; padding:20px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--card); border-radius:8px; padding:22px; max-width:380px; width:100%; box-shadow:var(--shadow);}
+  .modal h3{font-family:'Cormorant Garamond', serif; font-size:20px; margin:0 0 14px;}
+  .modal.wide{max-width:580px; max-height:82vh; overflow-y:auto;}
+
+  /* polish */
+  .entry{transition:background .15s ease; border-radius:6px;}
+  .entry:hover{background:rgba(0,0,0,0.03);}
+  .flash button{
+    margin-left:12px; background:var(--brass); border:none; color:#fff;
+    font-family:'JetBrains Mono', monospace; font-size:11px; padding:3px 10px;
+    border-radius:4px; cursor:pointer;
+  }
+  .flash.show{opacity:1; pointer-events:auto;}
+
+  /* stacked bookcase */
+  .bookcase{
+    background:linear-gradient(180deg, #7a5c39, #5e4527);
+    border-radius:10px; padding:20px 14px 6px;
+    box-shadow: inset 0 0 46px rgba(0,0,0,0.28), var(--shadow);
+  }
+  .bookcase .books-row{padding:0 6px 0; min-height:150px;}
+  .shelf-plank{
+    height:13px; background:linear-gradient(180deg, #93703f, #63482a);
+    border-radius:3px; margin:0 2px 20px;
+    box-shadow:0 5px 7px rgba(0,0,0,0.38);
+  }
+  .book-spine .spine-label{
+    text-shadow:0 1px 2px rgba(0,0,0,0.55);
+    max-height:calc(100% - 22px); overflow:hidden;
+  }
+
+  /* trash */
+  .trashbox{margin-top:38px; border-top:1px dashed var(--line); padding-top:12px; font-size:13px; color:var(--ink-faint);}
+  .trashbox .trash-t{font-family:'JetBrains Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;}
+  .trashbox a{color:var(--ink-soft); cursor:pointer; text-decoration:underline;}
+  .trash-row{margin:3px 0;}
+
+  /* guide */
+  .guide h4{font-family:'JetBrains Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--brass); margin:18px 0 6px;}
+  .guide p, .guide ol, .guide ul{font-size:14px; color:var(--ink-soft); margin:6px 0; line-height:1.55;}
+  .guide ol, .guide ul{padding-left:20px;}
+  .guide li{margin-bottom:4px;}
+
+  /* dark mode */
+  body.dark{
+    --paper:#221e17; --paper-2:#2a251d; --paper-deep:#1b1712;
+    --ink:#e7dfca; --ink-soft:#b9ae92; --ink-faint:#857c66;
+    --rubric:#d29388; --rubric-bg:#43302b;
+    --blue:#a3b8d1; --blue-bg:#2e3947;
+    --brass:#c9ad6e; --brass-bg:#3b3325;
+    --line:#4d463a; --card:#2b261e;
+    --shadow:0 2px 12px rgba(0,0,0,0.5);
+    background:radial-gradient(ellipse at top, #2a251c, #1d1914 60%);
+  }
+  body.dark .entry:hover{background:rgba(255,255,255,0.03);}
+  body.dark .openbook{background:linear-gradient(180deg, #353025, #2a251c);}
+  body.dark .flash button{color:#1d1914;}
+
+  /* photo gallery */
+  .photo-gallery{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+  .photo-gallery .entry-photo{max-width:150px; margin-top:0;}
+
+  /* focus mode */
+  body.focus-mode .masthead, body.focus-mode .modebar, body.focus-mode .notebooktabs,
+  body.phone #folderBtn{display:none !important;}
+  body.focus-mode #advancedToolsBar, body.focus-mode .toolbar, body.focus-mode .count,
+  body.focus-mode > .wrap > #app > .empty, body.focus-mode .trashbox{ display:none !important; }
+  body.focus-mode .entry{ display:none !important; }
+  body.focus-mode .form{ margin-top:30px; box-shadow:none; border:none; background:transparent; }
+  body.focus-mode .field textarea{ min-height:340px; font-size:18px; }
+  body.focus-mode .wrap{ max-width:720px; }
+
+  /* reference picker */
+  .refpick-list{max-height:320px; overflow-y:auto; border:1px solid var(--line); border-radius:6px; margin-top:10px;}
+  .refpick-item{padding:8px 12px; cursor:pointer; border-bottom:1px solid var(--line); font-size:14px;}
+  .refpick-item:last-child{border-bottom:none;}
+  .refpick-item:hover{background:var(--paper-2);}
+  .refpick-item .rnum{font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--ink-faint); margin-right:8px;}
+
+  /* index view */
+  .indexbox{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:24px; box-shadow:var(--shadow);}
+  .index-group{margin-bottom:22px;}
+  .index-group h3{font-family:'Cormorant Garamond', serif; font-size:19px; margin:0 0 8px; border-bottom:1px solid var(--line); padding-bottom:5px;}
+  .index-group .idxlist a{color:var(--rubric); cursor:pointer; text-decoration:underline; margin-right:12px; font-size:14px; display:inline-block; margin-bottom:4px;}
+  .index-tabs{display:flex; gap:8px; margin-bottom:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <h1>Digging Deep: Notetaker Deluxe</h1>
+    <div class="sub">inspired by Jonathan Edwards &mdash; a running notebook, entered and cross-referenced as occasion offers</div>
+    <div class="brand">a Biblical Studies and Reviews notebook</div>
+    <div class="epigraph">
+      &ldquo;Resolved, whenever I so much question whether I have done my duty, as that my quiet
+      and calm is thereby disturbed, to set it down, and also how the question was resolved.&rdquo;
+      <span class="epi-attr">&mdash; Jonathan Edwards, Resolution 35, Dec. 18, 1722</span>
+    </div>
+    <div id="studyBibleLink"></div>
+  </div>
+
+  <div class="modebar">
+    <div class="pillgroup" id="modeToggle">
+      <button data-mode="simple">simple</button>
+      <button data-mode="advanced">advanced</button>
+    </div>
+    <div class="pillgroup" id="viewToggle"></div>
+    <button class="btn small ghost" id="guideBtn" title="How to use this notebook" aria-label="Open the guide">guide</button>
+    <button class="btn small ghost" id="themeBtn" title="Toggle dark mode" aria-label="Toggle dark mode">&#9789;</button>
+  </div>
+
+  <div class="notebooktabs" id="notebookTabs" style="display:none;"></div>
+
+  <div id="advancedToolsBar" style="display:flex; justify-content:center; gap:8px; margin-bottom:18px; flex-wrap:wrap;">
+    <button class="btn small" id="exportBtn">Export backup</button>
+    <button class="btn small" id="importBtn">Import backup</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none;">
+    <button class="btn small" id="exportRtfBtn">Export as document (.rtf)</button>
+    <button class="btn small" id="exportVolumeBtn">Export bound volume (printable)</button>
+    <button class="btn small" id="exportPhoneBtn" title="A backup without photos — small enough for a phone's browser storage">Export for phone (no photos)</button>
+    <button class="btn small" id="folderBtn">Save to folder&hellip;</button>
+    <button class="btn small" id="helpBtn">About &amp; links</button>
+  </div>
+
+  <div id="app"></div>
+</div>
+
+<div class="flash" id="flash"></div>
+
+<div class="modal-overlay" id="nbModal">
+  <div class="modal">
+    <h3>New notebook</h3>
+    <div class="field"><label for="nb-name">Name</label><input type="text" id="nb-name" placeholder="e.g. Sermons"></div>
+    <div class="form-actions">
+      <button class="btn primary" id="nbSave">Create</button>
+      <button class="btn" id="nbCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="bookModal">
+  <div class="modal">
+    <h3>New book</h3>
+    <div class="field"><label for="bk-title">Title</label><input type="text" id="bk-title" placeholder="e.g. History of the Christian Church, Vol. 2"></div>
+    <div class="field"><label for="bk-author">Author</label><input type="text" id="bk-author" placeholder="e.g. Philip Schaff"></div>
+    <div class="field">
+      <label for="bk-status">Status</label>
+      <select id="bk-status"><option value="reading">Currently reading</option><option value="finished">Finished</option></select>
+    </div>
+    <div class="form-actions">
+      <button class="btn primary" id="bkSave">Add to shelf</button>
+      <button class="btn" id="bkCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="refPickerModal">
+  <div class="modal wide">
+    <h3>Insert a reference</h3>
+    <div class="field"><input type="text" id="refPickerSearch" placeholder="Search entries by title or number&hellip;"></div>
+    <div class="refpick-list" id="refPickerList"></div>
+    <div class="form-actions" style="margin-top:14px;">
+      <button class="btn" id="refPickerClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="helpModal">
+  <div class="modal" style="max-width:440px;">
+    <h3>About this notebook</h3>
+    <p style="font-size:14.5px; color:var(--ink-soft); margin-top:0;">
+      In the spirit of Jonathan Edwards' own Miscellanies, a running notebook of reflections,
+      numbered and cross-referenced as thought developed over time. Your entries are saved only
+      on this computer, in this browser &mdash; they are never sent anywhere.
+    </p>
+    <div id="helpLinks" style="margin-bottom:14px;"></div>
+    <div class="field"><label for="help-tutorial">Tutorial video link</label><input type="text" id="help-tutorial" placeholder="https://youtube.com/..."></div>
+    <div class="field"><label for="help-channel">Channel link</label><input type="text" id="help-channel" placeholder="https://youtube.com/@..."></div>
+    <div class="field"><label for="help-studybible">Jonathan Edwards Study Bible link</label><input type="text" id="help-studybible" placeholder="https://amzn.to/..."></div>
+    <div class="field"><label for="help-membership">Channel membership link</label><input type="text" id="help-membership" placeholder="https://youtube.com/channel/.../join"></div>
+    <div class="form-actions">
+      <button class="btn primary" id="helpSave">Save links</button>
+      <button class="btn" id="helpClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="phoneModeModal">
+  <div class="modal" style="max-width:460px;">
+    <h3>You're on a phone &mdash; a few things to know</h3>
+    <ul style="font-size:14.5px; color:var(--ink-soft); padding-left:20px;">
+      <li>Your notes save <b>in this phone's browser only</b>. Clearing the browser's data erases them &mdash; export a backup now and then (Advanced &rarr; Export backup).</li>
+      <li>Phone browser storage is limited, so go easy on photos. When bringing notes over from your computer, use its <b>"Export for phone (no photos)"</b> button.</li>
+      <li>There's no automatic sync with other devices &mdash; you move notes by hand with Export and Import backup. See the <b>guide</b> for the steps.</li>
+      <li>"Save to folder&hellip;" is a desktop-only feature and is hidden here.</li>
+    </ul>
+    <div class="form-actions">
+      <button class="btn primary" id="phoneModeOk">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="guideModal">
+  <div class="modal wide guide">
+    <h3>How to use this notebook</h3>
+    <p>In the spirit of Jonathan Edwards' Miscellanies: every entry gets a permanent number, and entries refer to one another by number ("see no. 12") as your thought develops over the years. Nothing here is ever sent to any server &mdash; your notes are yours alone.</p>
+
+    <h4>Simple &amp; advanced</h4>
+    <p><b>Simple</b> is just the numbered stream: write, search, cross-reference. <b>Advanced</b> adds the idea inbox, the library shelf, multiple notebooks, backups, folder storage, and a few power tools.</p>
+
+    <h4>Where your notes live</h4>
+    <p>By default, in this browser on this computer &mdash; automatic, nothing to set up. For notes as real files on your hard drive, switch to Advanced and click <b>"Save to folder&hellip;"</b> (Chrome and Edge only). Everything then saves to a folder you choose, and keeps working offline.</p>
+
+    <h4>Using it on more than one device</h4>
+    <p>This is a single-device notebook at heart: your notes live in the browser of the device you're using, and nothing is ever sent to a server. To move notes to another device, you carry them by hand:</p>
+    <ol>
+      <li>On the device with your newest notes: Advanced &rarr; <b>Export backup</b>. (Moving to a phone? Use <b>Export for phone (no photos)</b> instead &mdash; phone browser storage is small, and photos fill it fast.)</li>
+      <li>Get the downloaded file to the other device however you like &mdash; AirDrop, email it to yourself, or drop it in iCloud Drive / Dropbox and open the Files app on the phone.</li>
+      <li>On the other device, open the app, switch to Advanced, click <b>Import backup</b>, and pick the file.</li>
+    </ol>
+    <p><b>Careful:</b> importing replaces everything on that device with the file's contents. Always export from whichever device has your newest notes.</p>
+
+    <h4>Using it on a phone</h4>
+    <p>The same app works on iPhone and Android when opened at its web address &mdash; open it in Safari or Chrome and use Share &rarr; <b>Add to Home Screen</b> for an app-like feel. Phone limitations worth knowing:</p>
+    <ol>
+      <li>Notes save in the phone's browser only. Clearing the browser's website data erases them, so export a backup now and then.</li>
+      <li>Phone browser storage is small &mdash; keep photos to a minimum on the phone, and bring notes over from your computer with <b>Export for phone (no photos)</b>.</li>
+      <li><b>Save to folder&hellip;</b> is desktop-only (Chrome and Edge); phones can't connect to a folder, so the button is hidden there.</li>
+    </ol>
+
+    <h4>Inserting an out-of-sequence number</h4>
+    <p>In Advanced mode the entry form shows an <b>entry number</b> field. Type any unused number to backfill an old thought (e.g. add no. 42 while the notebook is only at no. 39 &mdash; the counter then continues from 43). Use a decimal like <b>47.1</b> to slot an entry between two existing ones. The app won't let you reuse a taken number.</p>
+
+    <h4>Deleting (and undeleting)</h4>
+    <p>Deleted entries move to a Trash at the bottom of the stream, where you can restore them or delete them forever. An Undo button also appears for a few seconds after each delete.</p>
+
+    <h4>The library</h4>
+    <p>The shelf (Advanced &rarr; library) starts stocked with 25 classics Protestants have treasured for centuries. Click a spine to keep your reading notes inside that book, get a copy, or read it free online where a public-domain edition exists. Add your own books with the <b>+</b> spine.</p>
+
+    <h4>The index</h4>
+    <p>Edwards kept a running index to find his own Miscellanies later &mdash; this notebook keeps one automatically. Advanced &rarr; <b>index</b> shows every entry grouped by topic tag, and every entry grouped by scripture book in canonical order.</p>
+
+    <h4>Sharing a quote</h4>
+    <p>Open any entry and click <b>Share quote</b> to download a styled image with its title, a short excerpt, and its number &mdash; ready to post.</p>
+
+    <h4>Writing without distraction, and not losing your place</h4>
+    <p>While writing, <b>focus mode</b> hides everything but the entry form. Your draft also autosaves as you type; if you close the tab or the browser crashes mid-entry, reopening the form offers to restore it.</p>
+
+    <h4>Multiple photos, and a bound-volume export</h4>
+    <p>You can now attach more than one photo per entry. And <b>Export bound volume (printable)</b> in Advanced mode produces a styled, year-by-year keepsake page &mdash; open it and use your browser's Print &rarr; Save as PDF.</p>
+
+    <div class="form-actions" style="margin-top:18px;">
+      <button class="btn primary" id="guideClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var STORAGE_KEY = 'miscellanies-app-v3'; // bump this key whenever seed data changes, to force a fresh load for existing test installs
+
+  // 25 classics all Protestants treasure. amzn = affiliate link; free = public-domain copy where one exists.
+  function amzn(q){ return 'https://www.amazon.com/s?k='+q+'&tag=bsar07-20'; }
+  var STARTER_BOOKS = [
+    {id:'bk_s01', title:'The Holy Bible (KJV)', author:'', status:'', url:amzn('Holy+Bible+KJV'), freeUrl:'https://www.gutenberg.org/ebooks/10'},
+    {id:'bk_s02', title:'The Imitation of Christ', author:'Thomas à Kempis', status:'', url:amzn('The+Imitation+of+Christ+Thomas+a+Kempis'), freeUrl:'https://www.gutenberg.org/ebooks/1653'},
+    {id:'bk_s03', title:"The Pilgrim's Progress", author:'John Bunyan', status:'', url:amzn('The+Pilgrims+Progress+John+Bunyan'), freeUrl:'https://www.gutenberg.org/ebooks/131'},
+    {id:'bk_s04', title:'Confessions', author:'Augustine of Hippo', status:'', url:amzn('Confessions+Saint+Augustine'), freeUrl:'https://www.gutenberg.org/ebooks/3296'},
+    {id:'bk_s05', title:'The City of God', author:'Augustine of Hippo', status:'', url:amzn('The+City+of+God+Augustine'), freeUrl:'https://www.ccel.org/ccel/schaff/npnf102'},
+    {id:'bk_s06', title:'Institutes of the Christian Religion', author:'John Calvin', status:'', url:amzn('Institutes+of+the+Christian+Religion+Calvin'), freeUrl:'https://www.ccel.org/ccel/calvin/institutes'},
+    {id:'bk_s07', title:'The Bondage of the Will', author:'Martin Luther', status:'', url:amzn('The+Bondage+of+the+Will+Martin+Luther'), freeUrl:''},
+    {id:'bk_s08', title:"Foxe's Book of Martyrs", author:'John Foxe', status:'', url:amzn('Foxes+Book+of+Martyrs'), freeUrl:'https://www.gutenberg.org/ebooks/22400'},
+    {id:'bk_s09', title:'Religious Affections', author:'Jonathan Edwards', status:'', url:amzn('Religious+Affections+Jonathan+Edwards'), freeUrl:'https://www.ccel.org/ccel/edwards/affections'},
+    {id:'bk_s10', title:'The Freedom of the Will', author:'Jonathan Edwards', status:'', url:amzn('Freedom+of+the+Will+Jonathan+Edwards'), freeUrl:''},
+    {id:'bk_s11', title:'Grace Abounding to the Chief of Sinners', author:'John Bunyan', status:'', url:amzn('Grace+Abounding+to+the+Chief+of+Sinners+Bunyan'), freeUrl:'https://www.gutenberg.org/ebooks/654'},
+    {id:'bk_s12', title:'Paradise Lost', author:'John Milton', status:'', url:amzn('Paradise+Lost+John+Milton'), freeUrl:'https://www.gutenberg.org/ebooks/26'},
+    {id:'bk_s13', title:'The Practice of the Presence of God', author:'Brother Lawrence', status:'', url:amzn('The+Practice+of+the+Presence+of+God+Brother+Lawrence'), freeUrl:'https://www.gutenberg.org/ebooks/5657'},
+    {id:'bk_s14', title:'Holiness', author:'J.C. Ryle', status:'', url:amzn('Holiness+J+C+Ryle'), freeUrl:''},
+    {id:'bk_s15', title:'The Rare Jewel of Christian Contentment', author:'Jeremiah Burroughs', status:'', url:amzn('The+Rare+Jewel+of+Christian+Contentment+Burroughs'), freeUrl:''},
+    {id:'bk_s16', title:'The Mortification of Sin', author:'John Owen', status:'', url:amzn('The+Mortification+of+Sin+John+Owen'), freeUrl:''},
+    {id:'bk_s17', title:'The Death of Death in the Death of Christ', author:'John Owen', status:'', url:amzn('The+Death+of+Death+in+the+Death+of+Christ+Owen'), freeUrl:''},
+    {id:'bk_s18', title:'The Bruised Reed', author:'Richard Sibbes', status:'', url:amzn('The+Bruised+Reed+Richard+Sibbes'), freeUrl:''},
+    {id:'bk_s19', title:'The Westminster Confession of Faith', author:'', status:'', url:amzn('The+Westminster+Confession+of+Faith'), freeUrl:''},
+    {id:'bk_s20', title:'The Christian in Complete Armour', author:'William Gurnall', status:'', url:amzn('The+Christian+in+Complete+Armour+Gurnall'), freeUrl:''},
+    {id:'bk_s21', title:'Mere Christianity', author:'C.S. Lewis', status:'', url:amzn('Mere+Christianity+C+S+Lewis'), freeUrl:''},
+    {id:'bk_s22', title:'Knowing God', author:'J.I. Packer', status:'', url:amzn('Knowing+God+J+I+Packer'), freeUrl:''},
+    {id:'bk_s23', title:'The Holiness of God', author:'R.C. Sproul', status:'', url:amzn('The+Holiness+of+God+R+C+Sproul'), freeUrl:''},
+    {id:'bk_s24', title:'The Pursuit of God', author:'A.W. Tozer', status:'', url:amzn('The+Pursuit+of+God+A+W+Tozer'), freeUrl:''},
+    {id:'bk_s25', title:'The Valley of Vision', author:'Arthur Bennett, ed.', status:'', url:amzn('The+Valley+of+Vision+Puritan+Prayers'), freeUrl:''}
+  ];
+  var SPINE_COLORS = ['#33465C','#5f5644','#6b5a3e','#4a5240','#7a4e3a','#5a3f52','#3f5a52'];
+
+  var state = {
+    mode: 'simple',
+    view: 'stream',
+    activeNotebookId: 'default',
+    openBookId: null,
+    search: '',
+    tagFilter: '',
+    settings: { tutorialUrl:'', channelUrl:'', studyBibleUrl:'https://www.amazon.com/dp/1400339537?tag=bsar07-20', membershipUrl:'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join', dataLink:'', hostedViewerBase:'https://hackett5014544949-debug.github.io/miscellanies/viewer.html' },
+    notebooks: {
+      default: {
+        id:'default', name:'Miscellanies', nextId:16, books:STARTER_BOOKS, inbox:[], trash:[],
+        entries:[
+          {
+            id:1,
+            title:"Starlight and the Convention of Simultaneity",
+            ref:"Genesis 1:14",
+            tags:["astronomy","young earth","starlight","Jason Lisle"],
+            body:"In conversation with Dr. Jason Lisle (PhD astrophysics, Univ. of Colorado), the old objection I used to raise myself — that starlight from galaxies millions of light-years away requires a universe millions of years old — turns out to rest on an unexamined assumption. Einstein showed that the one-way speed of light is a matter of convention, not direct measurement; only the round-trip speed is fixed. Lisle's anisotropic synchrony convention (ASC) takes seriously that light's outward trip can be instantaneous from Earth's frame, which fits the observational data and, I'd add, the character of God: if light simply arrived already encoded with a history of events that never happened — a supernova that never occurred — that would make God the author of a fiction, which Scripture will not allow (Numbers 23:19). The old 'God made the light already in transit' answer is a different claim, and rightly abandoned; it really would have God painting false histories into the sky.\n\nSee no. 4.",
+            related:[4],
+            bookId:null, page:'', videoLink:"https://www.youtube.com/watch?v=CdsHMD6TgCc", photo:null,
+            created:"2026-07-21T13:05:00.000Z"
+          },
+          {
+            id:2,
+            title:"On Choosing a Desert-Island Bible",
+            ref:"Mark 8:34",
+            tags:["translations","KJV","Legacy Standard Bible","Greek"],
+            body:"Three translations I said I'd keep if limited to three, and why — notes from my own video on this:\n\nKJV or NKJV first, and not because I'm 'KJV-only.' It's 'the most beautiful translation that's ever been done in the English language,' woven into English itself, and 'a very literal rendering of the Greek.' The NKJV keeps that literalness but modernizes the language and flags in its notes where the manuscript traditions disagree.\n\nSecond, the Legacy Standard Bible, for its discipline of rendering the same Greek or Hebrew word with the same English word wherever possible — there have been times it's 'captured something in the Greek that no other English translation... really captured.'\n\nThird, the NET Bible — not chiefly for the translation itself, which 'takes a lot of liberty,' but for its extensive translators' notes, which show the reasoning (and sometimes several live options) behind hard textual calls.\n\nEven three good translations can't carry everything, though: English has no real equivalent to a Greek third-person imperative. 'Let him deny himself' (Mark 8:34) reads as permission in English; in the Greek it's a command.",
+            related:[],
+            bookId:null, page:'', videoLink:"https://www.youtube.com/watch?v=6CVyokYY_P8", photo:null,
+            created:"2026-07-19T15:40:00.000Z"
+          },
+          {
+            id:3,
+            title:"A Threefold Cord: Qumran, the Septuagint, and Psalm 22:16",
+            ref:"Psalm 22:16",
+            tags:["Septuagint","Dead Sea Scrolls","textual criticism","Messianic prophecy"],
+            body:"The most striking of seven examples I worked through this week: the Masoretic Text of Psalm 22:16 reads 'like a lion, they are at my hands and feet,' while the KJV, following the LXX, reads 'they pierced my hands and my feet.' For centuries this looked like a case where the Church's messianic reading had simply run ahead of the Hebrew text. But a Qumran-area fragment among the Nahal Hever scrolls (not published until 1999, though discovered decades earlier) supports the 'pierced' reading against the received Masoretic tradition.\n\nThat gives a threefold cord Solomon would recognize (Ecclesiastes 4:12): the Septuagint, the oldest Hebrew witness we now possess, and the New Testament's own use of the psalm all point the same direction. I hold the Masoretic tradition in high esteem and am not looking to overturn it lightly — but this is a case for real humility about which text has best preserved the original in specific, checkable instances. Worth setting alongside the Deuteronomy 32:43 / Hebrews 1:6 'angels of God' parallel from the same study.\n\nSee no. 5.",
+            related:[5],
+            bookId:null, page:'', videoLink:"https://www.youtube.com/watch?v=GPNLJdgfrfE", photo:null,
+            created:"2026-07-16T11:20:00.000Z"
+          },
+          {
+            id:4,
+            title:"Newton, Kepler, Boyle, and the Company of Young-Earth Minds",
+            ref:"Luke 24:25-27",
+            tags:["young earth","history of science","apologetics"],
+            body:"A useful corrective to the assumption that a young earth is a position held only in ignorance of the evidence: Newton (who wrote his own chronology of ancient kingdoms, dating creation to roughly 4000 BC), Kepler ('God has waited 6,000 years for an interpreter of his works'), and Boyle, the father of modern chemistry, all took Genesis at face value as a matter of course — not chiefly because the old-earth case hadn't been made yet in their era, but because they weighed Scripture as the more reliable witness.\n\nAnd it isn't only history: Kurt Wise (Harvard, under Stephen Jay Gould), Jason Lisle (see no. 1), and geneticist John Sanford — who became a young-earth creationist after a career in genetics, not before — show the same is true today among people who know the mainstream case in detail. None of this proves a young earth by itself. But it does remove the lazy objection that faithfulness to the text requires switching off one's mind. Christ himself pointed the Emmaus disciples back to Moses as authoritative (Luke 24:27) — a good place for me to keep returning to as well.",
+            related:[1],
+            bookId:null, page:'', videoLink:"https://www.youtube.com/watch?v=z0yLS-o4T7w", photo:null,
+            created:"2026-07-13T09:10:00.000Z"
+          },
+          {
+            id:5,
+            title:"Evening and Morning: The Grammar of Genesis 1",
+            ref:"Genesis 1:5",
+            tags:["Hebrew","Genesis 1","Bill Barrick","day-age theory"],
+            body:"Dr. Bill Barrick (Professor Emeritus of OT and Hebrew, The Master's Seminary) walking through the Hebrew of Genesis 1 was a good reminder of how much rides on getting the grammar right before building a theological framework on top of it. His case: 'evening and morning' bound together with a numbered day (yom echad, 'one day,' not 'first day,' in v.5) is the ordinary Hebrew idiom for a single ordinary day, and Exodus 20:11 later cites the six days of creation as the express ground for the six-day work week — which only carries force if both sets of days are the same kind of day.\n\nThat's a harder text for the day-age, gap, framework, and 'mytho-historical' readings (the sort associated with Craig, Heiser's cosmic-geography emphasis, and Walton's functional-creation reading) to absorb than their proponents sometimes let on, whatever else may be right in those approaches on other points. Barrick also drew out the chiastic structure of the creation week — its own argument for reading the days as a deliberate, unified literary and historical unit rather than a loose framework. Worth holding next to the Deuteronomy 32 / LXX discussion in no. 3 as another case of grammar doing real theological work.",
+            related:[3],
+            bookId:null, page:'', videoLink:"https://www.youtube.com/watch?v=Keqe_qmJ65I", photo:null,
+            created:"2026-07-10T20:15:00.000Z"
+          },
+          {
+            id:6,
+            title:"Myth #1: 'Septuagint' Didn't Originally Mean the Whole Old Testament",
+            ref:"",
+            tags:["Septuagint","Dr. John Meade","Letter of Aristeas","canon history"],
+            body:"First of ten myths Dr. John Meade (OT professor, Midwestern Baptist Theological Seminary; co-director, Text & Canon Institute) took on in this conversation: that 'Septuagint' originally referred to the whole Greek Old Testament. It didn't. The term (from the Latin for 'seventy,' really seventy-two in the earliest sources) comes from the Letter of Aristeas, the legendary account of Ptolemy II commissioning Jewish translators — for the Torah, the first five books, only. Meade traces the term's later expansion to cover the whole OT to Justin Martyr (d. c. 165 AD), apparently the first Christian writer to use 'the Seventy' that broadly. The earliest Jewish sources only ever attached the number to the Pentateuch; the rest of the Hebrew Bible was translated later, by different hands, at different times — Ben Sira's Greek preface (c. 130 BC) already reflects on how arduous that ongoing work was.\n\nSee no. 7.",
+            related:[7,15],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T09:05:00.000Z"
+          },
+          {
+            id:7,
+            title:"Myth #2: Should We Retire the Word 'Septuagint'?",
+            ref:"",
+            tags:["Septuagint","Dr. John Meade","textual criticism"],
+            body:"Some corners of the internet have argued we should drop the term 'Septuagint' altogether, since strictly it's a myth-attached name for the Torah translation alone — Meade is careful to note this isn't Peter Williams' actual position, even though a lecture of his got pulled into the controversy. Meade's own answer: keep using it, popularly, as shorthand for 'the oldest Greek translations of the Hebrew Bible' — that's harmless as long as everyone knows what's meant.\n\nWhat he does push back on is the further move some make from 'the term is technically imprecise' to 'therefore there's no reliable old Greek text, and it can't be used to critically engage the Hebrew tradition.' The naming question and the textual-reliability question are separate issues, and conflating them is the real sleight of hand.\n\nSee no. 6.",
+            related:[6,8],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T09:12:00.000Z"
+          },
+          {
+            id:8,
+            title:"Myth #3: Was the Septuagint 'One Thing' in the First Century?",
+            ref:"",
+            tags:["Septuagint","Dr. John Meade","Dead Sea Scrolls","textual criticism"],
+            body:"Meade's answer is deliberately both yes and no. Yes: for a given book, scholars can identify 'the old Greek' with real confidence — the Göttingen critical edition project (still not finished after roughly a century of work) reconstructs it book by book, and Meade says he has no real doubt that the volume he was holding represents the old Greek of Job.\n\nBut also: the first century itself was, in his words, 'a little wild' from a Greek textual standpoint. A Dead Sea Scroll fragment of Numbers (4QLXXNumbers), datable to roughly a century after the original translation, already shows small edits conforming it toward the standard Hebrew of its day. Revision of the Greek text was underway among Jewish scribes well before Jesus' lifetime — the 'one stable version' mental picture doesn't quite hold even that early.\n\nSee no. 9.",
+            related:[9],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T09:18:00.000Z"
+          },
+          {
+            id:9,
+            title:"Myth #4: The Old Greek Didn't Stay Fixed Until Christians Got Hold of It",
+            ref:"",
+            tags:["Septuagint","Dr. John Meade","Aquila","Theodotion","Symmachus"],
+            body:"Building on no. 8: revision of the Greek Old Testament wasn't sporadic tinkering that only picked up once Christians started using it — among Jews, it became genuinely systematic around the turn of the era. Meade points to the 'kaige tradition,' named for a Hebrew phrase (gam/wegam, 'and, even') this school of revisers rendered consistently, visible in a Greek Minor Prophets scroll dated roughly 50 BC-50 AD.\n\nThat systematic Jewish revising work fed into the three named Jewish revisers later Christian writers leaned on constantly: Theodotion (probably earliest, part of the kaige tradition), Aquila (c. 130 AD, reportedly a student of Rabbi Akiva, ultra-literal), and Symmachus (c. 180-200 AD, a more idiomatic corrective to Aquila's literalism — Meade's own comparison was that Aquila is the wooden crib-note and Symmachus is basically 'the NIV').\n\nSee no. 8.",
+            related:[8,10],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T09:24:00.000Z"
+          },
+          {
+            id:10,
+            title:"Myth #5: The Apostles Didn't ONLY Use the Septuagint",
+            ref:"Isaiah 25:8",
+            tags:["Dr. John Meade","Septuagint","New Testament","Theodotion"],
+            body:"The concrete example Meade gave has stuck with me: in 1 Corinthians 15:54, Paul quotes Isaiah 25:8 as 'death is swallowed up in victory' — which is Theodotion's rendering, not the old Greek's ('death having prevailed, swallowed up the nations'). Same underlying Hebrew consonants, different vowels and vocalization, very different sense — and Paul picks the version that serves his point.\n\nMeade's conclusion isn't that Paul is careless, but that the apostles had a plurality of Greek renderings available and reached for whichever communicated best to a given audience, the way a preacher today reaches for whichever English translation makes the point clearest. Other examples he raised: Matthew 2:15's 'out of Egypt I called my son' (Hosea 11:1) tracks the Hebrew more closely than the LXX; John 19:37's 'they will look on him whom they have pierced' (Zechariah 12:10) lines up with the Hebrew and Theodotion, not the LXX.\n\nSee no. 11.",
+            related:[11],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T09:30:00.000Z"
+          },
+          {
+            id:11,
+            title:"Myth #6: The Apostles Didn't Avoid the Septuagint Either",
+            ref:"",
+            tags:["Dr. John Meade","Septuagint","New Testament"],
+            body:"The necessary flip side of no. 10, and Meade holds both together deliberately: showing that the apostles sometimes quote Theodotion or track more closely with the Hebrew doesn't mean they avoided the Septuagint. As he put it plainly, 'the plethora of citations do come from this thing we call the Septuagint.'\n\nThe real picture isn't 'the apostles used the LXX' or 'the apostles avoided the LXX,' but apostles working from within a live, plural Greek textual tradition and drawing on whichever strand served the argument in front of them — with the old Greek doing the majority of that work, just not all of it.\n\nSee no. 10.",
+            related:[10],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T09:36:00.000Z"
+          },
+          {
+            id:12,
+            title:"Myth #7: Our Septuagint Manuscripts Aren't Hopelessly Corrupt",
+            ref:"",
+            tags:["Dr. John Meade","Septuagint","manuscripts","textual criticism"],
+            body:"Meade's case for confidence here: the great uncials — Sinaiticus, Vaticanus, Alexandrinus — are, in most cases, genuinely representative of the old Greek text, not late corruptions of it. Septuagint textual criticism also has an advantage most ancient textual criticism doesn't: because it's translation, scholars can compare a reading against the presumed Hebrew source text and describe an individual translator's habits book by book, which helps sort original readings from secondary ones.\n\nHis caveat was honest, though: those manuscripts are excellent witnesses to the translation as it stood well before the first century, but not as strong at pinning down exactly what was circulating in Jesus' own lifetime, since revision had already been underway for generations by then.\n\nSee no. 13.",
+            related:[13],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T09:42:00.000Z"
+          },
+          {
+            id:13,
+            title:"Myth #8: Christian Scribes Didn't Produce the Septuagint",
+            ref:"",
+            tags:["Dr. John Meade","Septuagint","canon history"],
+            body:"Worth restating plainly because Meade restates it plainly: the Septuagint — the original translation and its early revisions alike — is a Jewish project, start to finish. Christians inherited it; they didn't create it. He remarked more than once on just how unique and massive an undertaking the whole thing was for the ancient world.\n\nThat doesn't mean Christian scribes had zero hand at all in the text as it's now preserved (see no. 14), but the base translation work and the systematic Jewish revision through the kaige tradition, Theodotion, Aquila, and Symmachus is all pre-Christian or non-Christian Jewish scholarship that the church simply received and kept copying.\n\nSee no. 14.",
+            related:[14],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T09:48:00.000Z"
+          },
+          {
+            id:14,
+            title:"Myth #9: Christians Didn't Ruin the Septuagint, But They Did Touch It",
+            ref:"Psalm 96:10",
+            tags:["Dr. John Meade","Septuagint","Justin Martyr","textual criticism"],
+            body:"The most concrete example from the whole conversation: in his debate with Trypho, Justin Martyr quotes Psalm 96:10 (95:10 LXX) as 'the Lord has become king from the wood' — apo tou xylou, two words a scribe apparently added early on to make the psalm read as a direct prophecy of the cross. Trypho, per Meade, would have looked at Justin like he had 'twenty heads' — that phrase wasn't in his own text. A comparable case shows up at Psalm 13:3 LXX, which Paul quotes in Romans 3 as part of his indictment of humanity; a later scribe seems to have padded the psalm itself with Pauline material to match.\n\nMeade's point isn't that these examples don't exist — they do — but that, in his words, 'most scholars do not want to overestimate this Christianizing.' It shows up as isolated readings in particular manuscripts, not a wholesale rewriting that would keep us from recovering the earlier translation underneath it.\n\nSee no. 13.",
+            related:[13,15],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T09:54:00.000Z"
+          },
+          {
+            id:15,
+            title:"Myth #10: Origen Didn't Create the Septuagint",
+            ref:"",
+            tags:["Origen","Hexapla","Dr. John Meade","Septuagint"],
+            body:"The conversation's closing myth, and in some ways the payoff for everything before it: Origen's Hexapla — his multi-column comparison of the Hebrew alongside several Greek versions — didn't create the Septuagint. Per the video's own framing, it's downstream of everything in nos. 6 through 14: a third-century scholarly response to a Greek textual tradition that was already old, already plural, and already the product of centuries of Jewish translation and revision before Origen ever sat down with it.\n\nWhat the Hexapla actually did was reveal, in exhaustive and organized form, just how complex the state of the Old Testament text already was in his day — which is really the throughline of this whole conversation with Dr. Meade.\n\nSee no. 6.",
+            related:[6,10],
+            bookId:null, page:'', videoLink:"https://youtu.be/hQGUX8lYwcI", photo:null,
+            created:"2026-07-22T10:00:00.000Z"
+          }
+        ]
+      }
+    }
+  };
+  var editingId = null;
+  var openEntryId = null;
+  var passageCache = {};
+  var openPassageId = null;
+  var openPassageRef = null;
+  var openPassageTranslation = 'kjv';
+
+  var GREEK_BOOKS = {
+    matthew:'matthew', matt:'matthew', mt:'matthew',
+    mark:'mark', mk:'mark',
+    luke:'luke', lk:'luke',
+    john:'john', jn:'john',
+    acts:'acts',
+    romans:'romans', rom:'romans', ro:'romans',
+    '1corinthians':'1_corinthians', '1cor':'1_corinthians',
+    '2corinthians':'2_corinthians', '2cor':'2_corinthians',
+    galatians:'galatians', gal:'galatians',
+    ephesians:'ephesians', eph:'ephesians',
+    philippians:'philippians', phil:'philippians', php:'philippians',
+    colossians:'colossians', col:'colossians',
+    '1thessalonians':'1_thessalonians', '1thess':'1_thessalonians', '1th':'1_thessalonians',
+    '2thessalonians':'2_thessalonians', '2thess':'2_thessalonians', '2th':'2_thessalonians',
+    '1timothy':'1_timothy', '1tim':'1_timothy',
+    '2timothy':'2_timothy', '2tim':'2_timothy',
+    titus:'titus', tit:'titus',
+    philemon:'philemon', phm:'philemon',
+    hebrews:'hebrews', heb:'hebrews',
+    james:'james', jas:'james',
+    '1peter':'1_peter', '1pet':'1_peter', '1pt':'1_peter',
+    '2peter':'2_peter', '2pet':'2_peter', '2pt':'2_peter',
+    '1john':'1_john', '1jn':'1_john',
+    '2john':'2_john', '2jn':'2_john',
+    '3john':'3_john', '3jn':'3_john',
+    jude:'jude',
+    revelation:'revelation', rev:'revelation', apoc:'revelation'
+  };
+
+  // Full book names as CrossBible's URL scheme expects them (e.g. crossbible.com/Byzantine-Textform/John/1:1)
+  var CROSSBIBLE_BOOKS = {
+    matthew:'Matthew', mark:'Mark', luke:'Luke', john:'John', acts:'Acts', romans:'Romans',
+    '1_corinthians':'1 Corinthians', '2_corinthians':'2 Corinthians', galatians:'Galatians',
+    ephesians:'Ephesians', philippians:'Philippians', colossians:'Colossians',
+    '1_thessalonians':'1 Thessalonians', '2_thessalonians':'2 Thessalonians',
+    '1_timothy':'1 Timothy', '2_timothy':'2 Timothy', titus:'Titus', philemon:'Philemon',
+    hebrews:'Hebrews', james:'James', '1_peter':'1 Peter', '2_peter':'2 Peter',
+    '1_john':'1 John', '2_john':'2 John', '3_john':'3 John', jude:'Jude', revelation:'Revelation'
+  };
+
+  // Blue Letter Bible's 3-letter book codes for its TR interlinear (blueletterbible.org/tools/interlinear/tr/...)
+  var BLB_BOOKS = {
+    matthew:'mat', mark:'mar', luke:'luk', john:'jhn', acts:'act', romans:'rom',
+    '1_corinthians':'1co', '2_corinthians':'2co', galatians:'gal', ephesians:'eph',
+    philippians:'phi', colossians:'col', '1_thessalonians':'1th', '2_thessalonians':'2th',
+    '1_timothy':'1ti', '2_timothy':'2ti', titus:'tit', philemon:'phm', hebrews:'heb',
+    james:'jas', '1_peter':'1pe', '2_peter':'2pe', '1_john':'1jo', '2_john':'2jo',
+    '3_john':'3jo', jude:'jud', revelation:'rev'
+  };
+
+  // Septuagint (OT Greek) lookups: [Blue Letter Bible 3-letter code, Bible Hub slug for Brenton's English LXX]
+  var LXX_BOOKS = {
+    genesis:['gen','genesis'], gen:['gen','genesis'],
+    exodus:['exo','exodus'], exod:['exo','exodus'], exo:['exo','exodus'],
+    leviticus:['lev','leviticus'], lev:['lev','leviticus'],
+    numbers:['num','numbers'], num:['num','numbers'],
+    deuteronomy:['deu','deuteronomy'], deut:['deu','deuteronomy'], deu:['deu','deuteronomy'],
+    joshua:['jos','joshua'], josh:['jos','joshua'],
+    judges:['jdg','judges'], judg:['jdg','judges'],
+    ruth:['rth','ruth'],
+    '1samuel':['1sa','1_samuel'], '1sam':['1sa','1_samuel'],
+    '2samuel':['2sa','2_samuel'], '2sam':['2sa','2_samuel'],
+    '1kings':['1ki','1_kings'], '1kgs':['1ki','1_kings'],
+    '2kings':['2ki','2_kings'], '2kgs':['2ki','2_kings'],
+    '1chronicles':['1ch','1_chronicles'], '1chron':['1ch','1_chronicles'], '1chr':['1ch','1_chronicles'],
+    '2chronicles':['2ch','2_chronicles'], '2chron':['2ch','2_chronicles'], '2chr':['2ch','2_chronicles'],
+    ezra:['ezr','ezra'], nehemiah:['neh','nehemiah'], neh:['neh','nehemiah'],
+    esther:['est','esther'], esth:['est','esther'], job:['job','job'],
+    psalms:['psa','psalms'], psalm:['psa','psalms'], pss:['psa','psalms'], psa:['psa','psalms'], ps:['psa','psalms'],
+    proverbs:['pro','proverbs'], prov:['pro','proverbs'], pro:['pro','proverbs'],
+    ecclesiastes:['ecc','ecclesiastes'], eccl:['ecc','ecclesiastes'], ecc:['ecc','ecclesiastes'],
+    songofsongs:['sng','songs'], songofsolomon:['sng','songs'], song:['sng','songs'],
+    isaiah:['isa','isaiah'], isa:['isa','isaiah'],
+    jeremiah:['jer','jeremiah'], jer:['jer','jeremiah'],
+    lamentations:['lam','lamentations'], lam:['lam','lamentations'],
+    ezekiel:['eze','ezekiel'], ezek:['eze','ezekiel'], eze:['eze','ezekiel'],
+    daniel:['dan','daniel'], dan:['dan','daniel'],
+    hosea:['hos','hosea'], hos:['hos','hosea'], joel:['joe','joel'], amos:['amo','amos'],
+    obadiah:['oba','obadiah'], obad:['oba','obadiah'], jonah:['jon','jonah'], jon:['jon','jonah'],
+    micah:['mic','micah'], mic:['mic','micah'], nahum:['nah','nahum'], nah:['nah','nahum'],
+    habakkuk:['hab','habakkuk'], hab:['hab','habakkuk'],
+    zephaniah:['zep','zephaniah'], zeph:['zep','zephaniah'],
+    haggai:['hag','haggai'], hag:['hag','haggai'],
+    zechariah:['zec','zechariah'], zech:['zec','zechariah'],
+    malachi:['mal','malachi'], mal:['mal','malachi']
+  };
+
+  function normalizeBookKey(s){
+    s = s.trim().toLowerCase();
+    s = s.replace(/^iii\b\.?\s*/, '3').replace(/^ii\b\.?\s*/, '2').replace(/^i\b\.?\s*/, '1');
+    return s.replace(/[^a-z0-9]/g, '');
+  }
+
+  function prettifySlug(slug){
+    return slug.split('_').map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1); }).join(' ');
+  }
+  // Canonical book order (OT then NT), derived from the lookup maps so it stays in sync with them.
+  var BOOK_ORDER = (function(){
+    var order = [];
+    Object.keys(LXX_BOOKS).forEach(function(k){ var slug = LXX_BOOKS[k][1]; if(order.indexOf(slug)===-1) order.push(slug); });
+    Object.keys(GREEK_BOOKS).forEach(function(k){ var slug = GREEK_BOOKS[k]; if(order.indexOf(slug)===-1) order.push(slug); });
+    return order;
+  })();
+  function bookKeyForRef(ref){
+    var m = (ref||'').match(/^([1-3]?\s*[A-Za-z]+(?:\s+of\s+[A-Za-z]+)?)\.?\s+(\d+)/);
+    if(!m) return null;
+    var key = normalizeBookKey(m[1]);
+    if(GREEK_BOOKS[key]) return GREEK_BOOKS[key];
+    if(LXX_BOOKS[key]) return LXX_BOOKS[key][1];
+    return null;
+  }
+
+  // Book names/abbreviations recognized when scanning free text for scripture references
+  // (used to make verses mentioned inline in a note's body clickable, not just the dedicated ref field).
+  var REF_BOOK_PATTERN = [
+    'Genesis','Gen','Exodus','Exod','Exo','Leviticus','Lev','Numbers','Num','Deuteronomy','Deut','Deu',
+    'Joshua','Josh','Judges','Judg','Ruth',
+    '1\\s?Samuel','1\\s?Sam','2\\s?Samuel','2\\s?Sam','1\\s?Kings','1\\s?Kgs','2\\s?Kings','2\\s?Kgs',
+    '1\\s?Chronicles','1\\s?Chron','1\\s?Chr','2\\s?Chronicles','2\\s?Chron','2\\s?Chr',
+    'Ezra','Nehemiah','Neh','Esther','Esth','Job','Psalms','Psalm','Pss','Psa','Ps',
+    'Proverbs','Prov','Pro','Ecclesiastes','Eccl','Ecc','Song of Songs','Song of Solomon','Song',
+    'Isaiah','Isa','Jeremiah','Jer','Lamentations','Lam','Ezekiel','Ezek','Eze','Daniel','Dan',
+    'Hosea','Hos','Joel','Amos','Obadiah','Obad','Jonah','Jon','Micah','Mic','Nahum','Nah',
+    'Habakkuk','Hab','Zephaniah','Zeph','Haggai','Hag','Zechariah','Zech','Malachi','Mal',
+    'Matthew','Matt','Mt','Mark','Mk','Luke','Luk','Lk','John','Jn','Acts','Romans','Rom',
+    '1\\s?Corinthians','1\\s?Cor','2\\s?Corinthians','2\\s?Cor','Galatians','Gal','Ephesians','Eph',
+    'Philippians','Phil','Php','Colossians','Col',
+    '1\\s?Thessalonians','1\\s?Thess','1\\s?Th','2\\s?Thessalonians','2\\s?Thess','2\\s?Th',
+    '1\\s?Timothy','1\\s?Tim','2\\s?Timothy','2\\s?Tim','Titus','Tit','Philemon','Phlm','Phm',
+    'Hebrews','Heb','James','Jas','1\\s?Peter','1\\s?Pet','1\\s?Pt','2\\s?Peter','2\\s?Pet','2\\s?Pt',
+    '1\\s?John','1\\s?Jn','2\\s?John','2\\s?Jn','3\\s?John','3\\s?Jn','Jude','Revelation','Rev'
+  ].join('|');
+  var SCRIPTURE_REF_REGEX = new RegExp('\\b(?:'+REF_BOOK_PATTERN+')\\.?\\s\\d{1,3}(?::\\d{1,3}(?:[-–]\\d{1,3})?)?\\b', 'g');
+
+  function greekLink(ref){
+    var m = ref.match(/^([1-3]?\s*[A-Za-z]+)\.?\s+(\d+)(?::(\d+))?/);
+    if(!m) return null;
+    var slug = GREEK_BOOKS[normalizeBookKey(m[1])];
+    if(!slug) return null;
+    var chapter = m[2], verse = m[3] || '1';
+    return 'https://biblehub.com/interlinear/'+slug+'/'+chapter+'-'+verse+'.htm';
+  }
+
+  function crossBibleLink(ref){
+    var m = ref.match(/^([1-3]?\s*[A-Za-z]+)\.?\s+(\d+)(?::(\d+))?/);
+    if(!m) return null;
+    var slug = GREEK_BOOKS[normalizeBookKey(m[1])];
+    var name = slug && CROSSBIBLE_BOOKS[slug];
+    if(!name) return null;
+    var chapter = m[2], verse = m[3] || '1';
+    return 'https://crossbible.com/Byzantine-Textform/'+encodeURIComponent(name)+'/'+chapter+':'+verse;
+  }
+
+  function blueLetterBibleLink(ref){
+    var m = ref.match(/^([1-3]?\s*[A-Za-z]+)\.?\s+(\d+)(?::(\d+))?/);
+    if(!m) return null;
+    var slug = GREEK_BOOKS[normalizeBookKey(m[1])];
+    var code = slug && BLB_BOOKS[slug];
+    if(!code) return null;
+    var chapter = m[2], verse = m[3] || '1';
+    return 'https://www.blueletterbible.org/tools/interlinear/tr/'+code+'/'+chapter+'/'+verse;
+  }
+
+  // Septuagint links for OT references (fills the OT gap left by the NT-only Greek tools)
+  function lxxLinks(ref){
+    var m = ref.match(/^([1-3]?\s*[A-Za-z]+(?:\s+of\s+[A-Za-z]+)?)\.?\s+(\d+)(?::(\d+))?/);
+    if(!m) return null;
+    var pair = LXX_BOOKS[normalizeBookKey(m[1])];
+    if(!pair) return null;
+    var ch = m[2], v = m[3] || '1';
+    return {
+      blb: 'https://www.blueletterbible.org/lxx/'+pair[0]+'/'+ch+'/'+v,
+      brenton: 'https://biblehub.com/sep/'+pair[1]+'/'+ch+'.htm'
+    };
+  }
+
+  var flashTimer = null;
+  function flash(msg, actionLabel, actionFn){
+    var f = document.getElementById('flash');
+    f.textContent = msg;
+    if(actionLabel){
+      var b = document.createElement('button');
+      b.textContent = actionLabel;
+      b.addEventListener('click', function(){ f.classList.remove('show'); actionFn(); });
+      f.appendChild(b);
+    }
+    f.classList.add('show');
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(function(){ f.classList.remove('show'); }, actionLabel ? 6500 : 1900);
+  }
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function nb(){ return state.notebooks[state.activeNotebookId]; }
+
+  function linkify(text, entryId){
+    var escaped = escapeHtml(text);
+    var urlPattern = /((https?:\/\/|www\.)[^\s<]+)/gi;
+    escaped = escaped.replace(urlPattern, function(match){
+      var href = match.indexOf('http') === 0 ? match : 'https://' + match;
+      href = href.replace(/[.,;:!?)]+$/, '');
+      return '<a href="'+href+'" target="_blank" rel="noopener" style="color:var(--blue);">'+match+'</a>';
+    });
+    if(entryId){
+      escaped = escaped.replace(SCRIPTURE_REF_REGEX, function(match){
+        var ref = match.replace(/[.,;:]+$/, '');
+        return '<span class="badge ref inline-ref" data-passage="'+entryId+'" data-ref="'+escapeHtml(ref)+'" style="cursor:pointer;" title="Click to read this passage (KJV)">'+match+'</span>';
+      });
+      // "no. X" cross-references become jump links; dangling ones get flagged
+      escaped = escaped.replace(/\b([Nn]o\.\s?)(\d+(?:\.\d+)?)\b/g, function(match, prefix, numStr){
+        var n = parseFloat(numStr);
+        if(n === entryId) return match;
+        var exists = nb().entries.some(function(x){ return x.id === n; });
+        if(exists) return '<a data-jump="'+n+'" style="color:var(--rubric); cursor:pointer; text-decoration:underline;">'+match+'</a>';
+        return '<span style="border-bottom:1px dotted var(--rubric);" title="No entry with this number exists (yet)">'+match+'</span>';
+      });
+    }
+    return escaped;
+  }
+
+  function persist(){
+    if(dirHandle){ persistToFolder(); return; }
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch(e){ flash('Could not save — storage may be full'); }
+  }
+  function load(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && parsed.notebooks) state = parsed;
+      }
+    }catch(e){}
+    if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
+    if(!state.settings) state.settings = { tutorialUrl:'', channelUrl:'', studyBibleUrl:'https://www.amazon.com/dp/1400339537?tag=bsar07-20', membershipUrl:'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join', dataLink:'', hostedViewerBase:'https://hackett5014544949-debug.github.io/miscellanies/viewer.html' };
+    if(state.settings.studyBibleUrl === undefined) state.settings.studyBibleUrl = 'https://www.amazon.com/dp/1400339537?tag=bsar07-20';
+    if(state.settings.membershipUrl === undefined) state.settings.membershipUrl = 'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join';
+    if(state.settings.dataLink === undefined) state.settings.dataLink = '';
+    if(state.settings.hostedViewerBase === undefined) state.settings.hostedViewerBase = 'https://hackett5014544949-debug.github.io/miscellanies/viewer.html';
+    Object.keys(state.notebooks).forEach(function(id){
+      if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
+      if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
+      migratePhotos(state.notebooks[id].entries);
+    });
+  }
+
+  // Old entries had a single e.photo string; new entries use e.photos (array). Migrate in place.
+  function migratePhotos(entries){
+    (entries||[]).forEach(function(e){
+      if(!Array.isArray(e.photos)){
+        e.photos = e.photo ? [e.photo] : [];
+      }
+    });
+  }
+
+  /* ---------- FOLDER STORAGE (Advanced; Chrome/Edge File System Access API) ----------
+     When a folder is connected, the notebook lives as real files on disk:
+     notebook.json + a photos/ subfolder. localStorage remains the fallback.
+     Point the picker at a cloud-synced folder (Dropbox, iCloud Drive, etc.)
+     to sync across devices — the app itself never talks to any server. */
+  var FS_SUPPORTED = ('showDirectoryPicker' in window);
+  var dirHandle = null;
+  var pendingHandle = null; // handle restored from IndexedDB, awaiting a user-gesture re-grant
+  var fsLastModified = null;
+  var fsSaving = false, fsQueued = false;
+
+  function idbOpen(){ return new Promise(function(res, rej){
+    var r = indexedDB.open('miscellanies-fs', 1);
+    r.onupgradeneeded = function(){ r.result.createObjectStore('kv'); };
+    r.onsuccess = function(){ res(r.result); };
+    r.onerror = function(){ rej(r.error); };
+  }); }
+  function idbSet(key, val){ return idbOpen().then(function(db){ return new Promise(function(res, rej){
+    var tx = db.transaction('kv','readwrite');
+    tx.objectStore('kv').put(val, key);
+    tx.oncomplete = res; tx.onerror = function(){ rej(tx.error); };
+  }); }); }
+  function idbGet(key){ return idbOpen().then(function(db){ return new Promise(function(res, rej){
+    var tx = db.transaction('kv','readonly');
+    var rq = tx.objectStore('kv').get(key);
+    rq.onsuccess = function(){ res(rq.result); }; rq.onerror = function(){ rej(rq.error); };
+  }); }); }
+
+  function dataUrlToBlob(dataUrl){
+    var parts = dataUrl.split(',');
+    var mime = (parts[0].match(/data:([^;]+)/)||[])[1] || 'image/jpeg';
+    var bin = atob(parts[1]);
+    var arr = new Uint8Array(bin.length);
+    for(var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], {type:mime});
+  }
+  function extFromMime(m){
+    return m==='image/png'?'png' : m==='image/gif'?'gif' : m==='image/webp'?'webp' : 'jpg';
+  }
+  function blobToDataUrl(blob){ return new Promise(function(res){
+    var r = new FileReader();
+    r.onload = function(e){ res(e.target.result); };
+    r.readAsDataURL(blob);
+  }); }
+
+  // Deep-copy state; move base64 photos out to real files, leaving "file:name" markers.
+  function serializeForDisk(){
+    var copy = JSON.parse(JSON.stringify(state));
+    var photos = [];
+    Object.keys(copy.notebooks).forEach(function(nid){
+      (copy.notebooks[nid].entries||[]).forEach(function(e){
+        if(!Array.isArray(e.photos)) e.photos = e.photo ? [e.photo] : [];
+        delete e.photo;
+        e.photos = e.photos.map(function(p, i){
+          if(p && p.indexOf('data:')===0){
+            var mime = (p.match(/data:([^;]+)/)||[])[1] || 'image/jpeg';
+            var name = 'photo_'+nid+'_'+String(e.id).replace('.','_')+'_'+i+'.'+extFromMime(mime);
+            photos.push({name:name, dataUrl:p});
+            return 'file:'+name;
+          }
+          return p;
+        });
+      });
+    });
+    return {json:copy, photos:photos};
+  }
+
+  var VIEWER_FILENAME = 'Open on iPhone — Miscellanies.html';
+
+  // A self-contained, read-only snapshot of every notebook (photos inlined as base64).
+  // Written into the synced folder alongside notebook.json on every save, so opening
+  // this one file in mobile Safari (via the Files app / iCloud Drive / Dropbox) always
+  // shows current notes — no app install, no OAuth, no editing capability, just viewing.
+  function generateViewerHtml(){
+    var nbHtml = Object.keys(state.notebooks).map(function(nid){
+      var n = state.notebooks[nid];
+      var entries = (n.entries||[]).slice().sort(function(a,b){ return b.id - a.id; });
+      var entriesHtml = entries.map(function(e){
+        var book = (n.books||[]).find(function(b){ return b.id===e.bookId; });
+        var tags = (e.tags||[]).map(function(t){ return '<span class="vtag">'+escapeHtml(t)+'</span>'; }).join('');
+        var photo = (e.photos||[]).filter(function(p){ return p && p.indexOf('data:')===0; })
+          .map(function(p){ return '<img class="vphoto" src="'+p+'">'; }).join('');
+        return '<div class="ventry" data-search="'+escapeHtml((e.title+' '+e.body+' '+e.ref+' '+(e.tags||[]).join(' ')).toLowerCase())+'">' +
+          '<div class="vnum">no. '+e.id+'</div>' +
+          '<div class="vbody">' +
+            '<div class="vhead"><h3>'+escapeHtml(e.title||'untitled')+'</h3>' +
+              (e.ref ? '<span class="vbadge">'+escapeHtml(e.ref)+'</span>' : '') +
+            '</div>' +
+            (tags ? '<div>'+tags+'</div>' : '') +
+            (book ? '<div class="vbook">'+escapeHtml(book.title)+(e.page?', p. '+escapeHtml(e.page):'')+'</div>' : '') +
+            photo +
+            '<div class="vtext">'+escapeHtml(e.body||'').replace(/\n/g,'<br>')+'</div>' +
+            (e.videoLink ? '<div class="vvideo"><a href="'+escapeHtml(e.videoLink)+'">watch related video &rarr;</a></div>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('');
+      return '<section><h2 class="vnbname">'+escapeHtml(n.name)+'</h2>' +
+        (entries.length ? entriesHtml : '<p class="vempty">No entries yet.</p>') +
+      '</section>';
+    }).join('');
+
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+      '<title>Miscellanies (view only)</title>' +
+      '<style>' +
+        'body{margin:0; background:#E8E1D0; color:#2A241C; font-family:Georgia,serif; font-size:17px; line-height:1.55;}' +
+        '.vwrap{max-width:700px; margin:0 auto; padding:28px 18px 80px;}' +
+        '.vnote{font-size:13px; color:#7A2E2A; background:#f0dcd6; border-radius:6px; padding:10px 14px; margin-bottom:18px;}' +
+        'h1{font-size:34px; margin:0 0 4px;} .vsub{font-style:italic; color:#57503e; font-size:14px; margin-bottom:16px;}' +
+        '#vsearch{width:100%; box-sizing:border-box; font-size:16px; padding:10px 12px; border:1px solid #b9ac8e; border-radius:6px; margin-bottom:20px; background:#f3eddd;}' +
+        '.vnbname{font-size:22px; border-bottom:2px solid #b9ac8e; padding-bottom:6px; margin-top:30px;}' +
+        '.ventry{display:flex; gap:12px; border-bottom:1px solid #b9ac8e; padding:16px 0;}' +
+        '.ventry.vhide{display:none;}' +
+        '.vnum{font-family:monospace; font-size:13px; color:#8b8370; min-width:40px; text-align:right; flex-shrink:0;}' +
+        '.vhead{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:baseline;}' +
+        '.vhead h3{font-size:20px; margin:0;}' +
+        '.vbadge{font-family:monospace; font-size:11px; background:#dbe1e8; color:#33465C; padding:2px 8px; border-radius:4px; white-space:nowrap;}' +
+        '.vtag{display:inline-block; font-family:monospace; font-size:10.5px; border:1px solid #b9ac8e; padding:1px 6px; border-radius:4px; margin:5px 5px 0 0; color:#57503e;}' +
+        '.vbook{font-size:13px; color:#8a7038; margin-top:6px;}' +
+        '.vphoto{max-width:220px; border-radius:5px; margin-top:10px; display:block;}' +
+        '.vtext{margin-top:10px; white-space:pre-wrap;}' +
+        '.vvideo{margin-top:8px; font-size:13px;} .vvideo a{color:#33465C;}' +
+        '.vempty{font-style:italic; color:#57503e;}' +
+      '</style></head><body><div class="vwrap">' +
+      '<h1>Miscellanies</h1><div class="vsub">view-only snapshot — open the notebook on your computer to add or edit</div>' +
+      '<div class="vnote">This page updates automatically each time the notebook is saved on your computer, as long as this file stays in your synced folder (iCloud Drive, Dropbox, etc). It cannot be edited from here.</div>' +
+      '<input type="text" id="vsearch" placeholder="Search&hellip;">' +
+      nbHtml +
+      '</div><' + 'script>' +
+      'document.getElementById("vsearch").addEventListener("input", function(e){' +
+        'var q = e.target.value.toLowerCase();' +
+        'document.querySelectorAll(".ventry").forEach(function(el){' +
+          'el.classList.toggle("vhide", q && el.getAttribute("data-search").indexOf(q) === -1);' +
+        '});' +
+      '});' +
+      '<' + '/script></body></html>';
+  }
+
+  function writeViewerFile(){
+    return dirHandle.getFileHandle(VIEWER_FILENAME, {create:true}).then(function(fh){
+      return fh.createWritable().then(function(w){
+        return w.write(generateViewerHtml()).then(function(){ return w.close(); });
+      });
+    }).catch(function(){ /* non-critical — main notebook save already succeeded */ });
+  }
+
+  var CLOUD_DATA_FILENAME = 'miscellanies-data.json';
+
+  // A lightweight, view-only data snapshot (no app code, just JSON) written into the
+  // synced folder alongside notebook.json on every save. This is the file a hosted
+  // viewer page (see viewer.html) fetches over the internet via a cloud share link,
+  // so a phone can search current notes through a real webpage instead of a local file.
+  function generateCloudData(){
+    var out = { generatedAt: new Date().toISOString(), notebooks: [] };
+    Object.keys(state.notebooks).forEach(function(nid){
+      var n = state.notebooks[nid];
+      var entries = (n.entries||[]).slice().sort(function(a,b){ return b.id - a.id; });
+      out.notebooks.push({
+        id: nid, name: n.name,
+        entries: entries.map(function(e){
+          var book = (n.books||[]).find(function(b){ return b.id===e.bookId; });
+          return {
+            id: e.id, title: e.title||'', ref: e.ref||'', tags: e.tags||[],
+            body: e.body||'', videoLink: e.videoLink||'',
+            book: book ? book.title : '', page: e.page||'',
+            photos: (e.photos||[]).filter(function(p){ return p && p.indexOf('data:')===0; })
+          };
+        })
+      });
+    });
+    return out;
+  }
+
+  function writeCloudDataFile(){
+    return dirHandle.getFileHandle(CLOUD_DATA_FILENAME, {create:true}).then(function(fh){
+      return fh.createWritable().then(function(w){
+        return w.write(JSON.stringify(generateCloudData())).then(function(){ return w.close(); });
+      });
+    }).catch(function(){ /* non-critical — main notebook save already succeeded */ });
+  }
+
+  function writeNotebook(fh, pack){
+    return fh.createWritable().then(function(w){
+      return w.write(JSON.stringify(pack.json, null, 2)).then(function(){ return w.close(); });
+    }).then(function(){
+      return fh.getFile().then(function(f){ fsLastModified = f.lastModified; });
+    }).then(function(){
+      if(!pack.photos.length) return;
+      return dirHandle.getDirectoryHandle('photos', {create:true}).then(function(pd){
+        return pack.photos.reduce(function(p, ph){
+          return p.then(function(){
+            return pd.getFileHandle(ph.name, {create:true}).then(function(pfh){
+              return pfh.createWritable().then(function(w){
+                return w.write(dataUrlToBlob(ph.dataUrl)).then(function(){ return w.close(); });
+              });
+            });
+          });
+        }, Promise.resolve());
+      });
+    });
+  }
+
+  // Merge another saved state into the live one: union of everything;
+  // where the same entry exists in both, the newer edit wins.
+  function newerOf(a, b){ return ((a.updated||a.created||'') >= (b.updated||b.created||'')) ? a : b; }
+  function mergeIntoState(disk){
+    Object.keys(disk.notebooks||{}).forEach(function(nid){
+      var d = disk.notebooks[nid];
+      if(!state.notebooks[nid]){ state.notebooks[nid] = d; return; }
+      var s = state.notebooks[nid];
+      (d.entries||[]).forEach(function(de){
+        var idx = s.entries.findIndex(function(se){ return se.id === de.id; });
+        if(idx === -1) s.entries.push(de);
+        else s.entries[idx] = newerOf(s.entries[idx], de);
+      });
+      s.inbox = s.inbox || [];
+      (d.inbox||[]).forEach(function(di){ if(!s.inbox.some(function(si){ return si.id === di.id; })) s.inbox.push(di); });
+      s.books = s.books || [];
+      (d.books||[]).forEach(function(db){ if(!s.books.some(function(sb){ return sb.id === db.id; })) s.books.push(db); });
+      s.trash = s.trash || [];
+      (d.trash||[]).forEach(function(dt){ if(!s.trash.some(function(st){ return st.entry.id === dt.entry.id; })) s.trash.push(dt); });
+      s.nextId = Math.max(s.nextId||1, d.nextId||1);
+      migratePhotos(s.entries);
+    });
+  }
+  function resolvePhotoMarkers(){
+    var jobs = [];
+    Object.keys(state.notebooks).forEach(function(nid){
+      migratePhotos(state.notebooks[nid].entries);
+      (state.notebooks[nid].entries||[]).forEach(function(e){
+        e.photos.forEach(function(p, i){
+          if(p && p.indexOf('file:')===0){
+            var name = p.slice(5);
+            jobs.push(
+              dirHandle.getDirectoryHandle('photos').then(function(pd){ return pd.getFileHandle(name); })
+                .then(function(pfh){ return pfh.getFile(); })
+                .then(blobToDataUrl)
+                .then(function(du){ e.photos[i] = du; })
+                .catch(function(){ e.photos[i] = null; })
+            );
+          }
+        });
+      });
+    });
+    return Promise.all(jobs);
+  }
+
+  // Conflict detection: the file on disk changed since this window last read/wrote it.
+  function handleConflict(fh, pack){
+    var choice = prompt(
+      'The notebook file in your folder has changed since this window last read it '+
+      '(possibly edited on another device, or synced in from the cloud).\n\n'+
+      'Type 1 to MERGE the two versions — keeps every entry; where both changed the same entry, the newer edit wins (recommended).\n'+
+      'Type 2 to OVERWRITE the file with this window\'s version.\n'+
+      'Type 3 to LOAD the file\'s version into the app instead.\n'+
+      'Type 4 to save this window\'s version as a separate dated copy.', '1');
+    if(choice === '1'){
+      return fh.getFile().then(function(f){ return f.text(); }).then(function(text){
+        var disk = JSON.parse(text);
+        if(!disk || !disk.notebooks) throw new Error('bad file');
+        mergeIntoState(disk);
+        return resolvePhotoMarkers();
+      }).then(function(){
+        var pack2 = serializeForDisk();
+        return writeNotebook(fh, pack2).then(function(){ renderAll(); flash('Merged both versions'); });
+      }).catch(function(){
+        flash('Could not merge — saving a separate copy instead');
+        return saveConflictCopy(pack);
+      });
+    }
+    if(choice === '2') return writeNotebook(fh, pack);
+    if(choice === '3') return loadFromFolder().then(function(){ renderAll(); flash('Loaded the folder\'s version'); });
+    return saveConflictCopy(pack);
+  }
+  function saveConflictCopy(pack){
+    var stamp = new Date().toISOString().replace(/[:.]/g,'-');
+    return dirHandle.getFileHandle('notebook-conflict-'+stamp+'.json', {create:true}).then(function(cfh){
+      return cfh.createWritable().then(function(w){
+        return w.write(JSON.stringify(pack.json, null, 2)).then(function(){ return w.close(); });
+      });
+    }).then(function(){ flash('Saved as a separate conflict copy — compare the two files in your folder'); });
+  }
+
+  function persistToFolder(){
+    if(fsSaving){ fsQueued = true; return; }
+    fsSaving = true;
+    var pack = serializeForDisk();
+    dirHandle.getFileHandle('notebook.json', {create:true}).then(function(fh){
+      return fh.getFile().then(function(f){
+        if(fsLastModified !== null && f.size > 0 && f.lastModified !== fsLastModified){
+          return handleConflict(fh, pack);
+        }
+        return writeNotebook(fh, pack);
+      });
+    }).then(function(){
+      return writeViewerFile();
+    }).then(function(){
+      return writeCloudDataFile();
+    }).catch(function(){
+      flash('Could not save to the folder — kept in browser storage instead');
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+    }).then(function(){
+      fsSaving = false;
+      if(fsQueued){ fsQueued = false; persistToFolder(); }
+    });
+  }
+
+  function loadFromFolder(){
+    return dirHandle.getFileHandle('notebook.json').then(function(fh){
+      return fh.getFile();
+    }).then(function(f){
+      fsLastModified = f.lastModified;
+      return f.text();
+    }).then(function(text){
+      var parsed = JSON.parse(text);
+      if(!parsed || !parsed.notebooks) throw new Error('bad file');
+      var jobs = [];
+      Object.keys(parsed.notebooks).forEach(function(nid){
+        migratePhotos(parsed.notebooks[nid].entries);
+        (parsed.notebooks[nid].entries||[]).forEach(function(e){
+          e.photos.forEach(function(p, i){
+            if(p && p.indexOf('file:')===0){
+              var name = p.slice(5);
+              jobs.push(
+                dirHandle.getDirectoryHandle('photos').then(function(pd){ return pd.getFileHandle(name); })
+                  .then(function(pfh){ return pfh.getFile(); })
+                  .then(blobToDataUrl)
+                  .then(function(du){ e.photos[i] = du; })
+                  .catch(function(){ e.photos[i] = null; })
+              );
+            }
+          });
+        });
+      });
+      return Promise.all(jobs).then(function(){
+        state = parsed;
+        if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
+        if(!state.settings) state.settings = { tutorialUrl:'', channelUrl:'', studyBibleUrl:'https://www.amazon.com/dp/1400339537?tag=bsar07-20', membershipUrl:'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join' };
+        if(state.settings.studyBibleUrl === undefined) state.settings.studyBibleUrl = 'https://www.amazon.com/dp/1400339537?tag=bsar07-20';
+        if(state.settings.membershipUrl === undefined) state.settings.membershipUrl = 'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join';
+    if(state.settings.dataLink === undefined) state.settings.dataLink = '';
+    if(state.settings.hostedViewerBase === undefined) state.settings.hostedViewerBase = 'https://hackett5014544949-debug.github.io/miscellanies/viewer.html';
+        Object.keys(state.notebooks).forEach(function(id){
+          if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
+          if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
+        });
+      });
+    });
+  }
+
+  function verifyPermission(handle){
+    var opts = {mode:'readwrite'};
+    return handle.queryPermission(opts).then(function(p){
+      if(p === 'granted') return true;
+      return handle.requestPermission(opts).then(function(p2){ return p2 === 'granted'; });
+    });
+  }
+
+  function connectFolder(){
+    window.showDirectoryPicker({mode:'readwrite'}).then(function(h){
+      dirHandle = h; pendingHandle = null; fsLastModified = null;
+      return idbSet('dirHandle', h).catch(function(){}).then(function(){
+        return dirHandle.getFileHandle('notebook.json').then(function(){
+          if(confirm('This folder already contains a Miscellanies notebook.\n\nOK = load the folder\'s notebook into the app.\nCancel = overwrite it with what\'s currently in the app.')){
+            return loadFromFolder().then(function(){ renderAll(); writeViewerFile(); writeCloudDataFile(); flash('Notebook loaded from folder'); });
+          }
+          persist(); flash('Notebook saved to folder');
+        }, function(){
+          persist(); flash('Notebook saved to folder');
+        });
+      });
+    }).then(function(){ renderFolderBtn(); })
+    .catch(function(err){ if(err && err.name !== 'AbortError') flash('Could not connect to that folder'); });
+  }
+
+  function disconnectFolder(){
+    dirHandle = null; pendingHandle = null; fsLastModified = null;
+    idbSet('dirHandle', null).catch(function(){});
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+    renderFolderBtn();
+    flash('Back to browser-only storage — your files stay in the folder');
+  }
+
+  function renderFolderBtn(){
+    var btn = document.getElementById('folderBtn');
+    if(!btn) return;
+    if(!FS_SUPPORTED){ btn.style.display = 'none'; return; }
+    if(dirHandle){
+      btn.textContent = 'Folder: '+dirHandle.name+' ×';
+      btn.title = 'Your notebook is saved as real files in this folder, including a read-only "Open on iPhone" page you can view on your phone. Click to disconnect (files stay put; app returns to browser-only storage).';
+    } else if(pendingHandle){
+      btn.textContent = 'Reconnect folder: '+pendingHandle.name;
+      btn.title = 'Click to re-grant access to your notebook folder (browsers periodically ask again — this is normal).';
+    } else {
+      btn.textContent = 'Save to folder…';
+      btn.title = 'Save your notebook as real files in a folder you choose. Works offline. Pick a cloud-synced folder (Dropbox, iCloud Drive, OneDrive…) to sync across devices — the app itself never sends your notes anywhere.';
+    }
+  }
+
+  function restoreFolder(){
+    if(!FS_SUPPORTED){ renderFolderBtn(); return; }
+    idbGet('dirHandle').then(function(h){
+      if(!h){ renderFolderBtn(); return; }
+      h.queryPermission({mode:'readwrite'}).then(function(p){
+        if(p === 'granted'){
+          dirHandle = h;
+          loadFromFolder().then(function(){ renderAll(); renderFolderBtn(); },
+                             function(){ renderFolderBtn(); });
+        } else {
+          pendingHandle = h; // needs a click (user gesture) to re-request permission
+          renderFolderBtn();
+        }
+      });
+    }).catch(function(){ renderFolderBtn(); });
+  }
+
+  function allTags(entries){
+    var set = {};
+    entries.forEach(function(e){ (e.tags||[]).forEach(function(t){ set[t]=true; }); });
+    return Object.keys(set).sort();
+  }
+
+  function matches(e, q, tag){
+    if(tag && (e.tags||[]).indexOf(tag) === -1) return false;
+    if(!q) return true;
+    q = q.toLowerCase();
+    var book = (nb().books.find(function(b){return b.id===e.bookId;})||{}).title || '';
+    var hay = [e.title, e.body, e.ref, (e.tags||[]).join(' '), book].join(' ').toLowerCase();
+    return hay.indexOf(q) !== -1;
+  }
+
+  function jumpTo(id){
+    state.search=''; state.tagFilter=''; state.view='stream'; state.openBookId=null;
+    openEntryId = id;
+    renderAll();
+    setTimeout(function(){
+      var el = document.getElementById('entry-'+id);
+      if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+    }, 30);
+  }
+
+  /* ---------- TOP CHROME ---------- */
+  function renderChrome(){
+    Array.prototype.forEach.call(document.querySelectorAll('#modeToggle button'), function(b){
+      b.classList.toggle('active', b.getAttribute('data-mode')===state.mode);
+    });
+
+    var vt = document.getElementById('viewToggle');
+    if(state.mode==='advanced'){
+      vt.style.display='inline-flex';
+      var inboxCount = nb().inbox.length;
+      var buttons = [
+        {v:'stream', label:'stream'},
+        {v:'inbox', label:'inbox' + (inboxCount ? ' ('+inboxCount+')' : '')},
+        {v:'library', label:'library'},
+        {v:'index', label:'index'}
+      ];
+      vt.innerHTML = buttons.map(function(b){
+        return '<button data-view="'+b.v+'"'+(state.view===b.v?' class="active"':'')+'>'+b.label+'</button>';
+      }).join('');
+      Array.prototype.forEach.call(vt.querySelectorAll('button'), function(btn){
+        btn.addEventListener('click', function(){
+          state.view = btn.getAttribute('data-view');
+          persist(); renderAll();
+        });
+      });
+    } else {
+      vt.style.display='none';
+      vt.innerHTML='';
+    }
+
+    document.getElementById('advancedToolsBar').style.display = state.mode==='advanced' ? 'flex' : 'none';
+
+    var nbTabs = document.getElementById('notebookTabs');
+    if(state.mode==='advanced'){
+      nbTabs.style.display='flex';
+      var ids = Object.keys(state.notebooks);
+      nbTabs.innerHTML = ids.map(function(id){
+        var n = state.notebooks[id];
+        return '<div class="nbtab'+(id===state.activeNotebookId?' active':'')+'" data-nb="'+id+'">'+escapeHtml(n.name)+'</div>';
+      }).join('') + '<div class="nbtab addnb" id="addNbBtn">+ notebook</div>';
+    } else {
+      nbTabs.style.display='none';
+    }
+  }
+
+  /* ---------- STREAM VIEW ---------- */
+  function renderStream(){
+    var entries = nb().entries;
+    var tags = allTags(entries);
+    var visible = entries.filter(function(e){ return matches(e, state.search, state.tagFilter); });
+    visible.sort(function(a,b){ return b.id - a.id; });
+
+    var html = '';
+    html += '<div class="toolbar">';
+    html += '<input type="text" id="searchInput" placeholder="Search title, body, reference, tag, book&hellip;" value="'+escapeHtml(state.search)+'">';
+    html += '<select id="tagSelect"><option value="">All topics</option>' + tags.map(function(t){
+      return '<option value="'+escapeHtml(t)+'"'+(state.tagFilter===t?' selected':'')+'>'+escapeHtml(t)+'</option>';
+    }).join('') + '</select>';
+    html += '<button class="btn primary" id="newEntryBtn">New entry</button>';
+    html += '</div>';
+
+    html += '<div class="form" id="entryForm">' + entryFormHtml() + '</div>';
+
+    html += '<div class="count">' + (entries.length ? (visible.length+' of '+entries.length+' entries') : '') + '</div>';
+
+    if(entries.length===0){
+      html += '<div class="empty">No entries yet. Start the notebook with your first reflection.</div>';
+    } else if(visible.length===0){
+      html += '<div class="empty">Nothing matches that search.</div>';
+    } else {
+      html += visible.map(function(e){ return entryHtml(e); }).join('');
+    }
+    var trash = nb().trash || [];
+    if(trash.length){
+      html += '<div class="trashbox"><div class="trash-t">Trash ('+trash.length+')</div>' +
+        trash.map(function(t){
+          return '<div class="trash-row">no. '+t.entry.id+' &mdash; '+escapeHtml(t.entry.title||'untitled')+
+            ' &nbsp; <a data-restore="'+t.entry.id+'">restore</a> &middot; <a data-purge="'+t.entry.id+'">delete forever</a></div>';
+        }).join('') + '</div>';
+    }
+    document.getElementById('app').innerHTML = html;
+    wireStream();
+  }
+
+  function entryHtml(e){
+    var isOpen = openEntryId === e.id;
+    var book = nb().books.find(function(b){ return b.id === e.bookId; });
+    var related = (e.related||[]).filter(function(rid){
+      return nb().entries.some(function(x){ return x.id === rid; });
+    });
+    var relatedHtml = related.length ? 'see also &mdash; ' + related.map(function(rid){
+      return '<a data-jump="'+rid+'">no. '+rid+'</a>';
+    }).join(', ') : '';
+    var refBy = nb().entries.filter(function(x){
+      return x.id !== e.id && (x.related||[]).indexOf(e.id) !== -1;
+    }).map(function(x){ return x.id; });
+    if(refBy.length){
+      var refByHtml = 'referenced by &mdash; ' + refBy.map(function(rid){
+        return '<a data-jump="'+rid+'">no. '+rid+'</a>';
+      }).join(', ');
+      relatedHtml = relatedHtml ? relatedHtml + ' &nbsp;&middot;&nbsp; ' + refByHtml : refByHtml;
+    }
+    var tagsHtml = (e.tags||[]).map(function(t){ return '<span class="tag">'+escapeHtml(t)+'</span>'; }).join('');
+    var badges = '';
+    if(e.ref) badges += '<span class="badge ref" data-passage="'+e.id+'" data-ref="'+escapeHtml(e.ref)+'" style="cursor:pointer;" title="Click to read this passage (KJV)">'+escapeHtml(e.ref)+' &#128214;</span>';
+    if(book) badges += '<span class="badge book">'+escapeHtml(book.title)+(e.page?', p. '+escapeHtml(e.page):'')+'</span>';
+
+    return '' +
+    '<div class="entry" id="entry-'+e.id+'">' +
+      '<div class="entry-num">no. '+e.id+'</div>' +
+      '<div class="entry-body">' +
+        '<div class="entry-head" data-toggle="'+e.id+'">' +
+          '<h3 class="entry-title">'+escapeHtml(e.title||'untitled')+'</h3>' +
+          '<div class="entry-badges">'+badges+'</div>' +
+        '</div>' +
+        (tagsHtml ? '<div>'+tagsHtml+'</div>' : '') +
+        '<div class="passage-panel'+(openPassageId===e.id?' open':'')+'" id="passage-'+e.id+'"></div>' +
+        ((e.photos||[]).length ? '<div class="photo-gallery">'+(e.photos||[]).map(function(p){ return '<img class="entry-photo" src="'+p+'">'; }).join('')+'</div>' : '') +
+        '<div class="entry-text'+(isOpen?' open':'')+'">'+linkify(e.body||'', e.id)+'</div>' +
+        (e.videoLink ? '<div class="entry-video'+(isOpen?' open':'')+'"><a href="'+escapeHtml(e.videoLink)+'" target="_blank" rel="noopener">watch related video &rarr;</a></div>' : '') +
+        (relatedHtml ? '<div class="entry-related'+(isOpen?' open':'')+'">'+relatedHtml+'</div>' : '') +
+        '<div class="entry-actions'+(isOpen?' open':'')+'">' +
+          '<button class="btn small" data-edit="'+e.id+'">Edit</button>' +
+          '<button class="btn small" data-quotecard="'+e.id+'">Share quote</button>' +
+          '<button class="btn small rubric" data-delete="'+e.id+'">Delete</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function entryFormHtml(){
+    var books = nb().books;
+    return '' +
+    '<div style="display:flex; justify-content:space-between; align-items:baseline;">' +
+      '<h2 id="formHeading">New entry</h2>' +
+      '<button type="button" class="btn small ghost" id="focusModeBtn" title="Hide everything but the entry form">focus mode</button>' +
+    '</div>' +
+    '<div class="field"><label>Title</label><input type="text" id="f-title" placeholder="A short heading for this reflection"></div>' +
+    '<div class="field-row">' +
+      '<div class="field"><label>Scripture reference</label><input type="text" id="f-ref" placeholder="e.g. 2 Peter 1:3&ndash;11"></div>' +
+      '<div class="field"><label>Topics</label><input type="text" id="f-tags" placeholder="comma separated"></div>' +
+    '</div>' +
+    '<div class="field"><label>Entry <button type="button" class="btn small ghost" id="refPickerBodyBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert reference &hellip;</button></label><textarea id="f-body" placeholder="Write the reflection itself"></textarea></div>' +
+    '<div class="field"><label>Photos (optional)</label><input type="file" id="f-photo" accept="image/*" multiple><div class="hint" id="photoHint"></div></div>' +
+    '<div class="field"><label>Related entries <button type="button" class="btn small ghost" id="refPickerBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert &hellip;</button></label><input type="text" id="f-related" placeholder="entry numbers, comma separated"></div>' +
+    (state.mode==='advanced' ? (
+      '<div class="advonly">' +
+        '<div class="advlabel">advanced</div>' +
+        '<div class="field-row">' +
+          '<div class="field"><label>Book</label><select id="f-book"><option value="">&mdash; none &mdash;</option>' +
+            books.map(function(b){ return '<option value="'+b.id+'">'+escapeHtml(b.title)+'</option>'; }).join('') +
+          '</select></div>' +
+          '<div class="field"><label>Page</label><input type="text" id="f-page" placeholder="e.g. 340"></div>' +
+        '</div>' +
+        '<div class="field"><label>Video link</label><input type="text" id="f-video" placeholder="https://youtube.com/..."></div>' +
+        '<div class="field" id="numberField"><label>Entry number</label><input type="text" id="f-number" placeholder=""><div class="hint">Override the auto-assigned number to migrate an old notebook or backfill a note. Use a decimal (e.g. 47.1) to insert between two existing entries.</div></div>' +
+      '</div>'
+    ) : '') +
+    '<div class="form-actions">' +
+      '<button class="btn primary" id="saveEntryBtn">Save entry</button>' +
+      '<button class="btn" id="cancelEntryBtn">Cancel</button>' +
+    '</div>';
+  }
+
+  var pendingPhotos = [];
+  var presetBookId = null;
+  var promotingInboxId = null;
+  var lastFocusedField = 'f-related';
+
+  function wireStream(){
+    document.getElementById('searchInput').addEventListener('input', function(e){
+      state.search = e.target.value; renderStream();
+      document.getElementById('searchInput').focus();
+      document.getElementById('searchInput').selectionStart = document.getElementById('searchInput').selectionEnd = state.search.length;
+    });
+    document.getElementById('tagSelect').addEventListener('change', function(e){
+      state.tagFilter = e.target.value; renderStream();
+    });
+    document.getElementById('newEntryBtn').addEventListener('click', openNewEntry);
+    document.getElementById('cancelEntryBtn').addEventListener('click', closeForm);
+    document.getElementById('saveEntryBtn').addEventListener('click', saveEntry);
+
+    var photoInput = document.getElementById('f-photo');
+    if(photoInput){
+      photoInput.addEventListener('change', function(e){
+        var files = Array.prototype.slice.call(e.target.files);
+        if(!files.length) return;
+        Promise.all(files.map(function(file){
+          return new Promise(function(res){
+            var reader = new FileReader();
+            reader.onload = function(ev){ res(ev.target.result); };
+            reader.readAsDataURL(file);
+          });
+        })).then(function(dataUrls){
+          pendingPhotos = pendingPhotos.concat(dataUrls);
+          document.getElementById('photoHint').textContent = pendingPhotos.length + ' photo'+(pendingPhotos.length===1?'':'s')+' attached. Selecting more adds to this entry; ' +
+            (state.mode==='advanced' ? 'edit and re-save to clear.' : '');
+        });
+      });
+    }
+    var refPickerBtn = document.getElementById('refPickerBtn');
+    if(refPickerBtn) refPickerBtn.addEventListener('click', function(){ lastFocusedField = 'f-related'; openRefPicker(); });
+    var refPickerBodyBtn = document.getElementById('refPickerBodyBtn');
+    if(refPickerBodyBtn) refPickerBodyBtn.addEventListener('click', function(){ lastFocusedField = 'f-body'; openRefPicker(); });
+    ['f-title','f-ref','f-tags','f-body','f-related'].forEach(function(fid){
+      var el = document.getElementById(fid);
+      if(!el) return;
+      if(fid === 'f-body' || fid === 'f-related'){
+        el.addEventListener('focus', function(){ lastFocusedField = fid; });
+      }
+      el.addEventListener('input', scheduleDraftSave);
+    });
+    var focusModeBtn = document.getElementById('focusModeBtn');
+    if(focusModeBtn) focusModeBtn.addEventListener('click', function(){
+      document.body.classList.toggle('focus-mode');
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll('[data-toggle]'), function(el){
+      el.addEventListener('click', function(){
+        var id = Number(el.getAttribute('data-toggle'));
+        openEntryId = (openEntryId===id) ? null : id;
+        renderStream();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-jump]'), function(el){
+      el.addEventListener('click', function(ev){ ev.stopPropagation(); jumpTo(Number(el.getAttribute('data-jump'))); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-edit]'), function(el){
+      el.addEventListener('click', function(ev){ ev.stopPropagation(); openEditEntry(Number(el.getAttribute('data-edit'))); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-quotecard]'), function(el){
+      el.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var e = nb().entries.find(function(x){ return x.id === Number(el.getAttribute('data-quotecard')); });
+        if(e) generateQuoteCard(e);
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-delete]'), function(el){
+      el.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var id = Number(el.getAttribute('data-delete'));
+        var e = nb().entries.find(function(x){ return x.id === id; });
+        if(!e) return;
+        if(!nb().trash) nb().trash = [];
+        nb().entries = nb().entries.filter(function(x){ return x.id !== id; });
+        nb().trash.push({ entry:e, deletedAt:new Date().toISOString() });
+        persist(); renderStream();
+        flash('Entry no. '+id+' moved to trash', 'Undo', function(){
+          nb().trash = nb().trash.filter(function(t){ return t.entry.id !== id; });
+          nb().entries.push(e);
+          persist(); renderStream();
+        });
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-restore]'), function(el){
+      el.addEventListener('click', function(){
+        var id = Number(el.getAttribute('data-restore'));
+        var t = (nb().trash||[]).find(function(x){ return x.entry.id === id; });
+        if(!t) return;
+        nb().trash = nb().trash.filter(function(x){ return x.entry.id !== id; });
+        nb().entries.push(t.entry);
+        persist(); renderStream(); flash('Entry no. '+id+' restored');
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-purge]'), function(el){
+      el.addEventListener('click', function(){
+        var id = Number(el.getAttribute('data-purge'));
+        if(!confirm('Permanently delete entry no. '+id+'? This really cannot be undone.')) return;
+        nb().trash = (nb().trash||[]).filter(function(x){ return x.entry.id !== id; });
+        persist(); renderStream(); flash('Entry no. '+id+' permanently deleted');
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-passage]'), function(el){
+      el.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var id = Number(el.getAttribute('data-passage'));
+        var ref = el.getAttribute('data-ref');
+        if(openPassageId === id && openPassageRef === ref){
+          openPassageId = null; openPassageRef = null;
+        } else {
+          openPassageId = id; openPassageRef = ref;
+        }
+        openPassageTranslation = 'kjv';
+        renderStream();
+        if(openPassageId === id) loadPassage(id, ref, 'kjv');
+      });
+    });
+  }
+
+  function loadPassage(entryId, ref, translation){
+    var panel = document.getElementById('passage-'+entryId);
+    if(!panel) return;
+    openPassageTranslation = translation;
+    var gl = greekLink(ref);
+    var cbl = state.mode==='advanced' ? crossBibleLink(ref) : null;
+    var blb = state.mode==='advanced' ? blueLetterBibleLink(ref) : null;
+    var lxx = lxxLinks(ref);
+    var switcher = '<span class="pswitch" style="flex-wrap:wrap;">' +
+      '<button class="ptbtn'+(translation==='kjv'?' active':'')+'" data-tr="kjv" data-eid="'+entryId+'" data-ref="'+escapeHtml(ref)+'">KJV</button>' +
+      '<button class="ptbtn'+(translation==='asv'?' active':'')+'" data-tr="asv" data-eid="'+entryId+'" data-ref="'+escapeHtml(ref)+'">ASV</button>' +
+      (gl ? '<a class="ptbtn" href="'+gl+'" target="_blank" rel="noopener">Greek (TR) &#8599;</a>' : '') +
+      (cbl ? '<a class="ptbtn" href="'+cbl+'" target="_blank" rel="noopener">CrossBible &#8599;</a>' : '') +
+      (blb ? '<a class="ptbtn" href="'+blb+'" target="_blank" rel="noopener">Blue Letter Bible &#8599;</a>' : '') +
+      (lxx ? '<a class="ptbtn" href="'+lxx.blb+'" target="_blank" rel="noopener">Septuagint (Greek) &#8599;</a>' : '') +
+      (lxx ? '<a class="ptbtn" href="'+lxx.brenton+'" target="_blank" rel="noopener">LXX in English &#8599;</a>' : '') +
+    '</span>';
+    var fallback = '<span class="pfallback"><a href="https://www.biblegateway.com/passage/?search='+encodeURIComponent(ref)+'&version='+translation.toUpperCase()+'" target="_blank" rel="noopener">read online instead &rarr;</a></span>';
+    var cacheKey = ref + '|' + translation;
+    var label = translation === 'asv' ? 'American Standard Version (public domain)' : 'King James Version (public domain)';
+
+    function paint(bodyHtml){
+      panel.innerHTML = switcher + '<span class="pref">'+escapeHtml(ref)+' &mdash; '+label+'</span>' + bodyHtml;
+      Array.prototype.forEach.call(panel.querySelectorAll('[data-tr]'), function(btn){
+        btn.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          loadPassage(Number(btn.getAttribute('data-eid')), btn.getAttribute('data-ref'), btn.getAttribute('data-tr'));
+        });
+      });
+    }
+
+    if(passageCache[cacheKey]){
+      paint(escapeHtml(passageCache[cacheKey]) + fallback);
+      return;
+    }
+    paint('<span style="font-style:italic;">looking up&hellip;</span>');
+    fetch('https://bible-api.com/'+encodeURIComponent(ref)+'?translation='+translation)
+      .then(function(r){ if(!r.ok) throw new Error('lookup failed'); return r.json(); })
+      .then(function(data){
+        var text = (data && data.text ? data.text.trim() : '');
+        if(!text) throw new Error('empty');
+        passageCache[cacheKey] = text;
+        paint(escapeHtml(text) + fallback);
+      })
+      .catch(function(){
+        paint('<span style="font-style:italic;">Couldn\'t look that passage up right now (offline, or the reference needs a book name spelled out).</span>' + fallback);
+      });
+  }
+
+  // Draft key: one slot for "new entry", one per entry number being edited.
+  function draftKey(){ return 'miscellanies-draft-'+state.activeNotebookId+(editingId!==null ? ('-edit-'+editingId) : '-new'); }
+  var draftTimer = null;
+  function scheduleDraftSave(){
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(saveDraftNow, 700);
+  }
+  function saveDraftNow(){
+    var form = document.getElementById('entryForm');
+    if(!form || !form.classList.contains('open')) return;
+    var draft = {
+      title: (document.getElementById('f-title')||{}).value || '',
+      ref: (document.getElementById('f-ref')||{}).value || '',
+      tags: (document.getElementById('f-tags')||{}).value || '',
+      body: (document.getElementById('f-body')||{}).value || '',
+      related: (document.getElementById('f-related')||{}).value || ''
+    };
+    if(!draft.title && !draft.body && !draft.ref && !draft.tags && !draft.related){
+      try{ localStorage.removeItem(draftKey()); }catch(e){}
+      return;
+    }
+    try{ localStorage.setItem(draftKey(), JSON.stringify(draft)); }catch(e){}
+  }
+  function clearDraft(){
+    try{ localStorage.removeItem(draftKey()); }catch(e){}
+  }
+  function maybeRestoreDraft(){
+    var raw;
+    try{ raw = localStorage.getItem(draftKey()); }catch(e){ return; }
+    if(!raw) return;
+    var draft;
+    try{ draft = JSON.parse(raw); }catch(e){ return; }
+    if(!draft) return;
+    if(!confirm('You have an unsaved draft here. Restore it?')) { clearDraft(); return; }
+    document.getElementById('f-title').value = draft.title || document.getElementById('f-title').value;
+    document.getElementById('f-ref').value = draft.ref || document.getElementById('f-ref').value;
+    document.getElementById('f-tags').value = draft.tags || document.getElementById('f-tags').value;
+    document.getElementById('f-body').value = draft.body || document.getElementById('f-body').value;
+    document.getElementById('f-related').value = draft.related || document.getElementById('f-related').value;
+  }
+
+  function openNewEntry(){
+    editingId = null; pendingPhotos = [];
+    document.getElementById('entryForm').classList.add('open');
+    document.getElementById('formHeading').textContent = 'New entry';
+    document.getElementById('f-title').value='';
+    document.getElementById('f-ref').value='';
+    document.getElementById('f-tags').value='';
+    document.getElementById('f-body').value='';
+    document.getElementById('f-related').value='';
+    document.getElementById('photoHint').textContent='';
+    if(state.mode==='advanced'){
+      document.getElementById('f-book').value = presetBookId || '';
+      document.getElementById('f-page').value='';
+      document.getElementById('f-video').value='';
+      document.getElementById('f-number').value = String(nb().nextId);
+    }
+    presetBookId = null;
+    document.getElementById('entryForm').scrollIntoView({behavior:'smooth', block:'start'});
+    document.getElementById('f-title').focus();
+    maybeRestoreDraft();
+  }
+
+  function openEditEntry(id){
+    var e = nb().entries.find(function(x){ return x.id===id; });
+    if(!e) return;
+    editingId = id; pendingPhotos = (e.photos||(e.photo?[e.photo]:[])).slice();
+    document.getElementById('entryForm').classList.add('open');
+    document.getElementById('formHeading').textContent = 'Edit entry no. '+id;
+    document.getElementById('f-title').value = e.title||'';
+    document.getElementById('f-ref').value = e.ref||'';
+    document.getElementById('f-tags').value = (e.tags||[]).join(', ');
+    document.getElementById('f-body').value = e.body||'';
+    document.getElementById('f-related').value = (e.related||[]).join(', ');
+    document.getElementById('photoHint').textContent = pendingPhotos.length ? (pendingPhotos.length+' photo'+(pendingPhotos.length===1?'':'s')+' attached. Selecting new ones adds more.') : '';
+    if(state.mode==='advanced'){
+      document.getElementById('f-book').value = e.bookId || '';
+      document.getElementById('f-page').value = e.page || '';
+      document.getElementById('f-video').value = e.videoLink || '';
+      var numField = document.getElementById('numberField');
+      if(numField) numField.style.display='none';
+    }
+    document.getElementById('entryForm').scrollIntoView({behavior:'smooth', block:'start'});
+    maybeRestoreDraft();
+  }
+
+  function closeForm(){
+    document.getElementById('entryForm').classList.remove('open');
+    document.body.classList.remove('focus-mode');
+    editingId = null; pendingPhotos = []; promotingInboxId = null;
+  }
+
+  function parseList(str){ return (str||'').split(',').map(function(s){return s.trim();}).filter(Boolean); }
+
+  function saveEntry(){
+    var title = document.getElementById('f-title').value.trim();
+    var body = document.getElementById('f-body').value.trim();
+    if(!title && !body){ flash('Give the entry a title or some text first'); return; }
+    var ref = document.getElementById('f-ref').value.trim();
+    var tags = parseList(document.getElementById('f-tags').value);
+    var relatedRaw = parseList(document.getElementById('f-related').value);
+    var related = relatedRaw.map(function(s){ return parseFloat(s.replace(/[^0-9.]/g,'')); }).filter(function(n){ return !isNaN(n); });
+
+    // Cross-reference validation: catch "see no. X" (or a related-entry number) pointing at nothing
+    var refNums = related.slice();
+    var noRx = /\b[Nn]o\.\s?(\d+(?:\.\d+)?)\b/g, m2;
+    while((m2 = noRx.exec(body))) refNums.push(parseFloat(m2[1]));
+    var missing = [];
+    refNums.forEach(function(n){
+      if(editingId !== null && n === editingId) return;
+      var exists = nb().entries.some(function(e){ return e.id === n; });
+      if(!exists && missing.indexOf(n) === -1) missing.push(n);
+    });
+    if(missing.length && !confirm('This entry refers to no. '+missing.join(', no. ')+' — which do'+(missing.length>1?'':'es')+' not exist (yet).\n\nSave anyway?')) return;
+
+    var bookId = null, page = '', videoLink = '';
+    if(state.mode==='advanced'){
+      bookId = document.getElementById('f-book').value || null;
+      page = document.getElementById('f-page').value.trim();
+      videoLink = document.getElementById('f-video').value.trim();
+    }
+
+    if(editingId){
+      var idx = nb().entries.findIndex(function(e){ return e.id===editingId; });
+      if(idx!==-1){
+        nb().entries[idx] = Object.assign({}, nb().entries[idx], {
+          title:title, ref:ref, tags:tags, body:body, related:related,
+          bookId:bookId, page:page, videoLink:videoLink,
+          photos: pendingPhotos, photo: undefined,
+          updated: new Date().toISOString()
+        });
+        delete nb().entries[idx].photo;
+      }
+      flash('Entry no. '+editingId+' updated');
+    } else {
+      var num = nb().nextId;
+      if(state.mode==='advanced'){
+        var custom = parseFloat(document.getElementById('f-number').value);
+        if(!isNaN(custom)){
+          var dup = nb().entries.some(function(e){ return e.id===custom; });
+          if(dup){ flash('That number is already used — try a decimal like '+custom+'.1'); return; }
+          num = custom;
+        }
+      }
+      nb().entries.push({
+        id:num, title:title, ref:ref, tags:tags, body:body, related:related,
+        bookId:bookId, page:page, videoLink:videoLink, photos:pendingPhotos,
+        created:new Date().toISOString()
+      });
+      if(num >= nb().nextId) nb().nextId = Math.floor(num)+1;
+      openEntryId = num;
+      if(promotingInboxId){
+        nb().inbox = nb().inbox.filter(function(i){ return i.id !== promotingInboxId; });
+        promotingInboxId = null;
+      }
+      flash('Entry no. '+num+' added');
+    }
+    clearDraft();
+    persist(); closeForm(); renderStream();
+  }
+
+  /* ---------- INBOX VIEW ---------- */
+  function renderInbox(){
+    var items = nb().inbox.slice().sort(function(a,b){ return b.created.localeCompare(a.created); });
+    var html = '';
+    html += '<div class="form open" style="margin-bottom:22px;">';
+    html += '<h2 style="margin-bottom:10px;">Dump an idea</h2>';
+    html += '<div class="field"><textarea id="inboxInput" placeholder="Get it out of your head. Organize it later." style="min-height:80px;"></textarea></div>';
+    html += '<div class="form-actions"><button class="btn primary" id="inboxAddBtn">Drop in inbox</button></div>';
+    html += '</div>';
+
+    if(items.length === 0){
+      html += '<div class="empty">Nothing in the inbox. Anything you jot down here waits, unnumbered and unsorted, until you\'re ready to work it into a full entry.</div>';
+    } else {
+      html += items.map(function(it){
+        return '<div class="entry" style="align-items:flex-start;">' +
+          '<div class="entry-num" style="color:var(--ink-faint); font-style:italic; font-size:12px;">&mdash;</div>' +
+          '<div class="entry-body">' +
+            '<div style="white-space:pre-wrap; font-size:16.5px;">'+linkify(it.text)+'</div>' +
+            '<div class="form-actions" style="margin-top:10px;">' +
+              '<button class="btn small primary" data-promote="'+it.id+'">Promote to entry</button>' +
+              '<button class="btn small rubric" data-inboxdelete="'+it.id+'">Delete</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+    document.getElementById('app').innerHTML = html;
+    wireInbox();
+  }
+
+  function wireInbox(){
+    document.getElementById('inboxAddBtn').addEventListener('click', function(){
+      var text = document.getElementById('inboxInput').value.trim();
+      if(!text){ flash('Nothing to drop in yet'); return; }
+      nb().inbox.push({ id:'ib_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), text:text, created:new Date().toISOString() });
+      persist();
+      renderAll();
+      flash('Dropped in the inbox');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-promote]'), function(el){
+      el.addEventListener('click', function(){
+        var id = el.getAttribute('data-promote');
+        var item = nb().inbox.find(function(i){ return i.id === id; });
+        if(!item) return;
+        promotingInboxId = id;
+        state.view = 'stream';
+        renderAll();
+        setTimeout(function(){
+          openNewEntry();
+          document.getElementById('f-body').value = item.text;
+        }, 20);
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-inboxdelete]'), function(el){
+      el.addEventListener('click', function(){
+        var id = el.getAttribute('data-inboxdelete');
+        nb().inbox = nb().inbox.filter(function(i){ return i.id !== id; });
+        persist(); renderInbox();
+        flash('Removed from inbox');
+      });
+    });
+  }
+
+  /* ---------- INDEX VIEW (Edwards kept a running index to his Miscellanies; this is that, computed live) ---------- */
+  var indexTab = 'topic';
+  function renderIndex(){
+    var entries = nb().entries;
+    var html = '<div class="indexbox">';
+    html += '<div class="shelf-head"><div class="t">Index</div><div class="s">every entry, gathered by topic and by scripture &mdash; just as Edwards kept his own index</div></div>';
+    html += '<div class="index-tabs"><button class="btn small'+(indexTab==='topic'?' primary':'')+'" data-idxtab="topic">by topic</button>' +
+      '<button class="btn small'+(indexTab==='book'?' primary':'')+'" data-idxtab="book">by scripture</button></div>';
+
+    if(indexTab === 'topic'){
+      var byTag = {};
+      entries.forEach(function(e){
+        (e.tags||[]).forEach(function(t){
+          if(!byTag[t]) byTag[t] = [];
+          byTag[t].push(e);
+        });
+      });
+      var tagNames = Object.keys(byTag).sort();
+      if(!tagNames.length){
+        html += '<div class="empty">No topics tagged yet.</div>';
+      } else {
+        tagNames.forEach(function(t){
+          html += '<div class="index-group"><h3>'+escapeHtml(t)+'</h3><div class="idxlist">' +
+            byTag[t].sort(function(a,b){ return a.id-b.id; }).map(function(e){
+              return '<a data-jump="'+e.id+'">no. '+e.id+' &mdash; '+escapeHtml(e.title||'untitled')+'</a>';
+            }).join('') +
+          '</div></div>';
+        });
+      }
+    } else {
+      var byBook = {};
+      entries.forEach(function(e){
+        var slug = bookKeyForRef(e.ref);
+        if(!slug) return;
+        if(!byBook[slug]) byBook[slug] = [];
+        byBook[slug].push(e);
+      });
+      var slugs = Object.keys(byBook).sort(function(a,b){
+        var ia = BOOK_ORDER.indexOf(a), ib = BOOK_ORDER.indexOf(b);
+        return (ia===-1?999:ia) - (ib===-1?999:ib);
+      });
+      if(!slugs.length){
+        html += '<div class="empty">No entries have a scripture reference yet.</div>';
+      } else {
+        slugs.forEach(function(slug){
+          html += '<div class="index-group"><h3>'+escapeHtml(prettifySlug(slug))+'</h3><div class="idxlist">' +
+            byBook[slug].sort(function(a,b){ return a.id-b.id; }).map(function(e){
+              return '<a data-jump="'+e.id+'">no. '+e.id+' &mdash; '+escapeHtml(e.ref||'')+', '+escapeHtml(e.title||'untitled')+'</a>';
+            }).join('') +
+          '</div></div>';
+        });
+      }
+    }
+    html += '</div>';
+    document.getElementById('app').innerHTML = html;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-idxtab]'), function(el){
+      el.addEventListener('click', function(){ indexTab = el.getAttribute('data-idxtab'); renderIndex(); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-jump]'), function(el){
+      el.addEventListener('click', function(){ jumpTo(Number(el.getAttribute('data-jump'))); });
+    });
+  }
+
+  /* ---------- LIBRARY VIEW ---------- */
+  function renderLibrary(){
+    var books = nb().books;
+    var perShelf = 8;
+    var shelfCount = Math.max(1, Math.ceil((books.length + 1) / perShelf));
+    var html = '<div class="shelfbox">';
+    html += '<div class="shelf-head"><div class="t">Library</div><div class="s">a starter shelf of classics Protestants have treasured for centuries &mdash; click a spine for notes &amp; links</div></div>';
+    html += '<div class="bookcase">';
+    for(var s = 0; s < shelfCount; s++){
+      var slice = books.slice(s * perShelf, (s + 1) * perShelf);
+      html += '<div class="books-row">';
+      slice.forEach(function(b, i){
+        var gi = s * perShelf + i;
+        var color = SPINE_COLORS[gi % SPINE_COLORS.length];
+        var h = 130 + (gi % 4) * 15;
+        var w = 36 + (gi % 3) * 6;
+        html += '<div class="book-spine" data-openbook="'+b.id+'" title="'+escapeHtml(b.title + (b.author ? ' — ' + b.author : ''))+'" style="width:'+w+'px; height:'+h+'px; background:linear-gradient(90deg, '+color+' 78%, rgba(0,0,0,0.3));">' +
+          (b.status==='reading' ? '<div class="reading-flag">reading</div>' : '') +
+          '<div class="spine-label" style="color:#ece6d6; font-size:'+(w>40?12:10)+'px;">'+escapeHtml(b.title)+'</div>' +
+        '</div>';
+      });
+      if(s === shelfCount - 1){
+        html += '<div class="addbook-spine" id="addBookBtn" title="Add a book">+</div>';
+      }
+      html += '</div><div class="shelf-plank"></div>';
+    }
+    html += '</div>';
+    html += '<div class="lib-hint">Click any book to keep your reading notes inside it, buy a copy, or read it free online.</div>';
+    html += '</div>';
+    document.getElementById('app').innerHTML = html;
+
+    document.getElementById('addBookBtn').addEventListener('click', function(){
+      document.getElementById('bookModal').classList.add('open');
+      document.getElementById('bk-title').focus();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-openbook]'), function(el){
+      el.addEventListener('click', function(){
+        state.openBookId = el.getAttribute('data-openbook');
+        state.view = 'book';
+        renderAll();
+      });
+    });
+  }
+
+  /* ---------- OPEN BOOK VIEW ---------- */
+  var activeTabId = null;
+  function renderOpenBook(){
+    var book = nb().books.find(function(b){ return b.id === state.openBookId; });
+    if(!book){ state.view='library'; renderAll(); return; }
+    var notes = nb().entries.filter(function(e){ return e.bookId === book.id; });
+    notes.sort(function(a,b){ return (parseFloat(a.page)||0) - (parseFloat(b.page)||0); });
+    if(!activeTabId || !notes.some(function(n){return n.id===activeTabId;})){
+      activeTabId = notes.length ? notes[0].id : null;
+    }
+    var active = notes.find(function(n){ return n.id === activeTabId; });
+
+    var html = '<div class="openbook">';
+    html += '<div class="openbook-top">';
+    html += '<div><div class="openbook-title">'+escapeHtml(book.title)+'</div><div class="openbook-author">'+escapeHtml(book.author||'')+'</div>' +
+      ((book.url || book.freeUrl) ?
+        '<div style="margin-top:5px; font-size:12.5px;">' +
+          (book.url ? '<a href="'+escapeHtml(book.url)+'" target="_blank" rel="noopener" style="color:var(--rubric);">get this book &rarr;</a>' : '') +
+          (book.url && book.freeUrl ? ' &nbsp;&middot;&nbsp; ' : '') +
+          (book.freeUrl ? '<a href="'+escapeHtml(book.freeUrl)+'" target="_blank" rel="noopener" style="color:var(--blue);">read free online &rarr;</a>' : '') +
+        '</div>' : '') +
+      '</div>';
+    html += '<div>' +
+      '<select id="statusSelect" class="btn small" style="margin-right:8px;" aria-label="Reading status">' +
+        '<option value=""'+(!book.status?' selected':'')+'>on the shelf</option>' +
+        '<option value="reading"'+(book.status==='reading'?' selected':'')+'>currently reading</option>' +
+        '<option value="finished"'+(book.status==='finished'?' selected':'')+'>finished</option>' +
+      '</select>' +
+      '<button class="btn small primary" id="addNoteToBookBtn" style="margin-right:8px;">+ add note</button>' +
+      '<button class="btn small" id="closeBookBtn">&larr; back to shelf</button>' +
+    '</div>';
+    html += '</div>';
+
+    html += '<div class="spread">';
+    html += '<div class="tabs-rail">';
+    if(notes.length===0){
+      html += '<div style="padding:12px; font-size:12px; color:var(--ink-faint); font-style:italic;">no notes yet</div>';
+    } else {
+      notes.forEach(function(n){
+        html += '<div class="tabitem'+(n.id===activeTabId?' active':'')+'" data-tab="'+n.id+'">p. '+escapeHtml(n.page||'&mdash;')+' &middot; no. '+n.id+'</div>';
+      });
+    }
+    html += '</div>';
+
+    html += '<div class="page-pane">';
+    if(active){
+      html += '<div class="page-num-corner">no. '+active.id+(active.page?' &middot; p. '+escapeHtml(active.page):'')+'</div>';
+      html += '<h3 class="entry-title" style="margin-bottom:6px;">'+escapeHtml(active.title||'untitled')+'</h3>';
+      if(active.ref) html += '<div class="badge ref" data-passage="'+active.id+'" data-ref="'+escapeHtml(active.ref)+'" style="margin-bottom:6px; display:inline-block; cursor:pointer;" title="Click to read this passage">'+escapeHtml(active.ref)+' &#128214;</div>';
+      html += '<div class="passage-panel'+(openPassageId===active.id?' open':'')+'" id="passage-'+active.id+'"></div>';
+      if((active.photos||[]).length) html += '<div class="photo-gallery">'+(active.photos||[]).map(function(p){ return '<img class="entry-photo" src="'+p+'">'; }).join('')+'</div>';
+      html += '<div style="white-space:pre-wrap; margin-top:8px;">'+linkify(active.body||'', active.id)+'</div>';
+      if(active.videoLink) html += '<div style="margin-top:10px; font-size:13.5px;"><a href="'+escapeHtml(active.videoLink)+'" target="_blank" rel="noopener" style="color:var(--blue);">watch related video &rarr;</a></div>';
+      html += '<div class="form-actions" style="margin-top:16px;">' +
+        '<button class="btn small" id="editTabBtn">Edit this entry</button>' +
+      '</div>';
+    } else {
+      html += '<div class="empty">Add a note for this book from the entry form, and tag it with this book to see it here.</div>';
+    }
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    document.getElementById('app').innerHTML = html;
+
+    document.getElementById('closeBookBtn').addEventListener('click', function(){
+      state.view='library'; state.openBookId=null; renderAll();
+    });
+    document.getElementById('addNoteToBookBtn').addEventListener('click', function(){
+      presetBookId = book.id;
+      state.view='stream';
+      renderAll();
+      setTimeout(function(){ openNewEntry(); }, 20);
+    });
+    document.getElementById('statusSelect').addEventListener('change', function(e){
+      book.status = e.target.value; persist(); renderOpenBook();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function(el){
+      el.addEventListener('click', function(){ activeTabId = Number(el.getAttribute('data-tab')); renderOpenBook(); });
+    });
+    var editBtn = document.getElementById('editTabBtn');
+    if(editBtn){
+      editBtn.addEventListener('click', function(){
+        state.view='stream'; renderAll();
+        setTimeout(function(){ openEditEntry(active.id); }, 30);
+      });
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('[data-passage="'+(active?active.id:'')+'"]'), function(passageBadge){
+      passageBadge.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var ref = passageBadge.getAttribute('data-ref') || active.ref;
+        if(openPassageId === active.id && openPassageRef === ref){
+          openPassageId = null; openPassageRef = null;
+        } else {
+          openPassageId = active.id; openPassageRef = ref;
+        }
+        openPassageTranslation = 'kjv';
+        renderOpenBook();
+        if(openPassageId === active.id) loadPassage(active.id, ref, 'kjv');
+      });
+    });
+  }
+
+  /* ---------- MODALS ---------- */
+  function wireModals(){
+    document.getElementById('addNbBtn') && document.getElementById('addNbBtn').addEventListener('click', function(){
+      document.getElementById('nbModal').classList.add('open');
+      document.getElementById('nb-name').focus();
+    });
+    document.getElementById('nbCancel').addEventListener('click', function(){
+      document.getElementById('nbModal').classList.remove('open');
+    });
+    document.getElementById('nbSave').addEventListener('click', function(){
+      var name = document.getElementById('nb-name').value.trim();
+      if(!name){ flash('Give the notebook a name'); return; }
+      var id = 'nb_' + Date.now();
+      state.notebooks[id] = { id:id, name:name, nextId:1, entries:[], books:[], inbox:[], trash:[] };
+      state.activeNotebookId = id;
+      document.getElementById('nb-name').value='';
+      document.getElementById('nbModal').classList.remove('open');
+      persist(); renderAll();
+      flash('Notebook "'+name+'" created');
+    });
+
+    document.getElementById('bkCancel').addEventListener('click', function(){
+      document.getElementById('bookModal').classList.remove('open');
+    });
+    document.getElementById('bkSave').addEventListener('click', function(){
+      var title = document.getElementById('bk-title').value.trim();
+      if(!title){ flash('Give the book a title'); return; }
+      var author = document.getElementById('bk-author').value.trim();
+      var status = document.getElementById('bk-status').value;
+      var id = 'bk_' + Date.now();
+      nb().books.push({ id:id, title:title, author:author, status:status });
+      document.getElementById('bk-title').value='';
+      document.getElementById('bk-author').value='';
+      document.getElementById('bookModal').classList.remove('open');
+      persist(); renderLibrary();
+      flash('"'+title+'" added to the shelf');
+    });
+
+    Array.prototype.forEach.call(document.querySelectorAll('[data-nb]'), function(el){
+      el.addEventListener('click', function(){
+        state.activeNotebookId = el.getAttribute('data-nb');
+        state.view='stream'; state.openBookId=null;
+        persist(); renderAll();
+      });
+    });
+  }
+
+  /* ---------- REFERENCE PICKER (insert "no. X" without memorizing numbers) ---------- */
+  function renderRefPickerList(query){
+    query = (query||'').toLowerCase();
+    var entries = nb().entries.filter(function(e){
+      if(!query) return true;
+      return (e.title||'').toLowerCase().indexOf(query) !== -1 || String(e.id).indexOf(query) !== -1;
+    }).slice().sort(function(a,b){ return b.id-a.id; }).slice(0, 60);
+    var list = document.getElementById('refPickerList');
+    if(!entries.length){ list.innerHTML = '<div class="refpick-item" style="cursor:default;">No matching entries.</div>'; return; }
+    list.innerHTML = entries.map(function(e){
+      return '<div class="refpick-item" data-pick="'+e.id+'"><span class="rnum">no. '+e.id+'</span>'+escapeHtml(e.title||'untitled')+'</div>';
+    }).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('[data-pick]'), function(el){
+      el.addEventListener('click', function(){
+        insertReference(Number(el.getAttribute('data-pick')));
+      });
+    });
+  }
+  function insertReference(id){
+    var field = document.getElementById(lastFocusedField) || document.getElementById('f-related');
+    var text = 'no. ' + id;
+    if(field.id === 'f-related'){
+      var cur = field.value.trim();
+      field.value = cur ? (cur + ', ' + id) : String(id);
+    } else {
+      var start = field.selectionStart != null ? field.selectionStart : field.value.length;
+      var end = field.selectionEnd != null ? field.selectionEnd : field.value.length;
+      field.value = field.value.slice(0, start) + text + field.value.slice(end);
+      var pos = start + text.length;
+      if(field.setSelectionRange) field.setSelectionRange(pos, pos);
+    }
+    field.focus();
+    scheduleDraftSave();
+    document.getElementById('refPickerModal').classList.remove('open');
+  }
+  function openRefPicker(){
+    document.getElementById('refPickerSearch').value = '';
+    renderRefPickerList('');
+    document.getElementById('refPickerModal').classList.add('open');
+    document.getElementById('refPickerSearch').focus();
+  }
+  document.getElementById('refPickerSearch').addEventListener('input', function(e){ renderRefPickerList(e.target.value); });
+  document.getElementById('refPickerClose').addEventListener('click', function(){
+    document.getElementById('refPickerModal').classList.remove('open');
+  });
+
+  /* ---------- QUOTE-CARD EXPORT (shareable image for social/YouTube) ---------- */
+  function wrapCanvasText(ctx, text, maxWidth){
+    var words = text.split(/\s+/), lines = [], line = '';
+    words.forEach(function(w){
+      var test = line ? line + ' ' + w : w;
+      if(ctx.measureText(test).width > maxWidth && line){ lines.push(line); line = w; }
+      else line = test;
+    });
+    if(line) lines.push(line);
+    return lines;
+  }
+  function generateQuoteCard(e){
+    var W = 1080, H = 1080;
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+
+    var grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0, '#efe8d8'); grad.addColorStop(1, '#ddd0ae');
+    ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+    ctx.strokeStyle = '#8a7038'; ctx.lineWidth = 3;
+    ctx.strokeRect(46, 46, W-92, H-92);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(60, 60, W-120, H-120);
+
+    ctx.fillStyle = '#8a7038';
+    ctx.font = '600 26px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('MISCELLANIES  •  no. ' + e.id, W/2, 150);
+
+    ctx.fillStyle = '#2A241C';
+    ctx.font = '700 44px Georgia, serif';
+    var titleLines = wrapCanvasText(ctx, e.title || 'untitled', W-220);
+    var ty = 260;
+    titleLines.slice(0,3).forEach(function(l){ ctx.fillText(l, W/2, ty); ty += 56; });
+
+    var quote = (e.body||'').trim();
+    var quoteMatch = quote.match(/^[\s\S]{0,220}?[.!?](?=\s|$)/);
+    var excerpt = quoteMatch ? quoteMatch[0] : quote.slice(0,200);
+    if(quote.length > excerpt.length) excerpt += '…';
+    ctx.font = 'italic 34px Georgia, serif';
+    ctx.fillStyle = '#57503e';
+    var qy = ty + 50;
+    var qlines = wrapCanvasText(ctx, '“' + excerpt + '”', W-260);
+    qlines.slice(0,8).forEach(function(l){ ctx.fillText(l, W/2, qy); qy += 46; });
+
+    if(e.ref){
+      ctx.font = '600 24px monospace';
+      ctx.fillStyle = '#33465C';
+      ctx.fillText(e.ref, W/2, H-160);
+    }
+    ctx.font = '13px monospace';
+    ctx.fillStyle = '#8b8370';
+    ctx.fillText('BIBLICAL STUDIES AND REVIEWS  •  MISCELLANIES NOTEBOOK', W/2, H-100);
+
+    canvas.toBlob(function(blob){
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'miscellany-no-'+e.id+'.png';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      flash('Quote card downloaded');
+    });
+  }
+
+  /* ---------- PRINTABLE BOUND VOLUME ---------- */
+  function generateBoundVolumeHtml(){
+    var n = nb();
+    var entries = n.entries.slice().sort(function(a,b){ return a.id-b.id; });
+    var byYear = {};
+    entries.forEach(function(e){
+      var y = (e.created||'').slice(0,4) || 'Undated';
+      if(!byYear[y]) byYear[y] = [];
+      byYear[y].push(e);
+    });
+    var years = Object.keys(byYear).sort();
+    var body = years.map(function(y){
+      var entriesHtml = byYear[y].map(function(e){
+        var book = n.books.find(function(b){ return b.id===e.bookId; });
+        return '<div class="ventry">' +
+          '<div class="vnum">no. '+e.id+'</div>' +
+          '<div class="vbody">' +
+            '<h3>'+escapeHtml(e.title||'untitled')+(e.ref?' <span class="vref">&mdash; '+escapeHtml(e.ref)+'</span>':'')+'</h3>' +
+            (book ? '<div class="vbook">'+escapeHtml(book.title)+'</div>' : '') +
+            '<div class="vtext">'+escapeHtml(e.body||'').replace(/\n/g,'<br>')+'</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      return '<div class="vyearbreak"><h2>' + y + '</h2></div>' + entriesHtml;
+    }).join('');
+
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
+      '<title>Miscellanies — ' + escapeHtml(n.name) + ' (Bound Volume)</title>' +
+      '<style>' +
+        'body{font-family:Georgia,serif; color:#1a1a1a; max-width:680px; margin:0 auto; padding:50px 30px; line-height:1.6;}' +
+        '.vtitlepage{text-align:center; padding:120px 0; page-break-after:always;}' +
+        '.vtitlepage h1{font-size:46px; margin-bottom:6px;}' +
+        '.vtitlepage .vsub{font-style:italic; color:#555; font-size:16px;}' +
+        '.vyearbreak{page-break-before:always; margin-top:40px;}' +
+        '.vyearbreak:first-of-type{page-break-before:avoid;}' +
+        '.vyearbreak h2{font-size:22px; border-bottom:2px solid #999; padding-bottom:6px;}' +
+        '.ventry{display:flex; gap:14px; margin:26px 0; break-inside:avoid;}' +
+        '.vnum{font-family:monospace; font-size:13px; color:#777; min-width:44px; text-align:right;}' +
+        '.vbody h3{margin:0 0 4px; font-size:19px;}' +
+        '.vref{font-weight:normal; font-size:14px; color:#555;}' +
+        '.vbook{font-size:13px; color:#8a7038; margin-bottom:6px;}' +
+        '.vtext{font-size:15px;}' +
+        '@media print{ body{padding:0;} .vprintnote{display:none;} }' +
+      '</style></head><body>' +
+      '<div class="vtitlepage"><h1>Miscellanies</h1><div class="vsub">' + escapeHtml(n.name) + '</div>' +
+        '<p class="vprintnote" style="margin-top:60px; font-size:13px; color:#777;">Open this page in your browser\'s Print dialog and choose &ldquo;Save as PDF&rdquo; for a bound-volume keepsake.</p>' +
+      '</div>' +
+      body +
+      '</body></html>';
+  }
+  document.getElementById('exportVolumeBtn').addEventListener('click', function(){
+    var html = generateBoundVolumeHtml();
+    var blob = new Blob([html], {type:'text/html'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var stamp = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = 'miscellanies-volume-'+nb().name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+stamp+'.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    flash('Bound volume downloaded — open it and print to PDF');
+  });
+
+  /* ---------- MASTER RENDER ---------- */
+  function renderAll(){
+    renderChrome();
+    if(state.mode==='simple'){ state.view='stream'; }
+    if(state.view==='stream') renderStream();
+    else if(state.view==='inbox') renderInbox();
+    else if(state.view==='library') renderLibrary();
+    else if(state.view==='book') renderOpenBook();
+    else if(state.view==='index') renderIndex();
+    wireModals();
+  }
+  document.getElementById('modeToggle').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-mode]');
+    if(!b) return;
+    state.mode = b.getAttribute('data-mode');
+    if(state.mode==='simple') state.view='stream';
+    persist(); renderAll();
+  });
+
+  document.getElementById('guideBtn').addEventListener('click', function(){
+    document.getElementById('guideModal').classList.add('open');
+  });
+  document.getElementById('guideClose').addEventListener('click', function(){
+    document.getElementById('guideModal').classList.remove('open');
+  });
+  document.getElementById('themeBtn').addEventListener('click', function(){
+    state.theme = (state.theme === 'dark') ? 'light' : 'dark';
+    document.body.classList.toggle('dark', state.theme === 'dark');
+    persist();
+  });
+
+  document.getElementById('helpBtn').addEventListener('click', function(){
+    document.getElementById('help-tutorial').value = state.settings.tutorialUrl || '';
+    document.getElementById('help-channel').value = state.settings.channelUrl || '';
+    document.getElementById('help-studybible').value = state.settings.studyBibleUrl || '';
+    document.getElementById('help-membership').value = state.settings.membershipUrl || '';
+    renderHelpLinks();
+    document.getElementById('helpModal').classList.add('open');
+  });
+  document.getElementById('helpClose').addEventListener('click', function(){
+    document.getElementById('helpModal').classList.remove('open');
+  });
+  document.getElementById('helpSave').addEventListener('click', function(){
+    state.settings.tutorialUrl = document.getElementById('help-tutorial').value.trim();
+    state.settings.channelUrl = document.getElementById('help-channel').value.trim();
+    state.settings.studyBibleUrl = document.getElementById('help-studybible').value.trim();
+    state.settings.membershipUrl = document.getElementById('help-membership').value.trim();
+    persist();
+    renderHelpLinks();
+    renderMastheadLink();
+    flash('Links saved');
+  });
+  /* ---------- PHONE MODE (single-device app; manual transfer) ---------- */
+  var IS_PHONE = /Android|iPhone|iPod/i.test(navigator.userAgent) ||
+                 (navigator.maxTouchPoints > 1 && /iPad|Macintosh/.test(navigator.userAgent) && !window.showDirectoryPicker);
+  function initPhoneMode(){
+    if(!IS_PHONE) return;
+    document.body.classList.add('phone');
+    var fb = document.getElementById('folderBtn');
+    if(fb) fb.style.display = 'none';
+    if(!state.settings.phoneNoticeSeen){
+      document.getElementById('phoneModeModal').classList.add('open');
+    }
+  }
+  document.getElementById('phoneModeOk').addEventListener('click', function(){
+    state.settings.phoneNoticeSeen = true;
+    persist();
+    document.getElementById('phoneModeModal').classList.remove('open');
+  });
+
+  function renderHelpLinks(){
+    var html = '';
+    if(state.settings.tutorialUrl) html += '<div><a href="'+escapeHtml(state.settings.tutorialUrl)+'" target="_blank" rel="noopener" style="color:var(--blue);">Watch the tutorial &rarr;</a></div>';
+    if(state.settings.channelUrl) html += '<div style="margin-top:6px;"><a href="'+escapeHtml(state.settings.channelUrl)+'" target="_blank" rel="noopener" style="color:var(--blue);">Visit the channel &rarr;</a></div>';
+    if(state.settings.studyBibleUrl) html += '<div style="margin-top:6px;"><a href="'+escapeHtml(state.settings.studyBibleUrl)+'" target="_blank" rel="noopener" style="color:var(--blue);">Get the Jonathan Edwards Study Bible &rarr;</a></div>';
+    if(state.settings.membershipUrl) html += '<div style="margin-top:6px;"><a href="'+escapeHtml(state.settings.membershipUrl)+'" target="_blank" rel="noopener" style="color:var(--blue);">Join the channel &rarr;</a></div>';
+    document.getElementById('helpLinks').innerHTML = html;
+  }
+  function renderMastheadLink(){
+    var el = document.getElementById('studyBibleLink');
+    el.innerHTML = state.settings.studyBibleUrl
+      ? '<a href="'+escapeHtml(state.settings.studyBibleUrl)+'" target="_blank" rel="noopener">Get the Jonathan Edwards Study Bible &rarr;</a>'
+      : '';
+  }
+
+  function rtfEscape(str){
+    var out = '';
+    str = String(str || '');
+    for(var i=0; i<str.length; i++){
+      var ch = str[i];
+      var code = str.charCodeAt(i);
+      if(ch === '\\'){ out += '\\\\'; }
+      else if(ch === '{'){ out += '\\{'; }
+      else if(ch === '}'){ out += '\\}'; }
+      else if(ch === '\n'){ out += '\\par\n'; }
+      else if(code > 127){
+        var signed = code > 32767 ? code - 65536 : code;
+        out += '\\u' + signed + '?';
+      } else {
+        out += ch;
+      }
+    }
+    return out;
+  }
+
+  function generateRtf(){
+    var n = nb();
+    var entries = n.entries.slice().sort(function(a,b){ return a.id - b.id; });
+    var body = '{\\rtf1\\ansi\\ansicpg1252\\deff0{\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs28\\b '+rtfEscape('Miscellanies — '+n.name)+'\\b0\\fs20\\par\\par\n';
+    if(entries.length === 0){
+      body += rtfEscape('No entries yet.') + '\\par\n';
+    }
+    entries.forEach(function(e){
+      var book = n.books.find(function(b){ return b.id === e.bookId; });
+      body += '\\fs24\\b '+rtfEscape('No. '+e.id+' — '+(e.title||'untitled'))+'\\b0\\fs20\\par\n';
+      if(e.ref) body += '\\i '+rtfEscape(e.ref)+'\\i0\\par\n';
+      if(book) body += rtfEscape(book.title + (e.page ? ', p. '+e.page : '')) + '\\par\n';
+      if(e.tags && e.tags.length) body += '\\i '+rtfEscape(e.tags.join(', '))+'\\i0\\par\n';
+      body += '\\par\n' + rtfEscape(e.body||'') + '\\par\n';
+      if(e.related && e.related.length) body += '\\par\n'+rtfEscape('See also: no. '+e.related.join(', no. '))+'\\par\n';
+      if(e.videoLink) body += rtfEscape('Video: '+e.videoLink) + '\\par\n';
+      body += '\\par\n\\line\\par\n';
+    });
+    body += '}';
+    return body;
+  }
+
+  document.getElementById('exportRtfBtn').addEventListener('click', function(){
+    var rtf = generateRtf();
+    var blob = new Blob([rtf], {type:'application/rtf'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var stamp = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = 'miscellanies-'+nb().name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+stamp+'.rtf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    flash('Document downloaded');
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', function(){
+    var blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var stamp = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = 'miscellanies-backup-'+stamp+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    flash('Backup downloaded');
+  });
+  document.getElementById('exportPhoneBtn').addEventListener('click', function(){
+    var copy = JSON.parse(JSON.stringify(state));
+    Object.keys(copy.notebooks || {}).forEach(function(k){
+      (copy.notebooks[k].entries || []).forEach(function(e){
+        e.photos = [];
+        delete e.photo;
+      });
+    });
+    var blob = new Blob([JSON.stringify(copy, null, 2)], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var stamp = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = 'digging-deep-phone-'+stamp+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    flash('Phone backup downloaded (no photos) — import it on your phone');
+  });
+  document.getElementById('importBtn').addEventListener('click', function(){
+    document.getElementById('importFile').click();
+  });
+  document.getElementById('importFile').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        var parsed = JSON.parse(ev.target.result);
+        if(!parsed || !parsed.notebooks) throw new Error('bad file');
+        if(!confirm('This will replace everything currently in the app with the contents of this backup file. Continue?')) return;
+        state = parsed;
+        if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
+        persist();
+        renderAll();
+        flash('Backup restored');
+      }catch(err){
+        flash('That file doesn\'t look like a Miscellanies backup');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  document.getElementById('folderBtn').addEventListener('click', function(){
+    if(dirHandle){
+      if(confirm('Disconnect from folder "'+dirHandle.name+'"?\n\nYour notes stay in the folder as files; the app goes back to browser-only storage.')) disconnectFolder();
+    } else if(pendingHandle){
+      verifyPermission(pendingHandle).then(function(ok){
+        if(!ok){ flash('Access not granted'); return; }
+        dirHandle = pendingHandle; pendingHandle = null;
+        loadFromFolder().then(function(){ renderAll(); renderFolderBtn(); flash('Notebook loaded from folder'); },
+                           function(){ renderFolderBtn(); flash('Reconnected — no notebook file found yet'); persist(); });
+      });
+    } else {
+      connectFolder();
+    }
+  });
+
+  load();
+  document.body.classList.toggle('dark', state.theme === 'dark');
+  renderMastheadLink();
+  renderAll();
+  renderFolderBtn();
+  if(IS_PHONE){ initPhoneMode(); } else { restoreFolder(); }
+})();
+</script>
+</body>
+</html>
