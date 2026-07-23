@@ -1839,8 +1839,8 @@
           var qItems = nb().inbox.slice().sort(function(a,b){ return b.created.localeCompare(a.created); });
           html += '<div class="form open" style="margin-bottom:22px;">';
           html += '<h2 style="margin-bottom:10px;">Quick capture</h2>';
-          html += '<div class="field"><textarea id="quickInboxInput" placeholder="Get it out of your head. Organize it later." style="min-height:70px;"></textarea></div>';
-          html += '<div class="form-actions"><button class="btn primary" id="quickInboxAddBtn">Drop it in</button></div>';
+          html += '<div class="field"><textarea id="quickInboxInput" placeholder="Write it out — this becomes a numbered entry unless you check organize later." style="min-height:70px;"></textarea></div>';
+          html += '<div class="form-actions" style="align-items:center; flex-wrap:wrap;"><button class="btn primary" id="quickSaveBtn">Save entry</button><label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); cursor:pointer; margin-left:4px;"><input type="checkbox" id="quickOrganizeLater"> organize later (inbox)</label></div>';
           if(qItems.length){
                 html += '<div style="margin-top:14px; border-top:1px dashed var(--line); padding-top:12px;">';
                 html += qItems.map(function(it){
@@ -1971,18 +1971,32 @@
   var lastFocusedField = 'f-related';
 
   function wireStream(){
-        var quickBtn = document.getElementById('quickInboxAddBtn');
-        if(quickBtn){
-              quickBtn.addEventListener('click', function(){
+        var quickSaveBtn = document.getElementById('quickSaveBtn');
+        if(quickSaveBtn){
+              quickSaveBtn.addEventListener('click', function(){
                     var text = document.getElementById('quickInboxInput').value.trim();
-                    if(!text){ flash('Nothing to drop in yet'); return; }
-                    nb().inbox.push({ id:'ib_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), text:text, created:new Date().toISOString() });
-                    persist();
-                    renderStream();
-                    flash('Dropped in the inbox');
+                    if(!text){ flash('Nothing to save yet'); return; }
+                    var organizeLater = document.getElementById('quickOrganizeLater').checked;
+                    if(organizeLater){
+                          nb().inbox.push({ id:'ib_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), text:text, created:new Date().toISOString() });
+                          persist();
+                          renderStream();
+                          flash('Dropped in the inbox');
+                    } else {
+                          var __qw = text.split(/\s+/);
+                          var __qtitle = __qw.slice(0,8).join(' ');
+                          if(__qw.length > 8) __qtitle += '…';
+                          var __qref = proposeRefFromBody(text);
+                          var __qnum = nb().nextId;
+                          nb().entries.push({ id:__qnum, title:__qtitle, ref:__qref, tags:[], body:text, related:[], bookId:null, page:'', videoLink:'', photos:[], created:new Date().toISOString() });
+                          if(__qnum >= nb().nextId) nb().nextId = Math.floor(__qnum)+1;
+                          noteEdit();
+                          persist();
+                          renderStream();
+                          flash('Entry no. '+__qnum+' added');
+                    }
               });
         }
-        Array.prototype.forEach.call(document.querySelectorAll('[data-qpromote]'), function(el){
               el.addEventListener('click', function(){
                     var id = el.getAttribute('data-qpromote');
                     var item = nb().inbox.find(function(i){ return i.id === id; });
