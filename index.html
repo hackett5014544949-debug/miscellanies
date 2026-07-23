@@ -365,7 +365,7 @@
     <input type="file" id="importFile" accept="application/json" style="display:none;">
     <button class="btn small" id="exportRtfBtn">Export as document (.rtf)</button>
     <button class="btn small" id="exportVolumeBtn">Export bound volume (printable)</button>
-    <button class="btn small" id="exportPhoneBtn" title="A backup without photos — small enough for a phone's browser storage">Export for phone (no photos)</button>
+    <button class="btn small" id="exportPhoneBtn" title="A text-only backup — small enough for a phone's browser storage, no photos included">Export for phone (text only, no photos)</button>
     <button class="btn small" id="folderBtn">Save to folder&hellip;</button>
     <button class="btn small" id="helpBtn">About &amp; links</button>
   </div>
@@ -438,7 +438,7 @@
     <h3>You're on a phone &mdash; a few things to know</h3>
     <ul style="font-size:14.5px; color:var(--ink-soft); padding-left:20px;">
       <li>Your notes save <b>in this phone's browser only</b>. Clearing the browser's data erases them &mdash; export a backup now and then (Advanced &rarr; Export backup).</li>
-      <li>Phone browser storage is limited, so go easy on photos. When bringing notes over from your computer, use its <b>"Export for phone (no photos)"</b> button.</li>
+      <li>Photos only live on your computer's copy of this notebook. Bringing notes over from your computer? Use its <b>"Export for phone (text only, no photos)"</b> button — photos are left out automatically, every time.</li>
       <li>There's no automatic sync with other devices &mdash; you move notes by hand with Export and Import backup. See the <b>guide</b> for the steps.</li>
       <li>"Save to folder&hellip;" is a desktop-only feature and is hidden here.</li>
     </ul>
@@ -1553,7 +1553,7 @@
       '<div class="field"><label>Topics</label><input type="text" id="f-tags" placeholder="comma separated"></div>' +
     '</div>' +
     '<div class="field"><label>Entry <button type="button" class="btn small ghost" id="refPickerBodyBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert reference &hellip;</button></label><textarea id="f-body" placeholder="Write the reflection itself"></textarea></div>' +
-    '<div class="field"><label>Photos (optional)</label><input type="file" id="f-photo" accept="image/*" multiple><div class="hint" id="photoHint"></div></div>' +
+    '<div class="field"><label>Photos (optional)</label><input type="file" id="f-photo" accept="image/*" multiple><div class="hint" id="photoHint"></div><div class="hint">Photos stay only on this computer copy. Anything exported for your phone or the viewer leaves photos out automatically.</div></div>' +
     '<div class="field"><label>Related entries <button type="button" class="btn small ghost" id="refPickerBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert &hellip;</button></label><input type="text" id="f-related" placeholder="entry numbers, comma separated"></div>' +
     (state.mode==='advanced' ? (
       '<div class="advonly">' +
