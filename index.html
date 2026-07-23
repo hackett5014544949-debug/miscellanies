@@ -1835,6 +1835,25 @@
     visible.sort(function(a,b){ return b.id - a.id; });
 
     var html = '';
+    if(state.mode==='simple'){
+          var qItems = nb().inbox.slice().sort(function(a,b){ return b.created.localeCompare(a.created); });
+          html += '<div class="form open" style="margin-bottom:22px;">';
+          html += '<h2 style="margin-bottom:10px;">Quick capture</h2>';
+          html += '<div class="field"><textarea id="quickInboxInput" placeholder="Get it out of your head. Organize it later." style="min-height:70px;"></textarea></div>';
+          html += '<div class="form-actions"><button class="btn primary" id="quickInboxAddBtn">Drop it in</button></div>';
+          if(qItems.length){
+                html += '<div style="margin-top:14px; border-top:1px dashed var(--line); padding-top:12px;">';
+                html += qItems.map(function(it){
+                      var preview = it.text.length>140 ? it.text.slice(0,140)+'…' : it.text;
+                      return '<div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); font-size:14.5px;">' +
+                            '<span style="flex:1; white-space:pre-wrap;">'+escapeHtml(preview)+'</span>' +
+                            '<span style="white-space:nowrap;"><a data-qpromote="'+it.id+'" style="cursor:pointer; color:var(--rubric); text-decoration:underline; margin-right:8px;">promote</a><a data-qdelete="'+it.id+'" style="cursor:pointer; color:var(--ink-faint); text-decoration:underline;">delete</a></span>' +
+                            '</div>';
+                }).join('');
+                html += '</div>';
+          }
+          html += '</div>';
+    }
     html += '<div class="toolbar">';
     html += '<input type="text" id="searchInput" placeholder="Search title, body, reference, tag, book&hellip;" value="'+escapeHtml(state.search)+'">';
     html += '<select id="tagSelect"><option value="">All topics</option>' + tags.map(function(t){
@@ -1952,6 +1971,35 @@
   var lastFocusedField = 'f-related';
 
   function wireStream(){
+        var quickBtn = document.getElementById('quickInboxAddBtn');
+        if(quickBtn){
+              quickBtn.addEventListener('click', function(){
+                    var text = document.getElementById('quickInboxInput').value.trim();
+                    if(!text){ flash('Nothing to drop in yet'); return; }
+                    nb().inbox.push({ id:'ib_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), text:text, created:new Date().toISOString() });
+                    persist();
+                    renderStream();
+                    flash('Dropped in the inbox');
+              });
+        }
+        Array.prototype.forEach.call(document.querySelectorAll('[data-qpromote]'), function(el){
+              el.addEventListener('click', function(){
+                    var id = el.getAttribute('data-qpromote');
+                    var item = nb().inbox.find(function(i){ return i.id === id; });
+                    if(!item) return;
+                    promotingInboxId = id;
+                    openNewEntry();
+                    document.getElementById('f-body').value = item.text;
+              });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-qdelete]'), function(el){
+              el.addEventListener('click', function(){
+                    var id = el.getAttribute('data-qdelete');
+                    nb().inbox = nb().inbox.filter(function(i){ return i.id !== id; });
+                    persist(); renderStream();
+                    flash('Removed from inbox');
+              });
+        });
     document.getElementById('searchInput').addEventListener('input', function(e){
       state.search = e.target.value; renderStream();
       document.getElementById('searchInput').focus();
@@ -2219,6 +2267,7 @@
     var title = document.getElementById('f-title').value.trim();
     var body = document.getElementById('f-body').value.trim();
     if(!title && !body){ flash('Give the entry a title or some text first'); return; }
+        if(!title){ var __w = body.split(/\s+/); title = __w.slice(0,8).join(' '); if(__w.length > 8) title += '…'; }
     var ref = document.getElementById('f-ref').value.trim();
     var tags = parseList(document.getElementById('f-tags').value);
     var relatedRaw = parseList(document.getElementById('f-related').value);
