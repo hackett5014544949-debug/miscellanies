@@ -17,6 +17,7 @@
   textarea{min-height:120px; font-family:monospace; font-size:13px;}
   button{font-size:15px; padding:10px 16px; border:1px solid #33465C; background:#33465C; color:#fff; border-radius:6px; cursor:pointer; margin-right:8px; margin-top:4px;}
   button.ghost{background:transparent; color:#33465C;}
+  button.big{font-size:17px; padding:14px 22px; width:100%; box-sizing:border-box;}
   #search{width:100%; box-sizing:border-box; font-size:16px; padding:10px 12px; border:1px solid #b9ac8e; border-radius:6px; margin-bottom:20px; background:#f3eddd;}
   .nbname{font-size:22px; border-bottom:2px solid #b9ac8e; padding-bottom:6px; margin-top:30px;}
   .entry{display:flex; gap:12px; border-bottom:1px solid #b9ac8e; padding:16px 0;}
@@ -32,7 +33,9 @@
   .video a{color:#33465C;}
   .empty{font-style:italic; color:#57503e;}
   .setupbox{border:1px solid #b9ac8e; border-radius:8px; padding:16px; background:#f3eddd; margin-bottom:20px;}
-  a.reset{font-size:12.5px; color:#8b8370;}
+  a.reset, a.toggle{font-size:12.5px; color:#8b8370;}
+  details{margin-top:14px;}
+  summary{font-size:13px; color:#57503e; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -58,8 +61,10 @@
   }
 
   // Turn a share-page link from Dropbox / Google Drive into a direct-content URL
-  // where possible, since a share *page* (with buttons and a preview) can't be
-  // fetched as raw JSON the way a direct file link can.
+  // where possible. Note: as of testing, none of Dropbox, Google Drive, or iCloud
+  // actually allow a webpage on another domain to fetch a shared file this way —
+  // their servers don't send the permission headers browsers require. This is kept
+  // only as a secondary option in case a user's own storage/host behaves differently.
   function normalizeLink(url){
     try{
       var u = new URL(url);
@@ -73,6 +78,14 @@
       }
     }catch(e){}
     return url;
+  }
+
+  function parseAndRender(text){
+    var data;
+    try{ data = JSON.parse(text); }
+    catch(e){ throw new Error('That didn\'t look like valid notebook data — check you copied the whole file.'); }
+    if(!data || !data.notebooks) throw new Error('That didn\'t look like Miscellanies data.');
+    render(data);
   }
 
   function render(data){
@@ -100,9 +113,10 @@
     }).join('');
 
     var when = data.generatedAt ? new Date(data.generatedAt).toLocaleString() : '';
+    document.getElementById('setup').innerHTML = '';
     document.getElementById('content').innerHTML =
-      '<div class="note">Last updated from your computer: '+escapeHtml(when)+'. '+
-        '<a class="reset" href="javascript:void(0)" id="resetLink">use a different link</a></div>'+
+      '<div class="note">Notes as of: '+escapeHtml(when)+'. '+
+        '<a class="reset" href="javascript:void(0)" id="resetLink">load different notes</a></div>'+
       '<input type="text" id="search" placeholder="Search&hellip;">'+
       html;
 
@@ -114,28 +128,56 @@
     });
     document.getElementById('resetLink').addEventListener('click', function(){
       try{ localStorage.removeItem('miscellanies-viewer-src'); }catch(e){}
-      window.location.search = '';
+      document.getElementById('content').innerHTML = '';
+      showPasteScreen();
     });
   }
 
-  function showError(msg, rawUrl){
-    document.getElementById('content').innerHTML =
-      '<div class="error"><b>Couldn\'t load your notes automatically.</b><br>'+escapeHtml(msg)+'</div>'+
+  // Primary path: paste. Either a one-tap clipboard read (fed by an iPhone
+  // Shortcut that already copied miscellanies-data.json's contents) or a
+  // manual paste into the text box below it.
+  function showPasteScreen(msg){
+    document.getElementById('setup').innerHTML =
+      (msg ? '<div class="error">'+escapeHtml(msg)+'</div>' : '') +
       '<div class="setupbox">'+
-        '<p style="margin-top:0;">As a fallback, open <b>miscellanies-data.json</b> in your cloud storage app, '+
-        'select all its text, copy it, and paste it below.</p>'+
-        '<div class="field"><textarea id="pastebox" placeholder="Paste the contents of miscellanies-data.json here"></textarea></div>'+
-        '<button id="pasteLoad">Show my notes</button>'+
-        '<button class="ghost" id="pasteRetry">Try the link again</button>'+
+        '<p style="margin-top:0;">Your notes stay on your device the whole time &mdash; this page never fetches '+
+        'them from anywhere automatically. Get them onto this page by pasting:</p>'+
+        '<button class="big" id="pasteClipboardBtn">Paste my notes</button>'+
+        '<details>'+
+          '<summary>Paste didn\'t work, or using a computer?</summary>'+
+          '<div class="field" style="margin-top:10px;"><textarea id="pastebox" placeholder="Paste the contents of miscellanies-data.json here"></textarea></div>'+
+          '<button id="pasteManualBtn">Show my notes</button>'+
+        '</details>'+
+        '<details>'+
+          '<summary>Advanced: use a link instead</summary>'+
+          '<p style="font-size:13px;">Most cloud services (Dropbox, Google Drive, iCloud) don\'t actually allow this to '+
+          'work automatically &mdash; tested and confirmed. Only use this if you know your link supports it.</p>'+
+          '<div class="field"><input type="text" id="manualsrc" placeholder="https://..."></div>'+
+          '<button class="ghost" id="manualGo">Try this link</button>'+
+        '</details>'+
       '</div>';
-    document.getElementById('pasteLoad').addEventListener('click', function(){
-      try{
-        var data = JSON.parse(document.getElementById('pastebox').value);
-        render(data);
-      }catch(e){ alert('That didn\'t look like valid notebook data — check you copied the whole file.'); }
+
+    document.getElementById('pasteClipboardBtn').addEventListener('click', function(){
+      if(!navigator.clipboard || !navigator.clipboard.readText){
+        alert('This browser can\'t read the clipboard automatically — use the paste box below instead.');
+        return;
+      }
+      navigator.clipboard.readText().then(function(text){
+        try{ parseAndRender(text); }
+        catch(e){ showPasteScreen(e.message); }
+      }).catch(function(){
+        alert('Couldn\'t access the clipboard — your browser may need permission, or try the paste box below instead.');
+      });
     });
-    document.getElementById('pasteRetry').addEventListener('click', function(){
-      loadFrom(rawUrl, true);
+    document.getElementById('pasteManualBtn').addEventListener('click', function(){
+      try{ parseAndRender(document.getElementById('pastebox').value); }
+      catch(e){ alert(e.message); }
+    });
+    document.getElementById('manualGo').addEventListener('click', function(){
+      var v = document.getElementById('manualsrc').value.trim();
+      if(!v) return;
+      try{ localStorage.setItem('miscellanies-viewer-src', v); }catch(e){}
+      loadFrom(v);
     });
   }
 
@@ -143,42 +185,26 @@
     var fetchUrl = normalizeLink(url) + (forceNoCache ? (url.indexOf('?')===-1?'?':'&')+'_ts='+Date.now() : '');
     fetch(fetchUrl, {cache:'no-store'}).then(function(r){
       if(!r.ok) throw new Error('Server responded with an error (status '+r.status+')');
-      return r.json();
-    }).then(function(data){
-      if(!data || !data.notebooks) throw new Error('The file didn\'t look like Miscellanies data.');
-      render(data);
+      return r.text();
+    }).then(function(text){
+      parseAndRender(text);
     }).catch(function(err){
-      showError(err.message || 'The link couldn\'t be reached from here — this can happen with some cloud services.', url);
+      try{ localStorage.removeItem('miscellanies-viewer-src'); }catch(e){}
+      showPasteScreen((err.message || 'The link couldn\'t be reached from here.') + ' Use paste instead:');
     });
   }
 
-  function showSetup(){
-    document.getElementById('setup').innerHTML =
-      '<div class="setupbox">'+
-        '<p style="margin-top:0;">This page hasn\'t been pointed at a notebook yet. Open the Miscellanies app on '+
-        'your computer, go to Advanced &rarr; <b>"Phone link&hellip;"</b>, and it will build the exact link to '+
-        'bookmark here &mdash; or paste your data link directly below.</p>'+
-        '<div class="field"><label for="manualsrc">Data link</label><input type="text" id="manualsrc" placeholder="https://www.dropbox.com/... or https://drive.google.com/..."></div>'+
-        '<button id="manualGo">Show my notes</button>'+
-      '</div>';
-    document.getElementById('manualGo').addEventListener('click', function(){
-      var v = document.getElementById('manualsrc').value.trim();
-      if(!v) return;
-      try{ localStorage.setItem('miscellanies-viewer-src', v); }catch(e){}
-      document.getElementById('setup').innerHTML = '';
-      loadFrom(v);
-    });
-  }
-
+  // A ?src= link is still supported for anyone whose storage does support it,
+  // but paste is the default, primary path since it's the one proven to work
+  // for everyone regardless of which cloud service they use.
   var src = qsParam('src');
   if(src){
-    try{ localStorage.setItem('miscellanies-viewer-src', src); }catch(e){}
     loadFrom(src);
   }else{
     var saved = null;
     try{ saved = localStorage.getItem('miscellanies-viewer-src'); }catch(e){}
     if(saved) loadFrom(saved);
-    else showSetup();
+    else showPasteScreen();
   }
 
 })();
