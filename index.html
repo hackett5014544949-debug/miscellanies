@@ -1997,7 +1997,8 @@
                     }
               });
         }
-              el.addEventListener('click', function(){
+              Array.prototype.forEach.call(document.querySelectorAll('[data-qpromote]'), function(el){
+                el.addEventListener('click', function(){
                     var id = el.getAttribute('data-qpromote');
                     var item = nb().inbox.find(function(i){ return i.id === id; });
                     if(!item) return;
