@@ -365,6 +365,7 @@
     <input type="file" id="importFile" accept="application/json" style="display:none;">
     <button class="btn small" id="exportRtfBtn">Export as document (.rtf)</button>
     <button class="btn small" id="exportVolumeBtn">Export bound volume (printable)</button>
+    <button class="btn small" id="printBtn" title="A clean, printable copy of the whole numbered notebook — opens your browser's print dialog (choose Save as PDF)">Print / PDF</button>
     <button class="btn small" id="exportPhoneBtn" title="A text-only backup — small enough for a phone's browser storage, no photos included">Export for phone (text only, no photos)</button>
     <button class="btn small" id="folderBtn">Save to folder&hellip;</button>
     <button class="btn small" id="helpBtn">About &amp; links</button>
@@ -1144,6 +1145,42 @@
     return null;
   }
 
+  // Split a ref field that may hold several references (comma/semicolon separated),
+  // e.g. "Genesis 1:1; John 1:1" or "Rom 5:12, 1 Cor 15:22". Backward-compatible with single refs.
+  function splitRefs(ref){
+    return (ref||'').split(/[;,]/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length; });
+  }
+  // All distinct scripture-book slugs referenced by a (possibly multi-) ref field.
+  function bookKeysForRef(ref){
+    var parts = splitRefs(ref);
+    if(!parts.length && (ref||'').trim()) parts = [(ref||'').trim()];
+    var slugs = [];
+    parts.forEach(function(p){
+      var slug = bookKeyForRef(p);
+      if(slug && slugs.indexOf(slug) === -1) slugs.push(slug);
+    });
+    return slugs;
+  }
+  // Propose a "main" scripture reference for an entry from its own body text.
+  // Prefers the first chapter:verse citation; falls back to the first chapter reference.
+  function proposeRefFromBody(body){
+    var matches = (body||'').match(SCRIPTURE_REF_REGEX);
+    if(!matches || !matches.length) return '';
+    var withVerse = matches.filter(function(m){ return m.indexOf(':') !== -1; });
+    var pick = (withVerse.length ? withVerse[0] : matches[0]) || '';
+    return pick.replace(/[.,;:]+$/, '').trim();
+  }
+  // Migration: fill blank ref fields by proposing a main ref from the body.
+  // Non-destructive — only touches entries whose ref is empty; marks refAuto for transparency.
+  function fillEmptyRefs(entries){
+    (entries||[]).forEach(function(e){
+      if(e && (!e.ref || !e.ref.trim())){
+        var proposed = proposeRefFromBody(e.body);
+        if(proposed){ e.ref = proposed; e.refAuto = true; }
+      }
+    });
+  }
+
   // Book names/abbreviations recognized when scanning free text for scripture references
   // (used to make verses mentioned inline in a note's body clickable, not just the dedicated ref field).
   var REF_BOOK_PATTERN = [
@@ -1259,6 +1296,16 @@
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     catch(e){ flash('Could not save — storage may be full'); }
   }
+  // Gentle backup nudge: count edits since the last export / folder-save.
+  function noteEdit(){
+    state.editsSinceBackup = (state.editsSinceBackup||0) + 1;
+    if(state.editsSinceBackup > 0 && state.editsSinceBackup % 10 === 0){
+      flash('That\'s '+state.editsSinceBackup+' edits since your last backup — a good moment to export one', 'Export now', function(){
+        var b = document.getElementById('exportBtn'); if(b) b.click();
+      });
+    }
+  }
+  function resetBackupCounter(){ state.editsSinceBackup = 0; }
   function load(){
     try{
       var raw = localStorage.getItem(STORAGE_KEY);
@@ -1273,10 +1320,12 @@
     if(state.settings.membershipUrl === undefined) state.settings.membershipUrl = 'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join';
     if(state.settings.dataLink === undefined) state.settings.dataLink = '';
     if(state.settings.hostedViewerBase === undefined) state.settings.hostedViewerBase = 'https://hackett5014544949-debug.github.io/miscellanies/viewer.html';
+    if(typeof state.editsSinceBackup !== 'number') state.editsSinceBackup = 0;
     Object.keys(state.notebooks).forEach(function(id){
       if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
       if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
       migratePhotos(state.notebooks[id].entries);
+      fillEmptyRefs(state.notebooks[id].entries);
     });
   }
 
@@ -1512,6 +1561,7 @@
       (d.trash||[]).forEach(function(dt){ if(!s.trash.some(function(st){ return st.entry.id === dt.entry.id; })) s.trash.push(dt); });
       s.nextId = Math.max(s.nextId||1, d.nextId||1);
       migratePhotos(s.entries);
+      fillEmptyRefs(s.entries);
     });
   }
   function resolvePhotoMarkers(){
@@ -1575,6 +1625,7 @@
   function persistToFolder(){
     if(fsSaving){ fsQueued = true; return; }
     fsSaving = true;
+    resetBackupCounter(); // a folder save counts as a fresh backup point
     var pack = serializeForDisk();
     dirHandle.getFileHandle('notebook.json', {create:true}).then(function(fh){
       return fh.getFile().then(function(f){
@@ -1608,6 +1659,7 @@
       var jobs = [];
       Object.keys(parsed.notebooks).forEach(function(nid){
         migratePhotos(parsed.notebooks[nid].entries);
+        fillEmptyRefs(parsed.notebooks[nid].entries);
         (parsed.notebooks[nid].entries||[]).forEach(function(e){
           e.photos.forEach(function(p, i){
             if(p && p.indexOf('file:')===0){
@@ -1976,6 +2028,7 @@
         if(!nb().trash) nb().trash = [];
         nb().entries = nb().entries.filter(function(x){ return x.id !== id; });
         nb().trash.push({ entry:e, deletedAt:new Date().toISOString() });
+        noteEdit();
         persist(); renderStream();
         flash('Entry no. '+id+' moved to trash', 'Undo', function(){
           nb().trash = nb().trash.filter(function(t){ return t.entry.id !== id; });
@@ -2226,6 +2279,7 @@
       flash('Entry no. '+num+' added');
     }
     clearDraft();
+    noteEdit();
     persist(); closeForm(); renderStream();
   }
 
@@ -2324,10 +2378,13 @@
     } else {
       var byBook = {};
       entries.forEach(function(e){
-        var slug = bookKeyForRef(e.ref);
-        if(!slug) return;
-        if(!byBook[slug]) byBook[slug] = [];
-        byBook[slug].push(e);
+        var seen = {};
+        bookKeysForRef(e.ref).forEach(function(slug){
+          if(!slug || seen[slug]) return;
+          seen[slug] = true;
+          if(!byBook[slug]) byBook[slug] = [];
+          byBook[slug].push(e);
+        });
       });
       var slugs = Object.keys(byBook).sort(function(a,b){
         var ia = BOOK_ORDER.indexOf(a), ib = BOOK_ORDER.indexOf(b);
@@ -2726,6 +2783,48 @@
     flash('Bound volume downloaded — open it and print to PDF');
   });
 
+  // Feature: clean printable rendering of the whole numbered notebook (Save-as-PDF friendly).
+  function generatePrintHtml(){
+    var n = nb();
+    var entries = (n.entries||[]).slice().sort(function(a,b){ return a.id - b.id; });
+    var rows = entries.map(function(e){
+      var book = (n.books||[]).find(function(b){ return b.id===e.bookId; });
+      var ref = e.ref ? ' <span class="p-ref">'+escapeHtml(e.ref)+'</span>' : '';
+      var tags = (e.tags||[]).length ? '<div class="p-tags">'+escapeHtml(e.tags.join('  \u00b7  '))+'</div>' : '';
+      var bk = book ? '<div class="p-book">'+escapeHtml(book.title+(e.page?', p. '+e.page:''))+'</div>' : '';
+      var rel = (e.related&&e.related.length) ? '<div class="p-rel">See also: no. '+e.related.join(', no. ')+'</div>' : '';
+      return '<article class="p-entry"><div class="p-num">No. '+e.id+'</div>'+
+        '<h2 class="p-title">'+escapeHtml(e.title||'untitled')+ref+'</h2>'+
+        tags+bk+
+        '<div class="p-body">'+escapeHtml(e.body||'').replace(/\n/g,'<br>')+'</div>'+
+        rel+'</article>';
+    }).join('');
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>'+escapeHtml(n.name)+' — printable</title>'+
+      '<style>'+
+      'body{font-family:Georgia,\'Times New Roman\',serif; color:#1c1a14; max-width:760px; margin:0 auto; padding:36px 28px; line-height:1.5;}'+
+      'h1{font-size:30px; text-align:center; margin:0 0 4px;} .p-sub{text-align:center; font-style:italic; color:#555; margin-bottom:26px; font-size:14px;}'+
+      '.p-entry{border-top:1px solid #ccc; padding:16px 0; page-break-inside:avoid;}'+
+      '.p-num{font-family:monospace; font-size:12px; color:#888;}'+
+      '.p-title{font-size:20px; margin:2px 0 6px; font-weight:600;}'+
+      '.p-ref{font-family:monospace; font-size:12px; color:#33465C; font-weight:normal;}'+
+      '.p-tags{font-family:monospace; font-size:11px; color:#777; margin-bottom:4px;}'+
+      '.p-book{font-size:13px; color:#8a7038; margin-bottom:4px;}'+
+      '.p-body{margin-top:6px;} .p-rel{font-style:italic; color:#7A2E2A; font-size:13px; margin-top:8px;}'+
+      '@media print{ body{max-width:none; padding:0;} .p-entry{border-top:1px solid #999;} }'+
+      '</style></head><body>'+
+      '<h1>'+escapeHtml(n.name)+'</h1>'+
+      '<div class="p-sub">the complete numbered notebook \u2014 '+entries.length+' entries \u2014 printed '+new Date().toLocaleDateString()+'</div>'+
+      rows+
+      '<'+'script>window.onload=function(){setTimeout(function(){window.print();},350);};<'+'/script>'+
+      '</body></html>';
+  }
+  document.getElementById('printBtn').addEventListener('click', function(){
+    var w = window.open('', '_blank');
+    if(!w){ flash('Please allow pop-ups to open the printable view'); return; }
+    w.document.open(); w.document.write(generatePrintHtml()); w.document.close();
+    flash('Printable notebook opened — use your browser\'s Save as PDF');
+  });
+
   /* ---------- MASTER RENDER ---------- */
   function renderAll(){
     renderChrome();
@@ -2879,6 +2978,7 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    resetBackupCounter(); persist();
     flash('Backup downloaded');
   });
   document.getElementById('exportPhoneBtn').addEventListener('click', function(){
@@ -2899,11 +2999,20 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    resetBackupCounter(); persist();
     flash('Phone backup downloaded (no photos) — import it on your phone');
   });
   document.getElementById('importBtn').addEventListener('click', function(){
     document.getElementById('importFile').click();
   });
+  function normalizeAllNotebooks(){
+    Object.keys(state.notebooks).forEach(function(id){
+      if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
+      if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
+      migratePhotos(state.notebooks[id].entries);
+      fillEmptyRefs(state.notebooks[id].entries);
+    });
+  }
   document.getElementById('importFile').addEventListener('change', function(e){
     var file = e.target.files[0];
     if(!file) return;
@@ -2912,12 +3021,28 @@
       try{
         var parsed = JSON.parse(ev.target.result);
         if(!parsed || !parsed.notebooks) throw new Error('bad file');
-        if(!confirm('This will replace everything currently in the app with the contents of this backup file. Continue?')) return;
-        state = parsed;
-        if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
-        persist();
-        renderAll();
-        flash('Backup restored');
+        var hasData = Object.keys(state.notebooks||{}).some(function(k){ return (state.notebooks[k].entries||[]).length; });
+        var choice = hasData
+          ? (prompt('Import this backup:\n\nType M to MERGE it with what\'s already here — keeps every entry; where the same entry exists in both, the newer edit wins (recommended).\nType R to REPLACE everything currently in the app with the backup.', 'M') || '').trim().toLowerCase()
+          : 'r';
+        if(choice !== 'm' && choice !== 'r'){ flash('Import cancelled'); return; }
+        if(choice === 'm'){
+          mergeIntoState(parsed);
+          if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
+          normalizeAllNotebooks();
+          resetBackupCounter();
+          persist();
+          renderAll();
+          flash('Backup merged — newest edits kept');
+        } else {
+          state = parsed;
+          if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
+          normalizeAllNotebooks();
+          resetBackupCounter();
+          persist();
+          renderAll();
+          flash('Backup restored');
+        }
       }catch(err){
         flash('That file doesn\'t look like a Miscellanies backup');
       }
