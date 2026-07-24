@@ -1236,6 +1236,10 @@
     return 'https://www.blueletterbible.org/tools/interlinear/tr/'+code+'/'+chapter+'/'+verse;
   }
 
+        function bibleGatewayLink(ref, version){
+                  return 'https://www.biblegateway.com/passage/?search='+encodeURIComponent(ref)+'&version='+version;
+        }
+
   // Septuagint links for OT references (fills the OT gap left by the NT-only Greek tools)
   function lxxLinks(ref){
     var m = ref.match(/^([1-3]?\s*[A-Za-z]+(?:\s+of\s+[A-Za-z]+)?)\.?\s+(\d+)(?::(\d+))?/);
@@ -2218,6 +2222,9 @@ var watsonDict = null;
       (blb ? '<a class="ptbtn" href="'+blb+'" target="_blank" rel="noopener">Blue Letter Bible &#8599;</a>' : '') +
       (lxx ? '<a class="ptbtn" href="'+lxx.blb+'" target="_blank" rel="noopener">Septuagint (Greek) &#8599;</a>' : '') +
       (lxx ? '<a class="ptbtn" href="'+lxx.brenton+'" target="_blank" rel="noopener">LXX in English &#8599;</a>' : '') +
+            '<a class="ptbtn" href="'+bibleGatewayLink(ref,'LSB')+'" target="_blank" rel="noopener">LSB &#8599;</a>' +
+            '<a class="ptbtn" href="'+bibleGatewayLink(ref,'NKJV')+'" target="_blank" rel="noopener">NKJV &#8599;</a>' +
+            '<a class="ptbtn" href="'+bibleGatewayLink(ref,'NET')+'" target="_blank" rel="noopener">NET &#8599;</a>' +
     '</span>';
     var fallback = '<span class="pfallback"><a href="https://www.biblegateway.com/passage/?search='+encodeURIComponent(ref)+'&version='+translation.toUpperCase()+'" target="_blank" rel="noopener">read online instead &rarr;</a></span>';
     var cacheKey = ref + '|' + translation;
