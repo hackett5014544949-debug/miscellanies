@@ -2206,7 +2206,41 @@ var watsonDict = null;
   }
   document.addEventListener('click', handleWordTap);
   
-  function loadPassage(entryId, ref, translation){
+  var offlineBibleData = {};
+    var OFFLINE_BOOK_ALIASES = {'Psalm':'Psalms','Song of Songs':'Song of Solomon','Revelations':'Revelation'};
+    function ensureOfflineBible(translation, cb){
+          if(offlineBibleData[translation]){ cb(); return; }
+          fetch(translation+'.json').then(function(r){ return r.json(); }).then(function(d){ offlineBibleData[translation] = d; cb(); }).catch(function(){ cb(); });
+    }
+    function parseRefForLookup(ref){
+          var m = ref.match(/^\s*((?:[1-3]\s*)?[A-Za-z][A-Za-z ]*?)\s+(\d+)(?::(\d+)(?:-(\d+))?)?\s*$/);
+          if(!m) return null;
+          var book = m[1].replace(/\s+/g,' ').trim();
+          return { book: book, chapter: m[2], vStart: m[3] || null, vEnd: m[4] || null };
+    }
+    function lookupOfflineVerse(ref, translation){
+          var data = offlineBibleData[translation];
+          if(!data) return null;
+          var p = parseRefForLookup(ref);
+          if(!p) return null;
+          var bookObj = data[p.book] || data[OFFLINE_BOOK_ALIASES[p.book]];
+          if(!bookObj) return null;
+          var chObj = bookObj[p.chapter];
+          if(!chObj) return null;
+          if(p.vStart){
+                  var end = p.vEnd || p.vStart;
+                  var verses = [];
+                  for(var v = Number(p.vStart); v <= Number(end); v++){
+                            if(chObj[String(v)]) verses.push(chObj[String(v)]);
+                  }
+                  return verses.length ? verses.join(' ') : null;
+          }
+          var nums = Object.keys(chObj).map(Number).sort(function(a,b){ return a-b; });
+          if(!nums.length) return null;
+          return nums.map(function(n){ return chObj[String(n)]; }).join(' ');
+    }
+  
+    function loadPassage(entryId, ref, translation){
     var panel = document.getElementById('passage-'+entryId);
     if(!panel) return;
     openPassageTranslation = translation;
@@ -2244,19 +2278,34 @@ var watsonDict = null;
       paint(escapeHtml(passageCache[cacheKey]) + fallback);
       return;
     }
-    paint('<span style="font-style:italic;">looking up&hellip;</span>');
-    fetch('https://bible-api.com/'+encodeURIComponent(ref)+'?translation='+translation)
-      .then(function(r){ if(!r.ok) throw new Error('lookup failed'); return r.json(); })
-      .then(function(data){
-        var text = (data && data.text ? data.text.trim() : '');
-        if(!text) throw new Error('empty');
-        passageCache[cacheKey] = text;
-        paint(escapeHtml(text) + fallback);
-      })
-      .catch(function(){
-        paint('<span style="font-style:italic;">Couldn\'t look that passage up right now (offline, or the reference needs a book name spelled out).</span>' + fallback);
-      });
-  }
+paint('<span style="font-style:italic;">looking up&hellip;</span>');
+          function fetchOnline(){
+                  fetch('https://bible-api.com/'+encodeURIComponent(ref)+'?translation='+translation)
+                    .then(function(r){ if(!r.ok) throw new Error('lookup failed'); return r.json(); })
+                    .then(function(data){
+                                var text = (data && data.text ? data.text.trim() : '');
+                                if(!text) throw new Error('empty');
+                                passageCache[cacheKey] = text;
+                                paint(escapeHtml(text) + fallback);
+                    })
+                    .catch(function(){
+                                paint('<span style="font-style:italic;">Couldn\'t look that passage up right now (offline, or the reference needs a book name spelled out).</span>' + fallback);
+                    });
+          }
+          if(translation === 'kjv' || translation === 'asv'){
+                  ensureOfflineBible(translation, function(){
+                            var offlineText = lookupOfflineVerse(ref, translation);
+                            if(offlineText){
+                                        passageCache[cacheKey] = offlineText;
+                                        paint(escapeHtml(offlineText) + fallback);
+                            } else {
+                                        fetchOnline();
+                            }
+                  });
+          } else {
+                  fetchOnline();
+          }
+    }
 
   // Draft key: one slot for "new entry", one per entry number being edited.
   function draftKey(){ return 'miscellanies-draft-'+state.activeNotebookId+(editingId!==null ? ('-edit-'+editingId) : '-new'); }
