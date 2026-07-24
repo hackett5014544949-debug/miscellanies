@@ -2195,6 +2195,7 @@ var watsonDict = null;
       var def = lookupWatson(word);
       if(def){
         var truncated = def.length > 500; var snippet = truncated ? def.slice(0,500)+'…' : def; showWordPopup('<b>'+word+'</b><div class="word-body" style="margin-top:6px;">'+snippet+'</div>'+(truncated ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY); if(truncated){ var wp2 = document.getElementById('wordPopup'); if(wp2) wp2._fullDef = def; }
+      } else {
         hideWordPopup();
       }
     });
