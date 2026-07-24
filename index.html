@@ -2172,8 +2172,8 @@ var watsonDict = null;
   function handleWordTap(e){
     var target = e.target;
     if(!target.closest) return;
-    if(target.closest('.word-popup')) return;
-          if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); } return; }
+    if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); } return; }
+          if(target.closest('.word-popup')) return;
     if(!target.closest('.entry-text, .passage-panel')){ hideWordPopup(); return; }
     var range;
     if(document.caretRangeFromPoint){
