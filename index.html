@@ -393,7 +393,7 @@
 
 <div class="modal-overlay" id="bookModal">
   <div class="modal">
-    <h3>New book</h3>
+    <h3>New book</h3><div class="field"><label for="bk-type">Type</label><select id="bk-type"><option value="book">Book</option><option value="notebook">Notebook</option></select></div>
     <div class="field"><label for="bk-title">Title</label><input type="text" id="bk-title" placeholder="e.g. History of the Christian Church, Vol. 2"></div>
     <div class="field"><label for="bk-author">Author</label><input type="text" id="bk-author" placeholder="e.g. Philip Schaff"></div>
     <div class="field">
@@ -514,33 +514,7 @@
 
   // 25 classics all Protestants treasure. amzn = affiliate link; free = public-domain copy where one exists.
   function amzn(q){ return 'https://www.amazon.com/s?k='+q+'&tag=bsar07-20'; }
-  var STARTER_BOOKS = [
-    {id:'bk_s01', title:'The Holy Bible (KJV)', author:'', status:'', url:amzn('Holy+Bible+KJV'), freeUrl:'https://www.gutenberg.org/ebooks/10'},
-    {id:'bk_s02', title:'The Imitation of Christ', author:'Thomas à Kempis', status:'', url:amzn('The+Imitation+of+Christ+Thomas+a+Kempis'), freeUrl:'https://www.gutenberg.org/ebooks/1653'},
-    {id:'bk_s03', title:"The Pilgrim's Progress", author:'John Bunyan', status:'', url:amzn('The+Pilgrims+Progress+John+Bunyan'), freeUrl:'https://www.gutenberg.org/ebooks/131'},
-    {id:'bk_s04', title:'Confessions', author:'Augustine of Hippo', status:'', url:amzn('Confessions+Saint+Augustine'), freeUrl:'https://www.gutenberg.org/ebooks/3296'},
-    {id:'bk_s05', title:'The City of God', author:'Augustine of Hippo', status:'', url:amzn('The+City+of+God+Augustine'), freeUrl:'https://www.ccel.org/ccel/schaff/npnf102'},
-    {id:'bk_s06', title:'Institutes of the Christian Religion', author:'John Calvin', status:'', url:amzn('Institutes+of+the+Christian+Religion+Calvin'), freeUrl:'https://www.ccel.org/ccel/calvin/institutes'},
-    {id:'bk_s07', title:'The Bondage of the Will', author:'Martin Luther', status:'', url:amzn('The+Bondage+of+the+Will+Martin+Luther'), freeUrl:''},
-    {id:'bk_s08', title:"Foxe's Book of Martyrs", author:'John Foxe', status:'', url:amzn('Foxes+Book+of+Martyrs'), freeUrl:'https://www.gutenberg.org/ebooks/22400'},
-    {id:'bk_s09', title:'Religious Affections', author:'Jonathan Edwards', status:'', url:amzn('Religious+Affections+Jonathan+Edwards'), freeUrl:'https://www.ccel.org/ccel/edwards/affections'},
-    {id:'bk_s10', title:'The Freedom of the Will', author:'Jonathan Edwards', status:'', url:amzn('Freedom+of+the+Will+Jonathan+Edwards'), freeUrl:''},
-    {id:'bk_s11', title:'Grace Abounding to the Chief of Sinners', author:'John Bunyan', status:'', url:amzn('Grace+Abounding+to+the+Chief+of+Sinners+Bunyan'), freeUrl:'https://www.gutenberg.org/ebooks/654'},
-    {id:'bk_s12', title:'Paradise Lost', author:'John Milton', status:'', url:amzn('Paradise+Lost+John+Milton'), freeUrl:'https://www.gutenberg.org/ebooks/26'},
-    {id:'bk_s13', title:'The Practice of the Presence of God', author:'Brother Lawrence', status:'', url:amzn('The+Practice+of+the+Presence+of+God+Brother+Lawrence'), freeUrl:'https://www.gutenberg.org/ebooks/5657'},
-    {id:'bk_s14', title:'Holiness', author:'J.C. Ryle', status:'', url:amzn('Holiness+J+C+Ryle'), freeUrl:''},
-    {id:'bk_s15', title:'The Rare Jewel of Christian Contentment', author:'Jeremiah Burroughs', status:'', url:amzn('The+Rare+Jewel+of+Christian+Contentment+Burroughs'), freeUrl:''},
-    {id:'bk_s16', title:'The Mortification of Sin', author:'John Owen', status:'', url:amzn('The+Mortification+of+Sin+John+Owen'), freeUrl:''},
-    {id:'bk_s17', title:'The Death of Death in the Death of Christ', author:'John Owen', status:'', url:amzn('The+Death+of+Death+in+the+Death+of+Christ+Owen'), freeUrl:''},
-    {id:'bk_s18', title:'The Bruised Reed', author:'Richard Sibbes', status:'', url:amzn('The+Bruised+Reed+Richard+Sibbes'), freeUrl:''},
-    {id:'bk_s19', title:'The Westminster Confession of Faith', author:'', status:'', url:amzn('The+Westminster+Confession+of+Faith'), freeUrl:''},
-    {id:'bk_s20', title:'The Christian in Complete Armour', author:'William Gurnall', status:'', url:amzn('The+Christian+in+Complete+Armour+Gurnall'), freeUrl:''},
-    {id:'bk_s21', title:'Mere Christianity', author:'C.S. Lewis', status:'', url:amzn('Mere+Christianity+C+S+Lewis'), freeUrl:''},
-    {id:'bk_s22', title:'Knowing God', author:'J.I. Packer', status:'', url:amzn('Knowing+God+J+I+Packer'), freeUrl:''},
-    {id:'bk_s23', title:'The Holiness of God', author:'R.C. Sproul', status:'', url:amzn('The+Holiness+of+God+R+C+Sproul'), freeUrl:''},
-    {id:'bk_s24', title:'The Pursuit of God', author:'A.W. Tozer', status:'', url:amzn('The+Pursuit+of+God+A+W+Tozer'), freeUrl:''},
-    {id:'bk_s25', title:'The Valley of Vision', author:'Arthur Bennett, ed.', status:'', url:amzn('The+Valley+of+Vision+Puritan+Prayers'), freeUrl:''}
-  ];
+  var STARTER_BOOKS = [{id:'bk_kjv',title:'King James Version',author:'',status:'',type:'reference'},{id:'bk_asv',title:'American Standard Version',author:'',status:'',type:'reference'},{id:'bk_watson',title:"Watson's Bible Dictionary",author:'Richard Watson',status:'',type:'reference'},{id:'bk_rp',title:'Robinson-Pierpont Greek NT (Byzantine)',author:'',status:'',type:'reference'},{id:'bk_tr',title:'Scrivener Textus Receptus (Greek NT)',author:'',status:'',type:'reference'},{id:'bk_pilgrim',title:"The Pilgrim's Progress",author:'John Bunyan',status:'',type:'reference'},{id:'bk_imitation',title:'The Imitation of Christ',author:'Thomas a Kempis',status:'',type:'reference'},{id:'bk_luther',title:"Luther's 95 Theses",author:'Martin Luther',status:'',type:'reference'}];
   var SPINE_COLORS = ['#33465C','#5f5644','#6b5a3e','#4a5240','#7a4e3a','#5a3f52','#3f5a52'];
 
   var state = {
@@ -2600,48 +2574,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   }
 
   /* ---------- LIBRARY VIEW ---------- */
-  function renderLibrary(){
-    var books = nb().books;
-    var perShelf = 8;
-    var shelfCount = Math.max(1, Math.ceil((books.length + 1) / perShelf));
-    var html = '<div class="shelfbox">';
-    html += '<div class="shelf-head"><div class="t">Library</div><div class="s">a starter shelf of classics Protestants have treasured for centuries &mdash; click a spine for notes &amp; links</div></div>';
-    html += '<div class="bookcase">';
-    for(var s = 0; s < shelfCount; s++){
-      var slice = books.slice(s * perShelf, (s + 1) * perShelf);
-      html += '<div class="books-row">';
-      slice.forEach(function(b, i){
-        var gi = s * perShelf + i;
-        var color = SPINE_COLORS[gi % SPINE_COLORS.length];
-        var h = 130 + (gi % 4) * 15;
-        var w = 36 + (gi % 3) * 6;
-        html += '<div class="book-spine" data-openbook="'+b.id+'" title="'+escapeHtml(b.title + (b.author ? ' — ' + b.author : ''))+'" style="width:'+w+'px; height:'+h+'px; background:linear-gradient(90deg, '+color+' 78%, rgba(0,0,0,0.3));">' +
-          (b.status==='reading' ? '<div class="reading-flag">reading</div>' : '') +
-          '<div class="spine-label" style="color:#ece6d6; font-size:'+(w>40?12:10)+'px;">'+escapeHtml(b.title)+'</div>' +
-        '</div>';
-      });
-      if(s === shelfCount - 1){
-        html += '<div class="addbook-spine" id="addBookBtn" title="Add a book">+</div>';
-      }
-      html += '</div><div class="shelf-plank"></div>';
-    }
-    html += '</div>';
-    html += '<div class="lib-hint">Click any book to keep your reading notes inside it, buy a copy, or read it free online.</div>';
-    html += '</div>';
-    document.getElementById('app').innerHTML = html;
-
-    document.getElementById('addBookBtn').addEventListener('click', function(){
-      document.getElementById('bookModal').classList.add('open');
-      document.getElementById('bk-title').focus();
-    });
-    Array.prototype.forEach.call(document.querySelectorAll('[data-openbook]'), function(el){
-      el.addEventListener('click', function(){
-        state.openBookId = el.getAttribute('data-openbook');
-        state.view = 'book';
-        renderAll();
-      });
-    });
-  }
+  function renderLibrary(){ var books = nb().books; var groups = [{key:'reference', label:'Reference', hint:'built-in translations and texts'},{key:'book', label:'My Books', hint:'books you add yourself'},{key:'notebook', label:'Notebooks', hint:'scanned sermon notes and journals'}]; var gi = 0; var html = '<div class="shelfbox">'; html += '<div class="shelf-head"><div class="t">Library</div><div class="s">click a spine for notes &amp; links</div></div>'; groups.forEach(function(g){ var list = books.filter(function(b){ return g.key==='book' ? (b.type===g.key || !b.type) : b.type===g.key; }); html += '<div class="shelf-head" style="margin-top:18px;"><div class="t" style="font-size:20px;">'+g.label+'</div><div class="s">'+g.hint+'</div></div>'; html += '<div class="bookcase"><div class="books-row">'; list.forEach(function(b){ var color = SPINE_COLORS[gi % SPINE_COLORS.length]; var h = 130 + (gi % 4) * 15; var w = 36 + (gi % 3) * 6; gi++; html += '<div class="book-spine" data-openbook="'+b.id+'" title="'+escapeHtml(b.title + (b.author ? ' &mdash; ' + b.author : ''))+'" style="width:'+w+'px; height:'+h+'px; background:linear-gradient(90deg, '+color+' 78%, rgba(0,0,0,0.3));">' + (b.status==='reading' ? '<div class="reading-flag">reading</div>' : '') + '<div class="spine-label" style="color:#ece6d6; font-size:'+(w>40?12:10)+'px;">'+escapeHtml(b.title)+'</div>' + '</div>'; }); if(g.key !== 'reference'){ html += '<div class="addbook-spine" data-addtype="'+g.key+'" title="Add a '+(g.key==='notebook'?'notebook':'book')+'">+</div>'; } html += '</div><div class="shelf-plank"></div></div>'; }); html += '<div class="lib-hint">Click any book to keep your reading notes inside it, buy a copy, or read it free online.</div>'; html += '</div>'; document.getElementById('app').innerHTML = html; Array.prototype.forEach.call(document.querySelectorAll('.addbook-spine'), function(el){ el.addEventListener('click', function(){ document.getElementById('bookModal').classList.add('open'); document.getElementById('bk-type').value = el.getAttribute('data-addtype'); document.getElementById('bk-title').focus(); }); }); Array.prototype.forEach.call(document.querySelectorAll('[data-openbook]'), function(el){ el.addEventListener('click', function(){ state.openBookId = el.getAttribute('data-openbook'); state.view = 'book'; renderAll(); }); }); }
 
   /* ---------- OPEN BOOK VIEW ---------- */
   var activeTabId = null;
@@ -2774,9 +2707,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       var title = document.getElementById('bk-title').value.trim();
       if(!title){ flash('Give the book a title'); return; }
       var author = document.getElementById('bk-author').value.trim();
-      var status = document.getElementById('bk-status').value;
+      var status = document.getElementById('bk-status').value; var type = document.getElementById('bk-type').value;
       var id = 'bk_' + Date.now();
-      nb().books.push({ id:id, title:title, author:author, status:status });
+      nb().books.push({ id:id, title:title, author:author, status:status, type:type });
       document.getElementById('bk-title').value='';
       document.getElementById('bk-author').value='';
       document.getElementById('bookModal').classList.remove('open');
