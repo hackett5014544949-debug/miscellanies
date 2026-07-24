@@ -260,6 +260,10 @@
   }
   .flash.show{opacity:1; pointer-events:auto;}
 
+  .word-popup{position:fixed; max-width:300px; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:10px 12px; font-size:13.5px; box-shadow:var(--shadow); z-index:60; display:none; line-height:1.4;}
+  .word-popup.open{display:block;}
+  
+
   /* stacked bookcase */
   .bookcase{
     background:linear-gradient(180deg, #7a5c39, #5e4527);
@@ -2135,6 +2139,69 @@
     });
   }
 
+var watsonDict = null;
+  function ensureWatsonDict(cb){
+    if(watsonDict){ cb(); return; }
+    fetch('watson.json').then(function(r){ return r.json(); }).then(function(d){ watsonDict = d; cb(); }).catch(function(){ flash('Dictionary unavailable (offline?)'); });
+  }
+  function lookupWatson(word){
+    if(!watsonDict) return null;
+    var key = word.replace(/[^A-Za-z'\-]/g,'');
+    if(!key) return null;
+    var title = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
+    return watsonDict[title] || null;
+  }
+  function showWordPopup(html, x, y){
+    var pop = document.getElementById('wordPopup');
+    if(!pop){
+      pop = document.createElement('div');
+      pop.id = 'wordPopup';
+      pop.className = 'word-popup';
+      document.body.appendChild(pop);
+    }
+    pop.innerHTML = html;
+    var left = Math.min(x, window.innerWidth-320);
+    pop.style.left = left+'px';
+    pop.style.top = (y+12)+'px';
+    pop.classList.add('open');
+  }
+  function hideWordPopup(){
+    var pop = document.getElementById('wordPopup');
+    if(pop) pop.classList.remove('open');
+  }
+  function handleWordTap(e){
+    var target = e.target;
+    if(!target.closest) return;
+    if(target.closest('.word-popup')) return;
+    if(!target.closest('.entry-text, .passage-panel')){ hideWordPopup(); return; }
+    var range;
+    if(document.caretRangeFromPoint){
+      range = document.caretRangeFromPoint(e.clientX, e.clientY);
+    } else if(document.caretPositionFromPoint){
+      var pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+      if(pos){ range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+    }
+    if(!range || !range.startContainer || range.startContainer.nodeType !== 3){ hideWordPopup(); return; }
+    var textNode = range.startContainer;
+    var offset = range.startOffset;
+    var str = textNode.textContent;
+    var start = offset, end = offset;
+    while(start > 0 && /[A-Za-z']/.test(str[start-1])) start--;
+    while(end < str.length && /[A-Za-z']/.test(str[end])) end++;
+    var word = str.slice(start, end);
+    if(!word){ hideWordPopup(); return; }
+    ensureWatsonDict(function(){
+      var def = lookupWatson(word);
+      if(def){
+        var snippet = def.length > 500 ? def.slice(0,500)+'…' : def;
+        showWordPopup('<b>'+word+'</b><div style="margin-top:6px;">'+snippet+'</div>', e.clientX, e.clientY);
+      } else {
+        hideWordPopup();
+      }
+    });
+  }
+  document.addEventListener('click', handleWordTap);
+  
   function loadPassage(entryId, ref, translation){
     var panel = document.getElementById('passage-'+entryId);
     if(!panel) return;
