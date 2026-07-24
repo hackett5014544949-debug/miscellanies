@@ -2173,6 +2173,7 @@ var watsonDict = null;
     var target = e.target;
     if(!target.closest) return;
     if(target.closest('.word-popup')) return;
+          if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); } return; }
     if(!target.closest('.entry-text, .passage-panel')){ hideWordPopup(); return; }
     var range;
     if(document.caretRangeFromPoint){
@@ -2193,9 +2194,7 @@ var watsonDict = null;
     ensureWatsonDict(function(){
       var def = lookupWatson(word);
       if(def){
-        var snippet = def.length > 500 ? def.slice(0,500)+'…' : def;
-        showWordPopup('<b>'+word+'</b><div style="margin-top:6px;">'+snippet+'</div>', e.clientX, e.clientY);
-      } else {
+        var truncated = def.length > 500; var snippet = truncated ? def.slice(0,500)+'…' : def; showWordPopup('<b>'+word+'</b><div class="word-body" style="margin-top:6px;">'+snippet+'</div>'+(truncated ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY); if(truncated){ var wp2 = document.getElementById('wordPopup'); if(wp2) wp2._fullDef = def; }
         hideWordPopup();
       }
     });
