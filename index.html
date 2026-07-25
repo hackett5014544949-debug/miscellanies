@@ -1674,6 +1674,17 @@
       });
       return Promise.all(jobs).then(function(){
         state = parsed;
+        try{
+          Object.keys(state.notebooks||{}).forEach(function(nbId){
+            var nbk = state.notebooks[nbId];
+            if(!nbk || !nbk.books) return;
+            var hadOld = nbk.books.some(function(b){ return /^bk_s\d+$/.test(b.id); });
+            nbk.books = nbk.books.filter(function(b){ return !/^bk_s\d+$/.test(b.id); });
+            if(hadOld && !nbk.books.some(function(b){ return b.id==='bk_kjv'; })){
+              nbk.books = STARTER_BOOKS.concat(nbk.books);
+            }
+          });
+        }catch(e){}
         if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
         if(!state.settings) state.settings = { tutorialUrl:'', channelUrl:'', studyBibleUrl:'https://www.amazon.com/dp/1400339537?tag=bsar07-20', membershipUrl:'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join' };
         if(state.settings.studyBibleUrl === undefined) state.settings.studyBibleUrl = 'https://www.amazon.com/dp/1400339537?tag=bsar07-20';
