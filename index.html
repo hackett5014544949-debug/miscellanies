@@ -1197,12 +1197,15 @@
     if(!entries.length){ hideWordPopup(); return; }
     var html = '<div style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-bottom:8px;">'+entries.length+' note'+(entries.length===1?'':'s')+' on this verse</div>' +
       entries.map(function(e){
-        var snippet = (e.body||'').replace(/\s+/g,' ').trim();
-        if(snippet.length > 160) snippet = snippet.slice(0,160)+'…';
+        var full = (e.body||'').trim();
+        var flat = full.replace(/\s+/g,' ');
+        var truncated = flat.length > 160;
+        var shown = truncated ? flat.slice(0,160)+'…' : flat;
         return '<div class="verse-note-item">' +
           '<div class="verse-note-title">'+escapeHtml(e.title||'untitled')+'</div>' +
-          (snippet ? '<div style="margin-top:4px;">'+escapeHtml(snippet)+'</div>' : '') +
-          '<a href="#" class="verse-note-open" data-open-entry="'+e.id+'">Open note &rarr;</a>' +
+          (shown ? '<div class="verse-note-body" style="margin-top:4px; white-space:pre-wrap;" data-full="'+escapeHtml(full)+'">'+escapeHtml(shown)+'</div>' : '') +
+          (truncated ? '<a href="#" class="verse-note-more" style="margin-right:14px;">Read full note &darr;</a>' : '') +
+          '<a href="#" class="verse-note-open" data-open-entry="'+e.id+'">Open in notebook &rarr;</a>' +
         '</div>';
       }).join('');
     showWordPopup(html, x, y);
@@ -2309,6 +2312,16 @@ var watsonDict = null;
       var vnm = target.closest('.verse-note-mark');
       var noteIds = (vnm.getAttribute('data-note-ids')||'').split(',').filter(Boolean).map(Number);
       showVerseNotesPopup(noteIds, e.clientX, e.clientY);
+      return;
+    }
+    if(target.closest('.verse-note-more')){
+      e.preventDefault();
+      var moreLink = target.closest('.verse-note-more');
+      var item = moreLink.closest('.verse-note-item');
+      var bodyEl = item && item.querySelector('.verse-note-body');
+      if(bodyEl){ bodyEl.textContent = bodyEl.getAttribute('data-full') || bodyEl.textContent; }
+      moreLink.remove();
+      repositionWordPopup();
       return;
     }
     if(target.closest('.verse-note-open')){
