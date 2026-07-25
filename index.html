@@ -260,8 +260,9 @@
   }
   .flash.show{opacity:1; pointer-events:auto;}
 
-  .word-popup{position:fixed; max-width:300px; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:10px 12px; font-size:13.5px; box-shadow:var(--shadow); z-index:60; display:none; line-height:1.4;}
+  .word-popup{position:fixed; max-width:300px; max-height:min(70vh, 420px); overflow-y:auto; overscroll-behavior:contain; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:10px 12px; font-size:13.5px; box-shadow:var(--shadow); z-index:60; display:none; line-height:1.4;}
   .word-popup.open{display:block;}
+  .word-popup .word-close{position:sticky; top:-10px; float:right; margin:-10px -12px 4px 8px; background:var(--card); border:none; color:var(--ink-faint); font-family:'JetBrains Mono', monospace; font-size:14px; cursor:pointer; padding:6px 10px;}
   
 
   /* stacked bookcase */
@@ -307,6 +308,9 @@
   body.dark .entry:hover{background:rgba(255,255,255,0.03);}
   body.dark .openbook{background:linear-gradient(180deg, #353025, #2a251c);}
   body.dark .flash button{color:#1d1914;}
+
+  /* reader */
+  .reader-text mark{background:var(--brass-bg); color:var(--ink); border-radius:2px; padding:0 2px;}
 
   /* photo gallery */
   .photo-gallery{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
@@ -1937,7 +1941,7 @@
       '<div class="field"><label>Topics</label><input type="text" id="f-tags" placeholder="comma separated"></div>' +
     '</div>' +
     '<div class="field"><label>Entry <button type="button" class="btn small ghost" id="refPickerBodyBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert reference &hellip;</button></label><textarea id="f-body" placeholder="Write the reflection itself"></textarea></div>' +
-    '<div class="field"><label>Photos (optional)</label><input type="file" id="f-photo" accept="image/*" multiple><div class="hint" id="photoHint"></div><div class="hint">Photos stay only on this computer copy. Anything exported for your phone or the viewer leaves photos out automatically.</div></div>' +
+    '<div class="field"><label>Photos (optional)</label><input type="file" id="f-photo" accept="image/*" multiple capture="environment"><div class="hint" id="photoHint"></div><div class="hint">Photos stay only on this computer copy. Anything exported for your phone or the viewer leaves photos out automatically.</div></div>' +
     '<div class="field"><label>Related entries <button type="button" class="btn small ghost" id="refPickerBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert &hellip;</button></label><input type="text" id="f-related" placeholder="entry numbers, comma separated"></div>' +
     (state.mode==='advanced' ? (
       '<div class="advonly">' +
@@ -2140,6 +2144,19 @@ var watsonDict = null;
     var title = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
     return watsonDict[title] || null;
   }
+  function repositionWordPopup(x, y){
+    var pop = document.getElementById('wordPopup');
+    if(!pop || !pop.classList.contains('open')) return;
+    if(typeof x !== 'number') x = pop._lastX;
+    if(typeof y !== 'number') y = pop._lastY;
+    pop._lastX = x; pop._lastY = y;
+    var margin = 10;
+    var w = pop.offsetWidth, h = pop.offsetHeight;
+    var left = Math.max(margin, Math.min(x, window.innerWidth - w - margin));
+    var top = Math.max(margin, Math.min(y + 12, window.innerHeight - h - margin));
+    pop.style.left = left+'px';
+    pop.style.top = top+'px';
+  }
   function showWordPopup(html, x, y){
     var pop = document.getElementById('wordPopup');
     if(!pop){
@@ -2148,11 +2165,10 @@ var watsonDict = null;
       pop.className = 'word-popup';
       document.body.appendChild(pop);
     }
-    pop.innerHTML = html;
-    var left = Math.min(x, window.innerWidth-320);
-    pop.style.left = left+'px';
-    pop.style.top = (y+12)+'px';
+    pop.innerHTML = '<button type="button" class="word-close" aria-label="Close">&times;</button>' + html;
     pop.classList.add('open');
+    // measure after it's visible and content is in place, then clamp to viewport
+    repositionWordPopup(x, y);
   }
   function hideWordPopup(){
     var pop = document.getElementById('wordPopup');
@@ -2161,7 +2177,8 @@ var watsonDict = null;
   function handleWordTap(e){
     var target = e.target;
     if(!target.closest) return;
-    if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); } return; }
+    if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); repositionWordPopup(); } return; }
+          if(target.closest('.word-close')){ e.preventDefault(); hideWordPopup(); return; }
           if(target.closest('.word-popup')) return;
     if(!target.closest('.entry-text, .passage-panel')){ hideWordPopup(); return; }
     var range;
@@ -2587,17 +2604,171 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   /* ---------- LIBRARY VIEW ---------- */
   function renderLibrary(){ var books = nb().books; var groups = [{key:'reference', label:'Reference', hint:'built-in translations and texts'},{key:'book', label:'My Books', hint:'books you add yourself'},{key:'notebook', label:'Notebooks', hint:'scanned sermon notes and journals'}]; var gi = 0; var html = '<div class="shelfbox">'; html += '<div class="shelf-head"><div class="t">Library</div><div class="s">click a spine for notes &amp; links</div></div>'; groups.forEach(function(g){ var list = books.filter(function(b){ return g.key==='book' ? (b.type===g.key || !b.type) : b.type===g.key; }); html += '<div class="shelf-head" style="margin-top:18px;"><div class="t" style="font-size:20px;">'+g.label+'</div><div class="s">'+g.hint+'</div></div>'; html += '<div class="bookcase"><div class="books-row">'; list.forEach(function(b){ var color = SPINE_COLORS[gi % SPINE_COLORS.length]; var h = 130 + (gi % 4) * 15; var w = 36 + (gi % 3) * 6; gi++; html += '<div class="book-spine" data-openbook="'+b.id+'" title="'+escapeHtml(b.title + (b.author ? ' &mdash; ' + b.author : ''))+'" style="width:'+w+'px; height:'+h+'px; background:linear-gradient(90deg, '+color+' 78%, rgba(0,0,0,0.3));">' + (b.status==='reading' ? '<div class="reading-flag">reading</div>' : '') + '<div class="spine-label" style="color:#ece6d6; font-size:'+(w>40?12:10)+'px;">'+escapeHtml(b.title)+'</div>' + '</div>'; }); if(g.key !== 'reference'){ html += '<div class="addbook-spine" data-addtype="'+g.key+'" title="Add a '+(g.key==='notebook'?'notebook':'book')+'">+</div>'; } html += '</div><div class="shelf-plank"></div></div>'; }); html += '<div class="lib-hint">Click any book to keep your reading notes inside it, buy a copy, or read it free online.</div>'; html += '</div>'; document.getElementById('app').innerHTML = html; Array.prototype.forEach.call(document.querySelectorAll('.addbook-spine'), function(el){ el.addEventListener('click', function(){ document.getElementById('bookModal').classList.add('open'); document.getElementById('bk-type').value = el.getAttribute('data-addtype'); document.getElementById('bk-title').focus(); }); }); Array.prototype.forEach.call(document.querySelectorAll('[data-openbook]'), function(el){ el.addEventListener('click', function(){ state.openBookId = el.getAttribute('data-openbook'); state.view = 'book'; renderAll(); }); }); }
 
+  /* ---------- BOOK READER (read the actual text of library books) ---------- */
+  // Maps a starter-library book id to the bundled JSON file that holds its full text,
+  // and to the shape that file is in: 'paragraphs' (a flat array of paragraph strings)
+  // or 'verses' (book -> chapter -> verse -> text, same shape as the KJV/ASV files).
+  var BOOK_TEXT_SOURCES = {
+    bk_kjv:       { file:'kjv.json',              kind:'verses' },
+    bk_asv:       { file:'asv.json',               kind:'verses' },
+    bk_rp:        { file:'robinson_pierpont.json', kind:'verses' },
+    bk_tr:        { file:'scrivener_tr.json',      kind:'verses' },
+    bk_pilgrim:   { file:'pilgrims_progress.json', kind:'paragraphs' },
+    bk_imitation: { file:'imitation_of_christ.json', kind:'paragraphs' },
+    bk_luther:    { file:'luther_95_theses.json',  kind:'paragraphs' }
+  };
+  var READER_TAB_ID = '__read__';
+  var READER_PAGE_SIZE = 20;
+  var readerTextCache = {};   // file name -> parsed JSON (loaded once, reused)
+  var readerState = {};       // book id -> { page, query, book, chapter } (in-memory only)
+
+  function readerStateFor(bookId){
+    if(!readerState[bookId]) readerState[bookId] = { page:0, query:'' };
+    return readerState[bookId];
+  }
+  function ensureReaderText(file, cb){
+    if(readerTextCache[file]){ cb(readerTextCache[file]); return; }
+    fetch(file).then(function(r){ return r.json(); })
+      .then(function(d){ readerTextCache[file] = d; cb(d); })
+      .catch(function(){ cb(null); });
+  }
+  // Canonical NT book names (matching the "Book Name" string format used inside
+  // robinson_pierpont.json / scrivener_tr.json), derived from the same GREEK_BOOKS
+  // order everything else in the app already relies on.
+  function ntBookOrderNames(){
+    return BOOK_ORDER.slice(-27).map(prettifySlug);
+  }
+
+  function renderReaderPane(book, src){
+    var rs = readerStateFor(book.id);
+    var data = readerTextCache[src.file];
+    if(!data){
+      ensureReaderText(src.file, function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); });
+      return '<div class="status">loading '+escapeHtml(book.title)+'&hellip;</div>';
+    }
+
+    if(src.kind === 'paragraphs'){
+      var paras = data.paragraphs || [];
+      var total = Math.max(1, Math.ceil(paras.length / READER_PAGE_SIZE));
+      rs.page = Math.max(0, Math.min(rs.page, total-1));
+      var start = rs.page * READER_PAGE_SIZE;
+      var slice = paras.slice(start, start + READER_PAGE_SIZE);
+      var q = (rs.query||'').trim();
+
+      var html = '<div class="reader-toolbar" style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">';
+      html += '<input type="text" id="readerFind" placeholder="Find in book&hellip;" value="'+escapeHtml(rs.query||'')+'" style="flex:1; min-width:140px; font-family:\'EB Garamond\', serif; font-size:14.5px; padding:7px 10px; border:1px solid var(--line); border-radius:5px; background:var(--paper); color:var(--ink);">';
+      html += '<button class="btn small" id="readerFindBtn">Find</button>';
+      html += '<span style="font-family:\'JetBrains Mono\', monospace; font-size:11.5px; color:var(--ink-faint); white-space:nowrap;">page '+(rs.page+1)+' of '+total+'</span>';
+      html += '<button class="btn small" id="readerPrevBtn"'+(rs.page<=0?' disabled':'')+'>&larr; prev</button>';
+      html += '<button class="btn small" id="readerNextBtn"'+(rs.page>=total-1?' disabled':'')+'>next &rarr;</button>';
+      html += '</div>';
+      html += '<div class="reader-text" style="font-size:16.5px; line-height:1.65;">';
+      html += slice.map(function(p){
+        var text = escapeHtml(p);
+        if(q){
+          var esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          text = text.replace(new RegExp('('+esc+')', 'ig'), '<mark>$1</mark>');
+        }
+        return '<p style="margin:0 0 15px;">'+text+'</p>';
+      }).join('');
+      html += '</div>';
+      return html;
+    }
+
+    // kind === 'verses'
+    var isGreekNt = (src.file === 'robinson_pierpont.json' || src.file === 'scrivener_tr.json');
+    var bookNames = isGreekNt ? ntBookOrderNames().filter(function(n){ return data[n]; }) : Object.keys(data);
+    if(!rs.book || !data[rs.book]) rs.book = bookNames[0];
+    var chapters = Object.keys(data[rs.book]||{}).map(Number).sort(function(a,b){ return a-b; });
+    if(!rs.chapter || chapters.indexOf(Number(rs.chapter))===-1) rs.chapter = chapters[0];
+    var chapterData = (data[rs.book]||{})[rs.chapter] || {};
+    var verseNums = Object.keys(chapterData).map(Number).sort(function(a,b){ return a-b; });
+    var bIdx = bookNames.indexOf(rs.book), cIdx = chapters.indexOf(Number(rs.chapter));
+    var atStart = (bIdx<=0 && cIdx<=0), atEnd = (bIdx>=bookNames.length-1 && cIdx>=chapters.length-1);
+
+    var html = '<div class="reader-toolbar" style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">';
+    var readerSelectStyle = 'font-family:\'EB Garamond\', serif; font-size:14.5px; padding:8px 10px; background:var(--card); border:1px solid var(--line); border-radius:5px; color:var(--ink);';
+    html += '<select id="readerBookSelect" style="'+readerSelectStyle+'">' + bookNames.map(function(n){
+      return '<option value="'+escapeHtml(n)+'"'+(n===rs.book?' selected':'')+'>'+escapeHtml(n)+'</option>';
+    }).join('') + '</select>';
+    html += '<select id="readerChapterSelect" style="'+readerSelectStyle+'">' + chapters.map(function(c){
+      return '<option value="'+c+'"'+(c===Number(rs.chapter)?' selected':'')+'>ch. '+c+'</option>';
+    }).join('') + '</select>';
+    html += '<button class="btn small" id="readerPrevBtn"'+(atStart?' disabled':'')+'>&larr; prev</button>';
+    html += '<button class="btn small" id="readerNextBtn"'+(atEnd?' disabled':'')+'>next &rarr;</button>';
+    html += '</div>';
+    html += '<h3 style="font-family:\'Cormorant Garamond\', serif; margin:0 0 12px;">'+escapeHtml(rs.book)+' '+rs.chapter+'</h3>';
+    html += '<div class="reader-text" style="font-size:16.5px; line-height:1.75;">';
+    html += verseNums.map(function(v){
+      return '<span style="font-family:\'JetBrains Mono\', monospace; font-size:11px; color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+escapeHtml(chapterData[v])+' ';
+    }).join('');
+    html += '</div>';
+    return html;
+  }
+
+  function wireReaderPane(book, src){
+    var rs = readerStateFor(book.id);
+    var findBtn = document.getElementById('readerFindBtn');
+    if(findBtn){
+      findBtn.addEventListener('click', function(){
+        var q = document.getElementById('readerFind').value.trim();
+        rs.query = q;
+        if(q){
+          var data = readerTextCache[src.file];
+          var paras = (data && data.paragraphs) || [];
+          var ql = q.toLowerCase();
+          var idx = paras.findIndex(function(p){ return p.toLowerCase().indexOf(ql) !== -1; });
+          if(idx !== -1) rs.page = Math.floor(idx / READER_PAGE_SIZE);
+          else flash('Not found in this book');
+        }
+        renderOpenBook();
+      });
+    }
+    var prevBtn = document.getElementById('readerPrevBtn');
+    var nextBtn = document.getElementById('readerNextBtn');
+    if(src.kind === 'paragraphs'){
+      if(prevBtn) prevBtn.addEventListener('click', function(){ rs.page = Math.max(0, rs.page-1); renderOpenBook(); });
+      if(nextBtn) nextBtn.addEventListener('click', function(){ rs.page = rs.page+1; renderOpenBook(); });
+    } else {
+      var data = readerTextCache[src.file];
+      var isGreekNt = (src.file === 'robinson_pierpont.json' || src.file === 'scrivener_tr.json');
+      var bookNames = isGreekNt ? ntBookOrderNames().filter(function(n){ return data[n]; }) : Object.keys(data);
+      var bookSelect = document.getElementById('readerBookSelect');
+      var chapterSelect = document.getElementById('readerChapterSelect');
+      if(bookSelect) bookSelect.addEventListener('change', function(){ rs.book = bookSelect.value; rs.chapter = null; renderOpenBook(); });
+      if(chapterSelect) chapterSelect.addEventListener('change', function(){ rs.chapter = Number(chapterSelect.value); renderOpenBook(); });
+      function goRelative(delta){
+        var chapters = Object.keys(data[rs.book]||{}).map(Number).sort(function(a,b){ return a-b; });
+        var cIdx = chapters.indexOf(Number(rs.chapter));
+        var newCIdx = cIdx + delta;
+        if(newCIdx >= 0 && newCIdx < chapters.length){ rs.chapter = chapters[newCIdx]; renderOpenBook(); return; }
+        var bIdx = bookNames.indexOf(rs.book);
+        var newBIdx = bIdx + delta;
+        if(newBIdx >= 0 && newBIdx < bookNames.length){
+          rs.book = bookNames[newBIdx];
+          var newChapters = Object.keys(data[rs.book]||{}).map(Number).sort(function(a,b){ return a-b; });
+          rs.chapter = delta > 0 ? newChapters[0] : newChapters[newChapters.length-1];
+          renderOpenBook();
+        }
+      }
+      if(prevBtn) prevBtn.addEventListener('click', function(){ goRelative(-1); });
+      if(nextBtn) nextBtn.addEventListener('click', function(){ goRelative(1); });
+    }
+  }
+
   /* ---------- OPEN BOOK VIEW ---------- */
   var activeTabId = null;
   function renderOpenBook(){
     var book = nb().books.find(function(b){ return b.id === state.openBookId; });
     if(!book){ state.view='library'; renderAll(); return; }
+    var textSrc = BOOK_TEXT_SOURCES[book.id];
     var notes = nb().entries.filter(function(e){ return e.bookId === book.id; });
     notes.sort(function(a,b){ return (parseFloat(a.page)||0) - (parseFloat(b.page)||0); });
-    if(!activeTabId || !notes.some(function(n){return n.id===activeTabId;})){
-      activeTabId = notes.length ? notes[0].id : null;
+    var validTab = (activeTabId === READER_TAB_ID && textSrc) || notes.some(function(n){return n.id===activeTabId;});
+    if(!validTab){
+      activeTabId = textSrc ? READER_TAB_ID : (notes.length ? notes[0].id : null);
     }
-    var active = notes.find(function(n){ return n.id === activeTabId; });
+    var active = (activeTabId === READER_TAB_ID) ? null : notes.find(function(n){ return n.id === activeTabId; });
 
     var html = '<div class="openbook">';
     html += '<div class="openbook-top">';
@@ -2622,7 +2793,10 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
 
     html += '<div class="spread">';
     html += '<div class="tabs-rail">';
-    if(notes.length===0){
+    if(textSrc){
+      html += '<div class="tabitem'+(activeTabId===READER_TAB_ID?' active':'')+'" data-tab="'+READER_TAB_ID+'" style="font-weight:600;">&#128214; read</div>';
+    }
+    if(notes.length===0 && !textSrc){
       html += '<div style="padding:12px; font-size:12px; color:var(--ink-faint); font-style:italic;">no notes yet</div>';
     } else {
       notes.forEach(function(n){
@@ -2632,7 +2806,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     html += '</div>';
 
     html += '<div class="page-pane">';
-    if(active){
+    if(activeTabId === READER_TAB_ID && textSrc){
+      html += renderReaderPane(book, textSrc);
+    } else if(active){
       html += '<div class="page-num-corner">no. '+active.id+(active.page?' &middot; p. '+escapeHtml(active.page):'')+'</div>';
       html += '<h3 class="entry-title" style="margin-bottom:6px;">'+escapeHtml(active.title||'untitled')+'</h3>';
       if(active.ref) html += '<div class="badge ref" data-passage="'+active.id+'" data-ref="'+escapeHtml(active.ref)+'" style="margin-bottom:6px; display:inline-block; cursor:pointer;" title="Click to read this passage">'+escapeHtml(active.ref)+' &#128214;</div>';
@@ -2665,8 +2841,15 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       book.status = e.target.value; persist(); renderOpenBook();
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function(el){
-      el.addEventListener('click', function(){ activeTabId = Number(el.getAttribute('data-tab')); renderOpenBook(); });
+      el.addEventListener('click', function(){
+        var v = el.getAttribute('data-tab');
+        activeTabId = (v === READER_TAB_ID) ? READER_TAB_ID : Number(v);
+        renderOpenBook();
+      });
     });
+    if(activeTabId === READER_TAB_ID && textSrc){
+      wireReaderPane(book, textSrc);
+    }
     var editBtn = document.getElementById('editTabBtn');
     if(editBtn){
       editBtn.addEventListener('click', function(){
