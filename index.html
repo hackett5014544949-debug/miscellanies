@@ -118,7 +118,7 @@
   .entry-title{font-family:'Cormorant Garamond', serif; font-weight:600; font-size:22px; margin:0;}
   .entry-badges{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
   .badge{
-    font-family:'JetBrains Mono', monospace; font-size:11.5px; padding:2px 8px; border-radius:4px; white-space:nowrap;
+    font-family:'JetBrains Mono', monospace; font-size:calc(11.5px * var(--fsz, 1)); padding:2px 8px; border-radius:4px; white-space:nowrap;
   }
   .badge.ref{color:var(--blue); background:var(--blue-bg);}
   .badge.book{color:var(--brass); background:var(--brass-bg);}
@@ -140,12 +140,12 @@
     font-size:calc(15px * var(--fsz, 1)); color:var(--ink); display:none; line-height:1.6;
   }
   .passage-panel.open{display:block;}
-  .passage-panel .pref{font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--blue); margin-bottom:6px; display:block;}
-  .passage-panel .pfallback{font-size:12.5px; margin-top:6px; display:block;}
+  .passage-panel .pref{font-family:'JetBrains Mono', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--blue); margin-bottom:6px; display:block;}
+  .passage-panel .pfallback{font-size:calc(12.5px * var(--fsz, 1)); margin-top:6px; display:block;}
   .passage-panel .pfallback a{color:var(--blue);}
   .pswitch{display:flex; gap:6px; margin-bottom:8px;}
   .ptbtn{
-    font-family:'JetBrains Mono', monospace; font-size:11px; padding:3px 9px;
+    font-family:'JetBrains Mono', monospace; font-size:calc(11px * var(--fsz, 1)); padding:3px 9px;
     border-radius:4px; border:1px solid var(--blue); background:transparent;
     color:var(--blue); cursor:pointer; text-decoration:none; display:inline-block;
   }
@@ -2741,7 +2741,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       html += '<button class="btn small" id="readerPrevBtn"'+(rs.page<=0?' disabled':'')+'>&larr; prev</button>';
       html += '<button class="btn small" id="readerNextBtn"'+(rs.page>=total-1?' disabled':'')+'>next &rarr;</button>';
       html += '</div>';
-      html += '<div class="reader-text" style="font-size:16.5px; line-height:1.65;">';
+      html += '<div class="reader-text" style="font-size:calc(16.5px * var(--fsz, 1)); line-height:1.65;">';
       html += slice.map(function(p){
         var text = escapeHtml(p);
         if(q){
@@ -2820,9 +2820,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     html += '<button class="btn small" id="readerNextBtn"'+(atEnd?' disabled':'')+'>next &rarr;</button>';
     html += '</div>';
     html += '<h3 style="font-family:\'Cormorant Garamond\', serif; margin:0 0 12px;">'+escapeHtml(rs.book)+' '+rs.chapter+'</h3>';
-    html += '<div class="reader-text" style="font-size:16.5px; line-height:1.75;">';
+    html += '<div class="reader-text" style="font-size:calc(16.5px * var(--fsz, 1)); line-height:1.75;">';
     html += verseNums.map(function(v){
-      return '<span style="font-family:\'JetBrains Mono\', monospace; font-size:11px; color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+escapeHtml(chapterData[v])+' ';
+      return '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+escapeHtml(chapterData[v])+' ';
     }).join('');
     html += '</div>';
     return html;
