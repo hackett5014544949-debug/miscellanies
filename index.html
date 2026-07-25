@@ -272,6 +272,23 @@
   .verse-note-item:last-child{border-bottom:none; margin-bottom:0; padding-bottom:0;}
   .verse-note-title{font-family:'Cormorant Garamond', serif; font-weight:600; font-size:1.05em;}
   .verse-note-open{display:inline-block; margin-top:6px; color:var(--blue); cursor:pointer;}
+  .ie-menu-wrap{position:relative; display:inline-block;}
+  .ie-menu{
+    position:absolute; top:calc(100% + 6px); left:0; z-index:40; min-width:250px;
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+    box-shadow:var(--shadow); padding:10px; display:none; text-align:left;
+  }
+  .ie-menu.open{display:block;}
+  .ie-menu-heading{
+    font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.04em;
+    text-transform:uppercase; color:var(--ink-faint); margin:10px 4px 4px;
+  }
+  .ie-menu-heading:first-child{margin-top:2px;}
+  .ie-menu button.btn{display:block; width:100%; text-align:left; margin-bottom:4px;}
+  .save-important-note{
+    text-align:center; font-size:12px; color:var(--rubric); font-style:italic;
+    margin:-10px 0 16px;
+  }
 
 
   /* stacked bookcase */
@@ -380,17 +397,26 @@
 
   <div class="notebooktabs" id="notebookTabs" style="display:none;"></div>
 
-  <div id="advancedToolsBar" style="display:flex; justify-content:center; gap:8px; margin-bottom:18px; flex-wrap:wrap;">
-    <button class="btn small" id="exportBtn">Export backup</button>
-    <button class="btn small" id="importBtn">Import backup</button>
-    <input type="file" id="importFile" accept="application/json" style="display:none;">
-    <button class="btn small" id="exportRtfBtn">Export as document (.rtf)</button>
-    <button class="btn small" id="exportVolumeBtn">Export bound volume (printable)</button>
-    <button class="btn small" id="printBtn" title="A clean, printable copy of the whole numbered notebook — opens your browser's print dialog (choose Save as PDF)">Print / PDF</button>
-    <button class="btn small" id="exportPhoneBtn" title="A text-only backup — small enough for a phone's browser storage, no photos included">Export for phone (text only, no photos)</button>
-    <button class="btn small" id="folderBtn">Save to folder&hellip;</button>
-    <button class="btn small" id="helpBtn">About &amp; links</button>
+  <div id="advancedToolsBar" style="display:flex; justify-content:center; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;">
+    <div class="ie-menu-wrap">
+      <button class="btn small" id="ieMenuBtn" aria-haspopup="true">Import / Export &#9662;</button>
+      <div class="ie-menu" id="ieMenu">
+        <div class="ie-menu-heading">Backup</div>
+        <button class="btn small" id="exportBtn">Export backup</button>
+        <button class="btn small" id="importBtn">Import backup</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none;">
+        <div class="ie-menu-heading">Documents</div>
+        <button class="btn small" id="exportRtfBtn">Export as document (.rtf)</button>
+        <button class="btn small" id="exportVolumeBtn">Export bound volume (printable)</button>
+        <button class="btn small" id="printBtn" title="A clean, printable copy of the whole numbered notebook — opens your browser's print dialog (choose Save as PDF)">Print / PDF</button>
+        <div class="ie-menu-heading">Phone</div>
+        <button class="btn small" id="exportPhoneBtn" title="A text-only backup — small enough for a phone's browser storage, no photos included">Export for phone (text only, no photos)</button>
+      </div>
+    </div>
+    <button class="btn primary" id="folderBtn">Save to folder&hellip;</button>
+    <button class="btn small ghost" id="helpBtn">About &amp; links</button>
   </div>
+  <div class="save-important-note" id="saveImportantNote">Important — your notes live in this browser unless you click <b>&ldquo;Save to folder&hellip;&rdquo;</b> above to keep them as real files on your computer.</div>
 
   <div id="app"></div>
 </div>
@@ -431,6 +457,17 @@
     <div class="refpick-list" id="refPickerList"></div>
     <div class="form-actions" style="margin-top:14px;">
       <button class="btn" id="refPickerClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tagManagerModal">
+  <div class="modal wide">
+    <h3>Manage topics</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin-top:-6px;">Rename a topic to fix a typo, or rename it to exactly match another topic to merge the two together.</p>
+    <div id="tagManagerList" style="max-height:50vh; overflow-y:auto; margin:14px 0;"></div>
+    <div class="form-actions">
+      <button class="btn" id="tagManagerClose">Close</button>
     </div>
   </div>
 </div>
@@ -1686,6 +1723,46 @@
     }).then(function(){ flash('Saved as a separate conflict copy — compare the two files in your folder'); });
   }
 
+  // Keeps a rolling set of dated backup copies (one per calendar day, oldest pruned
+  // beyond BACKUP_KEEP_COUNT) inside a "backups" subfolder of the connected folder.
+  // This is separate from — and doesn't replace — the manual "Export backup" button;
+  // it exists so a bad reconnect or accidental overwrite of notebook.json still has
+  // a recent, automatic fallback sitting on disk. Best-effort: never blocks the
+  // real save, and quietly does nothing if the browser doesn't support directory
+  // iteration (bd.values).
+  var BACKUP_KEEP_COUNT = 7;
+  function writeRotatingBackup(pack){
+    if(!dirHandle) return Promise.resolve();
+    var today = new Date().toISOString().slice(0,10);
+    return dirHandle.getDirectoryHandle('backups', {create:true}).then(function(bd){
+      return bd.getFileHandle('notebook-'+today+'.json', {create:true}).then(function(fh){
+        return fh.createWritable().then(function(w){
+          return w.write(JSON.stringify(pack.json, null, 2)).then(function(){ return w.close(); });
+        });
+      }).then(function(){
+        if(!bd.values) return;
+        var names = [];
+        var it = bd.values();
+        function step(){
+          return it.next().then(function(res){
+            if(res.done) return names;
+            if(res.value && res.value.kind === 'file' && /^notebook-\d{4}-\d{2}-\d{2}\.json$/.test(res.value.name)){
+              names.push(res.value.name);
+            }
+            return step();
+          });
+        }
+        return step().then(function(all){
+          all.sort();
+          var excess = all.length - BACKUP_KEEP_COUNT;
+          if(excess <= 0) return;
+          return Promise.all(all.slice(0, excess).map(function(name){
+            return bd.removeEntry(name).catch(function(){});
+          }));
+        });
+      });
+    }).catch(function(){});
+  }
   function persistToFolder(){
     if(fsSaving){ fsQueued = true; return; }
     fsSaving = true;
@@ -1702,6 +1779,8 @@
       return writeViewerFile();
     }).then(function(){
       return writeCloudDataFile();
+    }).then(function(){
+      return writeRotatingBackup(pack);
     }).catch(function(){
       flash('Could not save to the folder — kept in browser storage instead');
       try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
@@ -1838,6 +1917,54 @@
     return Object.keys(set).sort();
   }
 
+  // Renames a topic across every entry in the current notebook. If newTag already
+  // exists on an entry (or the rename collides with another tag on the same entry),
+  // the two are simply de-duplicated — so renaming a topic to match another topic's
+  // exact spelling merges them.
+  function renameTagEverywhere(oldTag, newTag){
+    nb().entries.forEach(function(e){
+      if(!e.tags || e.tags.indexOf(oldTag) === -1) return;
+      var seen = {};
+      var next = [];
+      e.tags.forEach(function(t){
+        var mapped = t === oldTag ? newTag : t;
+        if(!seen[mapped]){ seen[mapped] = true; next.push(mapped); }
+      });
+      e.tags = next;
+    });
+  }
+  function renderTagManager(){
+    var counts = {};
+    nb().entries.forEach(function(e){ (e.tags||[]).forEach(function(t){ counts[t] = (counts[t]||0) + 1; }); });
+    var tags = Object.keys(counts).sort();
+    var list = document.getElementById('tagManagerList');
+    if(!list) return;
+    if(!tags.length){
+      list.innerHTML = '<div class="empty" style="padding:20px 0;">No topics yet &mdash; add some via the Topics field when writing an entry.</div>';
+      return;
+    }
+    list.innerHTML = tags.map(function(t){
+      return '<div class="tagmgr-row" style="display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line);">' +
+        '<input type="text" class="tagmgr-input" value="'+escapeHtml(t)+'" style="flex:1; font-family:\'EB Garamond\', serif; font-size:14.5px; padding:6px 9px; border:1px solid var(--line); border-radius:5px; background:var(--paper); color:var(--ink);">' +
+        '<span style="font-family:\'JetBrains Mono\', monospace; font-size:11px; color:var(--ink-faint); white-space:nowrap;">'+counts[t]+' note'+(counts[t]===1?'':'s')+'</span>' +
+        '<button class="btn small" data-tagmgr-save="'+escapeHtml(t)+'">Rename</button>' +
+      '</div>';
+    }).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('[data-tagmgr-save]'), function(btn){
+      btn.addEventListener('click', function(){
+        var oldTag = btn.getAttribute('data-tagmgr-save');
+        var row = btn.closest('.tagmgr-row');
+        var input = row.querySelector('.tagmgr-input');
+        var newTag = input.value.trim();
+        if(!newTag || newTag === oldTag) return;
+        renameTagEverywhere(oldTag, newTag);
+        persist();
+        renderTagManager();
+        flash('Renamed "'+oldTag+'" to "'+newTag+'"');
+      });
+    });
+  }
+
   function matches(e, q, tag){
     if(tag && (e.tags||[]).indexOf(tag) === -1) return false;
     if(!q) return true;
@@ -1888,6 +2015,8 @@
     }
 
     document.getElementById('advancedToolsBar').style.display = state.mode==='advanced' ? 'flex' : 'none';
+    var sinEl = document.getElementById('saveImportantNote');
+    if(sinEl) sinEl.style.display = (state.mode==='advanced' && !IS_PHONE) ? 'block' : 'none';
 
     var nbTabs = document.getElementById('notebookTabs');
     if(state.mode==='advanced'){
@@ -1934,6 +2063,9 @@
     html += '<select id="tagSelect"><option value="">All topics</option>' + tags.map(function(t){
       return '<option value="'+escapeHtml(t)+'"'+(state.tagFilter===t?' selected':'')+'>'+escapeHtml(t)+'</option>';
     }).join('') + '</select>';
+    if(state.mode === 'advanced'){
+      html += '<button type="button" class="btn small ghost" id="manageTagsBtn" title="Rename or merge topics">manage topics</button>';
+    }
     html += '<button class="btn primary" id="newEntryBtn">New entry</button>';
     html += '</div>';
 
@@ -2099,6 +2231,13 @@
     document.getElementById('tagSelect').addEventListener('change', function(e){
       state.tagFilter = e.target.value; renderStream();
     });
+    var manageTagsBtn = document.getElementById('manageTagsBtn');
+    if(manageTagsBtn){
+      manageTagsBtn.addEventListener('click', function(){
+        renderTagManager();
+        document.getElementById('tagManagerModal').classList.add('open');
+      });
+    }
     document.getElementById('newEntryBtn').addEventListener('click', openNewEntry);
     document.getElementById('cancelEntryBtn').addEventListener('click', closeForm);
     document.getElementById('saveEntryBtn').addEventListener('click', saveEntry);
@@ -2757,7 +2896,80 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   }
 
   /* ---------- LIBRARY VIEW ---------- */
-  function renderLibrary(){ var books = nb().books; var groups = [{key:'reference', label:'Reference', hint:'built-in translations and texts'},{key:'book', label:'My Books', hint:'books you add yourself'},{key:'notebook', label:'Notebooks', hint:'scanned sermon notes and journals'}]; var gi = 0; var html = '<div class="shelfbox">'; html += '<div class="shelf-head"><div class="t">Library</div><div class="s">click a spine for notes &amp; links</div></div>'; groups.forEach(function(g){ var list = books.filter(function(b){ return g.key==='book' ? (b.type===g.key || !b.type) : b.type===g.key; }); html += '<div class="shelf-head" style="margin-top:18px;"><div class="t" style="font-size:20px;">'+g.label+'</div><div class="s">'+g.hint+'</div></div>'; html += '<div class="bookcase"><div class="books-row">'; list.forEach(function(b){ var color = SPINE_COLORS[gi % SPINE_COLORS.length]; var h = 130 + (gi % 4) * 15; var w = 36 + (gi % 3) * 6; gi++; html += '<div class="book-spine" data-openbook="'+b.id+'" title="'+escapeHtml(b.title + (b.author ? ' &mdash; ' + b.author : ''))+'" style="width:'+w+'px; height:'+h+'px; background:linear-gradient(90deg, '+color+' 78%, rgba(0,0,0,0.3));">' + (b.status==='reading' ? '<div class="reading-flag">reading</div>' : '') + '<div class="spine-label" style="color:#ece6d6; font-size:'+(w>40?12:10)+'px;">'+escapeHtml(b.title)+'</div>' + '</div>'; }); if(g.key !== 'reference'){ html += '<div class="addbook-spine" data-addtype="'+g.key+'" title="Add a '+(g.key==='notebook'?'notebook':'book')+'">+</div>'; } html += '</div><div class="shelf-plank"></div></div>'; }); html += '<div class="lib-hint">Click any book to keep your reading notes inside it, buy a copy, or read it free online.</div>'; html += '</div>'; document.getElementById('app').innerHTML = html; Array.prototype.forEach.call(document.querySelectorAll('.addbook-spine'), function(el){ el.addEventListener('click', function(){ document.getElementById('bookModal').classList.add('open'); document.getElementById('bk-type').value = el.getAttribute('data-addtype'); document.getElementById('bk-title').focus(); }); }); Array.prototype.forEach.call(document.querySelectorAll('[data-openbook]'), function(el){ el.addEventListener('click', function(){ state.openBookId = el.getAttribute('data-openbook'); state.view = 'book'; renderAll(); }); }); }
+  // Approx interior width (px) a single shelf row can hold before it should wrap
+  // onto a new shelf underneath, rather than just scrolling sideways forever.
+  var SHELF_ROW_MAX_WIDTH = 700;
+  function renderLibrary(){
+    var books = nb().books;
+    var groups = [
+      {key:'reference', label:'Reference', hint:'built-in translations and texts'},
+      {key:'book', label:'My Books', hint:'books you add yourself'},
+      {key:'notebook', label:'Notebooks', hint:'scanned sermon notes and journals'}
+    ];
+    var gi = 0;
+    var html = '<div class="shelfbox">';
+    html += '<div class="shelf-head"><div class="t">Library</div><div class="s">click a spine for notes &amp; links</div></div>';
+    groups.forEach(function(g){
+      var list = books.filter(function(b){ return g.key==='book' ? (b.type===g.key || !b.type) : b.type===g.key; });
+      html += '<div class="shelf-head" style="margin-top:18px;"><div class="t" style="font-size:20px;">'+g.label+'</div><div class="s">'+g.hint+'</div></div>';
+
+      // Build each spine's look first (same varied-width/height/color formulas as
+      // before), then chunk the resulting spines into rows by running width. Once
+      // a row would overflow SHELF_ROW_MAX_WIDTH, start a new row/shelf beneath it
+      // — so a long library reads as several stacked shelves instead of one
+      // endlessly-scrolling strip. Each row keeps its own horizontal scroll as a
+      // fallback for narrow screens.
+      var descriptors = list.map(function(b){
+        var color = SPINE_COLORS[gi % SPINE_COLORS.length];
+        var h = 130 + (gi % 4) * 15;
+        var w = 36 + (gi % 3) * 6;
+        gi++;
+        return { b:b, color:color, h:h, w:w };
+      });
+      var rows = [[]];
+      var rowWidth = 0;
+      descriptors.forEach(function(d){
+        if(rowWidth + d.w + 9 > SHELF_ROW_MAX_WIDTH && rows[rows.length-1].length){
+          rows.push([]);
+          rowWidth = 0;
+        }
+        rows[rows.length-1].push(d);
+        rowWidth += d.w + 9;
+      });
+
+      rows.forEach(function(rowDescs, ri){
+        html += '<div class="bookcase"><div class="books-row">';
+        rowDescs.forEach(function(d){
+          var b = d.b;
+          html += '<div class="book-spine" data-openbook="'+b.id+'" title="'+escapeHtml(b.title + (b.author ? ' &mdash; ' + b.author : ''))+'" style="width:'+d.w+'px; height:'+d.h+'px; background:linear-gradient(90deg, '+d.color+' 78%, rgba(0,0,0,0.3));">' +
+            (b.status==='reading' ? '<div class="reading-flag">reading</div>' : '') +
+            '<div class="spine-label" style="color:#ece6d6; font-size:'+(d.w>40?12:10)+'px;">'+escapeHtml(b.title)+'</div>' +
+          '</div>';
+        });
+        if(g.key !== 'reference' && ri === rows.length - 1){
+          html += '<div class="addbook-spine" data-addtype="'+g.key+'" title="Add a '+(g.key==='notebook'?'notebook':'book')+'">+</div>';
+        }
+        html += '</div><div class="shelf-plank"></div></div>';
+      });
+    });
+    html += '<div class="lib-hint">Click any book to keep your reading notes inside it, buy a copy, or read it free online.</div>';
+    html += '</div>';
+    document.getElementById('app').innerHTML = html;
+    Array.prototype.forEach.call(document.querySelectorAll('.addbook-spine'), function(el){
+      el.addEventListener('click', function(){
+        document.getElementById('bookModal').classList.add('open');
+        document.getElementById('bk-type').value = el.getAttribute('data-addtype');
+        document.getElementById('bk-title').focus();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-openbook]'), function(el){
+      el.addEventListener('click', function(){
+        state.openBookId = el.getAttribute('data-openbook');
+        state.view = 'book';
+        renderAll();
+      });
+    });
+  }
 
   /* ---------- BOOK READER (read the actual text of library books) ---------- */
   // Maps a starter-library book id to the bundled JSON file that holds its full text,
@@ -3447,6 +3659,23 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     persist(); applyFontScale();
   });
 
+  // Import/Export dropdown — groups the less-frequently-used export/import/print
+  // buttons behind one menu so the advanced toolbar isn't a wall of buttons.
+  // "Save to folder…" and "About & links" stay outside it, always visible.
+  document.getElementById('ieMenuBtn').addEventListener('click', function(ev){
+    ev.stopPropagation();
+    document.getElementById('ieMenu').classList.toggle('open');
+  });
+  document.getElementById('ieMenu').addEventListener('click', function(ev){
+    if(ev.target.closest('button.btn')) document.getElementById('ieMenu').classList.remove('open');
+  });
+  document.addEventListener('click', function(ev){
+    var menu = document.getElementById('ieMenu');
+    if(menu && menu.classList.contains('open') && !ev.target.closest('.ie-menu-wrap')){
+      menu.classList.remove('open');
+    }
+  });
+
   document.getElementById('helpBtn').addEventListener('click', function(){
     document.getElementById('help-tutorial').value = state.settings.tutorialUrl || '';
     document.getElementById('help-channel').value = state.settings.channelUrl || '';
@@ -3457,6 +3686,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   });
   document.getElementById('helpClose').addEventListener('click', function(){
     document.getElementById('helpModal').classList.remove('open');
+  });
+  document.getElementById('tagManagerClose').addEventListener('click', function(){
+    document.getElementById('tagManagerModal').classList.remove('open');
   });
   document.getElementById('helpSave').addEventListener('click', function(){
     state.settings.tutorialUrl = document.getElementById('help-tutorial').value.trim();
