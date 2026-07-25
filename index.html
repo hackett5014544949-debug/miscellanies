@@ -510,51 +510,105 @@
 <div class="modal-overlay" id="guideModal">
   <div class="modal wide guide">
     <h3>How to use this notebook</h3>
-    <p>In the spirit of Jonathan Edwards' Miscellanies: every entry gets a permanent number, and entries refer to one another by number ("see no. 12") as your thought develops over the years. Nothing here is ever sent to any server &mdash; your notes are yours alone.</p>
+    <div class="pillgroup" id="guideTabs" style="margin-bottom:16px;">
+      <button data-guidetab="quick" class="active">Quick start</button>
+      <button data-guidetab="full">Full guide</button>
+      <button data-guidetab="features">Features</button>
+    </div>
 
-    <h4>Simple &amp; advanced</h4>
-    <p><b>Simple</b> is just the numbered stream: write, search, cross-reference. <b>Advanced</b> adds the idea inbox, the library shelf, multiple notebooks, backups, folder storage, and a few power tools.</p>
+    <div id="guideTabQuick" class="guidetab-panel">
+      <p>In the spirit of Jonathan Edwards' Miscellanies: every entry gets a permanent number, and entries refer to one another as your thought develops over the years. Nothing here is ever sent to any server &mdash; your notes are yours alone. Here's the fastest way to get going:</p>
+      <ol>
+        <li><b>Pick a mode.</b> "Simple," up top, is just the numbered stream &mdash; write, search, cross-reference. "Advanced" adds the library, multiple notebooks, backups, and a few power tools. Switch anytime.</li>
+        <li><b>Write your first note.</b> Click <b>New entry</b> &mdash; give it a title, a scripture reference if it has one, a topic or two, and the note itself. Save it.</li>
+        <li><b>In a hurry?</b> Use Quick Capture (Simple mode) or the inbox (Advanced mode) to jot a thought fast, with no fields required &mdash; promote it into a full entry whenever you're ready.</li>
+        <li><b>Read scripture without leaving your notes.</b> Tap a reference badge on any entry to open that passage inline; switch translations with the buttons above it.</li>
+        <li><b>Look something up.</b> Any underlined word in scripture text is in the built-in Bible dictionary &mdash; tap it for a definition.</li>
+        <li><b>Browse the library.</b> Click <b>library</b> &mdash; Bibles, Greek texts, the dictionary, and a few classics are all free to read right in the app, and it works completely offline.</li>
+        <li><b>Protect your notes.</b> The one step not to skip: in Advanced mode, click <b>Save to folder&hellip;</b> and pick a folder on your computer, so your notes become real files you control.</li>
+        <li><b>Keep writing.</b> Link related entries to each other as you go &mdash; the app shows the connection in both directions automatically, so your notebook becomes a real cross-referenced record over time.</li>
+      </ol>
+      <p>This is mainly a desktop app, but you can read your notes on your phone too &mdash; see "Using it on a phone" under the Full guide tab for how, and its limits.</p>
+    </div>
 
-    <h4>Where your notes live</h4>
-    <p>By default, in this browser on this computer &mdash; automatic, nothing to set up. For notes as real files on your hard drive, switch to Advanced and click <b>"Save to folder&hellip;"</b> (Chrome and Edge only). Everything then saves to a folder you choose, and keeps working offline.</p>
+    <div id="guideTabFull" class="guidetab-panel" style="display:none;">
+      <h4>Simple &amp; advanced</h4>
+      <p><b>Simple</b> is just the numbered stream: write, search, cross-reference. <b>Advanced</b> adds the idea inbox, the library shelf, multiple notebooks, backups, folder storage, and a few power tools.</p>
 
-    <h4>Using it on more than one device</h4>
-    <p>This is a single-device notebook at heart: your notes live in the browser of the device you're using, and nothing is ever sent to a server. To move notes to another device, you carry them by hand:</p>
-    <ol>
-      <li>On the device with your newest notes: Advanced &rarr; <b>Export backup</b>. (Moving to a phone? Use <b>Export for phone (text only, no photos)</b> instead &mdash; phone browser storage is small, and photos fill it fast.)</li>
-      <li>Get the downloaded file to the other device however you like &mdash; AirDrop, email it to yourself, or drop it in iCloud Drive / Dropbox and open the Files app on the phone.</li>
-      <li>On the other device, open the app, switch to Advanced, click <b>Import backup</b>, and pick the file.</li>
-    </ol>
-    <p><b>Careful:</b> importing replaces everything on that device with the file's contents. Always export from whichever device has your newest notes.</p>
+      <h4>Quick capture and the inbox</h4>
+      <p>Don't want to fill out the whole entry form right now? Simple mode has a <b>Quick Capture</b> box right at the top; Advanced mode has the same thing under <b>inbox</b>. Either way, jot the thought and save it &mdash; it sits there until you <b>promote</b> it into a full, numbered entry, or delete it if it didn't pan out.</p>
 
-    <h4>Using it on a phone</h4>
-    <p>The same app works on iPhone and Android when opened at its web address &mdash; open it in Safari or Chrome and use Share &rarr; <b>Add to Home Screen</b> for an app-like feel. Phone limitations worth knowing:</p>
-    <ol>
-      <li>Notes save in the phone's browser only. Clearing the browser's website data erases them, so export a backup now and then.</li>
-      <li>Phone browser storage is small &mdash; keep photos to a minimum on the phone, and bring notes over from your computer with <b>Export for phone (text only, no photos)</b>.</li>
-      <li><b>Save to folder&hellip;</b> is desktop-only (Chrome and Edge); phones can't connect to a folder, so the button is hidden there.</li>
-    </ol>
+      <h4>Where your notes live</h4>
+      <p>By default, in this browser on this computer &mdash; automatic, nothing to set up. For notes as real files on your hard drive, switch to Advanced and click <b>"Save to folder&hellip;"</b> (Chrome and Edge only). Everything then saves to a folder you choose, and keeps working offline. The app also quietly keeps a rolling set of dated backup copies inside that folder &mdash; a handful of recent daily snapshots, pruned automatically &mdash; as a safety net on top of your own manual backups.</p>
 
-    <h4>Inserting an out-of-sequence number</h4>
-    <p>In Advanced mode the entry form shows an <b>entry number</b> field. Type any unused number to backfill an old thought (e.g. add no. 42 while the notebook is only at no. 39 &mdash; the counter then continues from 43). Use a decimal like <b>47.1</b> to slot an entry between two existing ones. The app won't let you reuse a taken number.</p>
+      <h4>Scripture references and the built-in Bible reader</h4>
+      <p>Any entry with a scripture reference shows it as a clickable badge &mdash; tap it to read that passage inline, in the King James Version by default, with buttons to switch to the American Standard Version, the Greek New Testament, the Septuagint, or jump out to the LSB, NKJV, or NET. Words that appear in Watson's Bible Dictionary are underlined right in the passage text &mdash; tap one for its definition, with a "read full entry" link if it's long.</p>
 
-    <h4>Deleting (and undeleting)</h4>
-    <p>Deleted entries move to a Trash at the bottom of the stream, where you can restore them or delete them forever. An Undo button also appears for a few seconds after each delete.</p>
+      <h4>Font size</h4>
+      <p>The <b>A&minus;</b> / <b>A+</b> buttons near the top control text size for the whole app, including the dictionary popup and the Bible reader &mdash; useful for reading on a phone or just easier eyes.</p>
 
-    <h4>The library</h4>
-    <p>The shelf (Advanced &rarr; library) starts stocked with 25 classics Protestants have treasured for centuries. Click a spine to keep your reading notes inside that book, get a copy, or read it free online where a public-domain edition exists. Add your own books with the <b>+</b> spine.</p>
+      <h4>Cross-referencing your own notes</h4>
+      <p>The <b>Related entries</b> field when writing a note lets you link it to others you've already written; the entry then shows a "see also" line pointing to them. This works in both directions automatically &mdash; if entry 81 links to entry 123, entry 81 will also show "referenced by &mdash; no. 123," with no extra work on your part.</p>
 
-    <h4>The index</h4>
-    <p>Edwards kept a running index to find his own Miscellanies later &mdash; this notebook keeps one automatically. Advanced &rarr; <b>index</b> shows every entry grouped by topic tag, and every entry grouped by scripture book in canonical order.</p>
+      <h4>Using it on more than one device</h4>
+      <p>This is a single-device notebook at heart: your notes live in the browser of the device you're using, and nothing is ever sent to a server. To move notes to another device, you carry them by hand:</p>
+      <ol>
+        <li>On the device with your newest notes: Advanced &rarr; <b>Import / Export</b> &rarr; <b>Export backup</b>. (Moving to a phone? Use <b>Export for phone (text only, no photos)</b> instead &mdash; phone browser storage is small, and photos fill it fast.)</li>
+        <li>Get the downloaded file to the other device however you like &mdash; AirDrop, email it to yourself, or drop it in iCloud Drive / Dropbox and open the Files app on the phone.</li>
+        <li>On the other device, open the app, switch to Advanced, open <b>Import / Export</b>, click <b>Import backup</b>, and pick the file.</li>
+      </ol>
+      <p><b>Careful:</b> importing replaces everything on that device with the file's contents. Always export from whichever device has your newest notes.</p>
 
-    <h4>Sharing a quote</h4>
-    <p>Open any entry and click <b>Share quote</b> to download a styled image with its title, a short excerpt, and its number &mdash; ready to post.</p>
+      <h4>Using it on a phone</h4>
+      <p>This is mainly a desktop app &mdash; the full library, folder saving, and power tools are built around using a computer. That said, the same app works on iPhone and Android when opened at its web address, and reading your notes there works fine. Phone limitations worth knowing:</p>
+      <ol>
+        <li>Notes save in the phone's browser only. Clearing the browser's website data erases them, so export a backup now and then.</li>
+        <li>Phone browser storage is small &mdash; keep photos to a minimum on the phone, and bring notes over from your computer with <b>Export for phone (text only, no photos)</b>.</li>
+        <li><b>Save to folder&hellip;</b> is desktop-only (Chrome and Edge); phones can't connect to a folder the same way, so the button is hidden there, and any automatic rotating backups only happen on the desktop copy connected to a folder.</li>
+      </ol>
 
-    <h4>Writing without distraction, and not losing your place</h4>
-    <p>While writing, <b>focus mode</b> hides everything but the entry form. Your draft also autosaves as you type; if you close the tab or the browser crashes mid-entry, reopening the form offers to restore it.</p>
+      <h4>Inserting an out-of-sequence number</h4>
+      <p>In Advanced mode the entry form shows an <b>entry number</b> field. Type any unused number to backfill an old thought (e.g. add no. 42 while the notebook is only at no. 39 &mdash; the counter then continues from 43). Use a decimal like <b>47.1</b> to slot an entry between two existing ones. The app won't let you reuse a taken number.</p>
 
-    <h4>Multiple photos, and a bound-volume export</h4>
-    <p>You can now attach more than one photo per entry. And <b>Export bound volume (printable)</b> in Advanced mode produces a styled, year-by-year keepsake page &mdash; open it and use your browser's Print &rarr; Save as PDF.</p>
+      <h4>Deleting (and undeleting)</h4>
+      <p>Deleted entries move to a Trash at the bottom of the stream, where you can restore them or delete them forever. An Undo button also appears for a few seconds after each delete.</p>
+
+      <h4>The library</h4>
+      <p>The shelf (Advanced &rarr; library) comes stocked with real, full public-domain texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
+
+      <h4>Multiple notebooks</h4>
+      <p>The notebook tabs near the top let you keep entirely separate notebooks &mdash; say, one for personal study and one for a class you teach. Each has its own entries, books, and numbering.</p>
+
+      <h4>The index</h4>
+      <p>Edwards kept a running index to find his own Miscellanies later &mdash; this notebook keeps one automatically. Advanced &rarr; <b>index</b> shows every entry grouped by topic tag, and every entry grouped by scripture book in canonical order.</p>
+
+      <h4>Managing topics</h4>
+      <p>Click <b>manage topics</b> next to the topic filter to see every topic you've used, with how many notes use each one. Rename one to match another's exact spelling and the two merge together automatically &mdash; handy for cleaning up something like "Genesis 1" and "Genesis1."</p>
+
+      <h4>Sharing a quote</h4>
+      <p>Open any entry and click <b>Share quote</b> to download a styled image with its title, a short excerpt, and its number &mdash; ready to post.</p>
+
+      <h4>Writing without distraction, and not losing your place</h4>
+      <p>While writing, <b>focus mode</b> hides everything but the entry form. Your draft also autosaves as you type; if you close the tab or the browser crashes mid-entry, reopening the form offers to restore it.</p>
+
+      <h4>Multiple photos, and a bound-volume export</h4>
+      <p>You can attach more than one photo per entry. And <b>Export bound volume (printable)</b>, under Import / Export, produces a styled, year-by-year keepsake page &mdash; open it and use your browser's Print &rarr; Save as PDF.</p>
+    </div>
+
+    <div id="guideTabFeatures" class="guidetab-panel" style="display:none;">
+      <ul class="guide-features">
+        <li>Full public-domain Bibles and Greek New Testaments built right in &mdash; the King James and American Standard versions, plus the Robinson&ndash;Pierpont and Scrivener Greek texts &mdash; readable offline, no subscription, no account.</li>
+        <li>A complete Bible dictionary (Watson's) with tap-to-define on any scripture text, and its own searchable A&ndash;Z reader with an alphabet quick-jump.</li>
+        <li>Verse-level note markers &mdash; while reading the Bible itself, see exactly which verses you've already written notes about, and read those notes without leaving the page.</li>
+        <li>Two-way cross-references &mdash; link one note to another and the connection shows up automatically in both directions, no extra work.</li>
+        <li>Multiple notebooks, for keeping entirely separate projects in one app.</li>
+        <li>A running index and full-text search across every note, reference, topic, and book you've ever written.</li>
+        <li>Adjustable font size across the entire app, including popups and the Bible reader.</li>
+        <li>Real file storage on your own computer, with automatic rolling backups kept quietly in the background as a safety net.</li>
+        <li>Export to a Word document, a printable bound keepsake volume, or a lightweight phone-friendly copy &mdash; your notes, in whatever format you need.</li>
+        <li>Runs from a single file &mdash; no server, no account, and it keeps working with no internet connection at all.</li>
+      </ul>
+    </div>
 
     <div class="form-actions" style="margin-top:18px;">
       <button class="btn primary" id="guideClose">Close</button>
@@ -3630,6 +3684,19 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   });
   document.getElementById('guideClose').addEventListener('click', function(){
     document.getElementById('guideModal').classList.remove('open');
+  });
+  // Guide modal's three tabs (Quick start / Full guide / Features) — simple
+  // show/hide panel switch, same pattern as other pillgroup toggles in the app.
+  Array.prototype.forEach.call(document.querySelectorAll('#guideTabs [data-guidetab]'), function(btn){
+    btn.addEventListener('click', function(){
+      Array.prototype.forEach.call(document.querySelectorAll('#guideTabs [data-guidetab]'), function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      var which = btn.getAttribute('data-guidetab');
+      document.getElementById('guideTabQuick').style.display = which==='quick' ? 'block' : 'none';
+      document.getElementById('guideTabFull').style.display = which==='full' ? 'block' : 'none';
+      document.getElementById('guideTabFeatures').style.display = which==='features' ? 'block' : 'none';
+      document.querySelector('.modal.guide').scrollTop = 0;
+    });
   });
   document.getElementById('themeBtn').addEventListener('click', function(){
     state.theme = (state.theme === 'dark') ? 'light' : 'dark';
