@@ -598,7 +598,8 @@
       <p>Every entry gets a permanent number the moment it's created, and that number is <b>never handed to a different entry later</b> &mdash; even if the original is deleted. So if you delete notes 124, 125, and 126, your next new entry becomes 127, not 124. That gap is intentional, not a bug.</p>
       <p>The reason: these numbers are meant to be cited outside the app, the same way Jonathan Edwards cited his own Miscellanies by number. If you've ever written <b>&ldquo;see no. 47&rdquo;</b> in the margin of your Bible, a journal, or a sermon outline, that note needs to mean the same thing forever. If the app quietly reused deleted numbers, an old handwritten reference could end up pointing at a completely different, unrelated entry &mdash; silently and without warning. Leaving gaps instead of reusing numbers is what keeps every number you've ever written down trustworthy.</p>
       <h4>Fixing an out-of-sequence number yourself</h4>
-      <p>If you'd rather close a gap on purpose &mdash; say you deleted a note by mistake while recording, or you're migrating an old paper notebook &mdash; you're always free to override it. In Advanced mode, click directly on any entry's number (the <b>no. &hellip;</b> at its left edge) to open it for editing with the number field ready to change. Type the number you want; the app only refuses if another current entry already has it. Renumbering an entry this way also keeps its "see also" and "referenced by" links pointing at the right place automatically, and the counter simply continues from wherever it's left off &mdash; so if you move an entry back to no. 48, your very next new entry still becomes 49.</p>
+      <p>If you'd rather close a gap on purpose &mdash; say you deleted a note by mistake while recording, or you're migrating an old paper notebook &mdash; you're always free to override it. In Advanced mode, click directly on any entry's number (the <b>no. &hellip;</b> at its left edge) to open it for editing with the number field ready to change. Type the number you want; the app only refuses if another current entry already has it. Renumbering an entry this way also keeps its "see also" and "referenced by" links pointing at the right place automatically.</p>
+      <p>If the entry you're renumbering is your most recent one, the whole gap heals itself from there: say notes 124&ndash;126 got deleted and your newest entry auto-became 127. Click no. 127, change it to 124, and save &mdash; your very next new entry becomes 125, the one after that 126, and so on, refilling the gap in order without any further manual editing. (Renumbering an older entry buried earlier in your notebook doesn't touch the counter at all &mdash; only your single newest entry can "rewind" it this way.)</p>
       <p>You can also set a number while <b>creating</b> a new entry: the entry form's <b>entry number</b> field lets you type any unused number to backfill an old thought (e.g. add no. 42 while the notebook is only at no. 39). Use a decimal like <b>47.1</b> to slot an entry between two existing ones without disturbing either.</p>
 
       <h4>Deleting (and undeleting)</h4>
@@ -2858,10 +2859,13 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
             e.related = e.related.map(function(rid){ return rid===editingId ? newNum : rid; });
           }
         });
-        // If this was the most recently issued number and nothing newer has claimed it,
-        // free it back up so the next new entry picks up right where it left off.
+        // If this was the most recently issued number (the "tip"), recompute the counter
+        // from whatever the true highest active number is now, so the next new entry
+        // continues counting up from there (e.g. renumber 127->124, next entry becomes 125).
         if(editingId === nb().nextId - 1){
-          nb().nextId = editingId;
+          var maxActive = 0;
+          nb().entries.forEach(function(e){ var fid = Math.floor(e.id); if(fid > maxActive) maxActive = fid; });
+          nb().nextId = maxActive + 1;
         }
         if(newNum >= nb().nextId) nb().nextId = Math.floor(newNum)+1;
         openEntryId = newNum;
