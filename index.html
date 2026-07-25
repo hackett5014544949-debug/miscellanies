@@ -137,7 +137,7 @@
   .entry-video a{color:var(--blue);}
   .passage-panel{
     margin-top:10px; padding:12px 14px; background:var(--blue-bg); border-radius:6px;
-    font-size:15px; color:var(--ink); display:none; line-height:1.6;
+    font-size:calc(15px * var(--fsz, 1)); color:var(--ink); display:none; line-height:1.6;
   }
   .passage-panel.open{display:block;}
   .passage-panel .pref{font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--blue); margin-bottom:6px; display:block;}
@@ -260,7 +260,7 @@
   }
   .flash.show{opacity:1; pointer-events:auto;}
 
-  .word-popup{position:fixed; max-width:300px; max-height:min(70vh, 420px); overflow-y:auto; overscroll-behavior:contain; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:10px 12px; font-size:13.5px; box-shadow:var(--shadow); z-index:60; display:none; line-height:1.4;}
+  .word-popup{position:fixed; max-width:min(420px, 90vw); max-height:min(70vh, 420px); overflow-y:auto; overscroll-behavior:contain; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:10px 12px; font-size:calc(13.5px * var(--fsz, 1)); box-shadow:var(--shadow); z-index:60; display:none; line-height:1.4;}
   .word-popup.open{display:block;}
   .word-popup .word-close{position:sticky; top:-10px; float:right; margin:-10px -12px 4px 8px; background:var(--card); border:none; color:var(--ink-faint); font-family:'JetBrains Mono', monospace; font-size:14px; cursor:pointer; padding:6px 10px;}
   .dict-word{border-bottom:1px dotted var(--brass); cursor:pointer;}
@@ -2680,10 +2680,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     bk_tr:        { file:'scrivener_tr.json',      kind:'verses' },
     bk_pilgrim:   { file:'pilgrims_progress.json', kind:'paragraphs' },
     bk_imitation: { file:'imitation_of_christ.json', kind:'paragraphs' },
-    bk_luther:    { file:'luther_95_theses.json',  kind:'paragraphs' }
+    bk_luther:    { file:'luther_95_theses.json',  kind:'paragraphs' },
+    bk_watson:    { file:'watson.json',            kind:'dictionary' }
   };
   var READER_TAB_ID = '__read__';
   var READER_PAGE_SIZE = 20;
+  var DICT_PAGE_SIZE = 12;
   var readerTextCache = {};   // file name -> parsed JSON (loaded once, reused)
   var readerState = {};       // book id -> { page, query, book, chapter } (in-memory only)
 
@@ -2693,6 +2695,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   }
   function ensureReaderText(file, cb){
     if(readerTextCache[file]){ cb(readerTextCache[file]); return; }
+    if(file === 'watson.json'){
+      // Watson's dictionary is already fetched/cached by the tap-to-define feature —
+      // reuse that copy instead of downloading the same ~6MB file twice.
+      ensureWatsonDict(function(){ readerTextCache[file] = watsonDict; cb(watsonDict); });
+      return;
+    }
     fetch(file).then(function(r){ return r.json(); })
       .then(function(d){ readerTextCache[file] = d; cb(d); })
       .catch(function(){ cb(null); });
@@ -2740,6 +2748,49 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       return html;
     }
 
+    if(src.kind === 'dictionary'){
+      var allTerms = Object.keys(data).sort(function(a,b){ return a.localeCompare(b); });
+      var q = (rs.query||'').trim().toLowerCase();
+      var terms = q ? allTerms.filter(function(t){ return t.toLowerCase().indexOf(q)!==-1 || (data[t]||'').toLowerCase().indexOf(q)!==-1; }) : allTerms;
+      var totalD = Math.max(1, Math.ceil(terms.length / DICT_PAGE_SIZE));
+      rs.page = Math.max(0, Math.min(rs.page, totalD-1));
+      var startD = rs.page * DICT_PAGE_SIZE;
+      var sliceD = terms.slice(startD, startD + DICT_PAGE_SIZE);
+      var lettersPresent = {};
+      allTerms.forEach(function(t){ var c = t.charAt(0).toUpperCase(); if(/[A-Z]/.test(c)) lettersPresent[c] = true; });
+
+      var htmlD = '<div class="reader-toolbar" style="display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">';
+      htmlD += '<input type="text" id="readerFind" placeholder="Find a word or phrase&hellip;" value="'+escapeHtml(rs.query||'')+'" style="flex:1; min-width:140px; font-family:\'EB Garamond\', serif; font-size:calc(14.5px * var(--fsz, 1)); padding:7px 10px; border:1px solid var(--line); border-radius:5px; background:var(--paper); color:var(--ink);">';
+      htmlD += '<button class="btn small" id="readerFindBtn">Find</button>';
+      htmlD += '<span style="font-family:\'JetBrains Mono\', monospace; font-size:11.5px; color:var(--ink-faint); white-space:nowrap;">'+terms.length+' entr'+(terms.length===1?'y':'ies')+' &middot; page '+(rs.page+1)+' of '+totalD+'</span>';
+      htmlD += '<button class="btn small" id="readerPrevBtn"'+(rs.page<=0?' disabled':'')+'>&larr; prev</button>';
+      htmlD += '<button class="btn small" id="readerNextBtn"'+(rs.page>=totalD-1?' disabled':'')+'>next &rarr;</button>';
+      htmlD += '</div>';
+      htmlD += '<div class="reader-alphabet" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:16px;">';
+      htmlD += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(function(l){
+        var has = !!lettersPresent[l];
+        return '<button class="btn small'+(has?'':' ghost')+'" data-letter="'+l+'"'+(has?'':' disabled')+' style="padding:4px 8px; font-family:\'JetBrains Mono\', monospace; font-size:11px;'+(has?'':' opacity:.35;')+'">'+l+'</button>';
+      }).join('') + '</div>';
+      htmlD += '<div class="reader-text" style="font-size:calc(16px * var(--fsz, 1)); line-height:1.6;">';
+      if(!sliceD.length){
+        htmlD += '<div class="empty">No entries match that search.</div>';
+      } else {
+        htmlD += sliceD.map(function(t){
+          var def = escapeHtml(data[t]);
+          if(q){
+            var esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            def = def.replace(new RegExp('('+esc+')', 'ig'), '<mark>$1</mark>');
+          }
+          return '<div style="margin:0 0 20px; padding-bottom:16px; border-bottom:1px solid var(--line);">' +
+            '<div style="font-family:\'Cormorant Garamond\', serif; font-weight:600; font-size:1.2em; margin-bottom:6px;">'+escapeHtml(t)+'</div>' +
+            '<div style="white-space:pre-wrap;">'+def+'</div>' +
+          '</div>';
+        }).join('');
+      }
+      htmlD += '</div>';
+      return htmlD;
+    }
+
     // kind === 'verses'
     var isGreekNt = (src.file === 'robinson_pierpont.json' || src.file === 'scrivener_tr.json');
     var bookNames = isGreekNt ? ntBookOrderNames().filter(function(n){ return data[n]; }) : Object.keys(data);
@@ -2778,20 +2829,39 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       findBtn.addEventListener('click', function(){
         var q = document.getElementById('readerFind').value.trim();
         rs.query = q;
-        if(q){
+        if(q && src.kind === 'paragraphs'){
           var data = readerTextCache[src.file];
           var paras = (data && data.paragraphs) || [];
           var ql = q.toLowerCase();
           var idx = paras.findIndex(function(p){ return p.toLowerCase().indexOf(ql) !== -1; });
           if(idx !== -1) rs.page = Math.floor(idx / READER_PAGE_SIZE);
           else flash('Not found in this book');
+        } else if(src.kind === 'dictionary'){
+          rs.page = 0; // the dictionary branch itself filters by rs.query, just jump back to page 1
         }
         renderOpenBook();
       });
     }
     var prevBtn = document.getElementById('readerPrevBtn');
     var nextBtn = document.getElementById('readerNextBtn');
-    if(src.kind === 'paragraphs'){
+    if(src.kind === 'dictionary'){
+      if(prevBtn) prevBtn.addEventListener('click', function(){ rs.page = Math.max(0, rs.page-1); renderOpenBook(); });
+      if(nextBtn) nextBtn.addEventListener('click', function(){ rs.page = rs.page+1; renderOpenBook(); });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-letter]'), function(el){
+        if(el.disabled) return;
+        el.addEventListener('click', function(){
+          var letter = el.getAttribute('data-letter');
+          var data = readerTextCache[src.file];
+          var allTerms = Object.keys(data).sort(function(a,b){ return a.localeCompare(b); });
+          var idx = allTerms.findIndex(function(t){ return t.charAt(0).toUpperCase() === letter; });
+          if(idx !== -1){
+            rs.query = '';
+            rs.page = Math.floor(idx / DICT_PAGE_SIZE);
+            renderOpenBook();
+          }
+        });
+      });
+    } else if(src.kind === 'paragraphs'){
       if(prevBtn) prevBtn.addEventListener('click', function(){ rs.page = Math.max(0, rs.page-1); renderOpenBook(); });
       if(nextBtn) nextBtn.addEventListener('click', function(){ rs.page = rs.page+1; renderOpenBook(); });
     } else {
@@ -3255,7 +3325,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     persist();
   });
 
-  var FONT_SCALES = [0.85, 1, 1.15, 1.3, 1.45, 1.6];
+  var FONT_SCALES = [0.85, 1, 1.15, 1.3, 1.45, 1.6, 1.8, 2, 2.25, 2.5];
   function applyFontScale(){
     var cur = (state.settings && state.settings.fontScale) || 1;
     document.documentElement.style.setProperty('--fsz', cur);
