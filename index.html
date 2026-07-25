@@ -130,6 +130,10 @@
     font-family:'JetBrains Mono', monospace; font-size:14px; font-weight:600;
     color:var(--ink-faint); min-width:44px; text-align:right; padding-top:3px; flex-shrink:0;
   }
+  .entry-num.editable{
+    cursor:pointer; border-bottom:1px dashed var(--line);
+  }
+  .entry-num.editable:hover{ color:var(--rubric); border-bottom-color:var(--rubric); }
   .entry-body{flex:1; min-width:0;}
   .entry-head{display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; cursor:pointer;}
   .entry-title{font-family:'Cormorant Garamond', serif; font-weight:600; font-size:22px; margin:0;}
@@ -590,8 +594,12 @@
         <li><b>Save to folder&hellip;</b> is desktop-only (Chrome and Edge); phones can't connect to a folder the same way, so the button is hidden there, and any automatic rotating backups only happen on the desktop copy connected to a folder.</li>
       </ol>
 
-      <h4>Inserting an out-of-sequence number</h4>
-      <p>In Advanced mode the entry form shows an <b>entry number</b> field. Type any unused number to backfill an old thought (e.g. add no. 42 while the notebook is only at no. 39 &mdash; the counter then continues from 43). Use a decimal like <b>47.1</b> to slot an entry between two existing ones. The app won't let you reuse a taken number.</p>
+      <h4>Why entry numbers sometimes skip</h4>
+      <p>Every entry gets a permanent number the moment it's created, and that number is <b>never handed to a different entry later</b> &mdash; even if the original is deleted. So if you delete notes 124, 125, and 126, your next new entry becomes 127, not 124. That gap is intentional, not a bug.</p>
+      <p>The reason: these numbers are meant to be cited outside the app, the same way Jonathan Edwards cited his own Miscellanies by number. If you've ever written <b>&ldquo;see no. 47&rdquo;</b> in the margin of your Bible, a journal, or a sermon outline, that note needs to mean the same thing forever. If the app quietly reused deleted numbers, an old handwritten reference could end up pointing at a completely different, unrelated entry &mdash; silently and without warning. Leaving gaps instead of reusing numbers is what keeps every number you've ever written down trustworthy.</p>
+      <h4>Fixing an out-of-sequence number yourself</h4>
+      <p>If you'd rather close a gap on purpose &mdash; say you deleted a note by mistake while recording, or you're migrating an old paper notebook &mdash; you're always free to override it. In Advanced mode, click directly on any entry's number (the <b>no. &hellip;</b> at its left edge) to open it for editing with the number field ready to change. Type the number you want; the app only refuses if another current entry already has it. Renumbering an entry this way also keeps its "see also" and "referenced by" links pointing at the right place automatically, and the counter simply continues from wherever it's left off &mdash; so if you move an entry back to no. 48, your very next new entry still becomes 49.</p>
+      <p>You can also set a number while <b>creating</b> a new entry: the entry form's <b>entry number</b> field lets you type any unused number to backfill an old thought (e.g. add no. 42 while the notebook is only at no. 39). Use a decimal like <b>47.1</b> to slot an entry between two existing ones without disturbing either.</p>
 
       <h4>Deleting (and undeleting)</h4>
       <p>Deleted entries move to a Trash at the bottom of the stream, where you can restore them or delete them forever. An Undo button also appears for a few seconds after each delete.</p>
@@ -2195,7 +2203,7 @@
 
     return '' +
     '<div class="entry" id="entry-'+e.id+'">' +
-      '<div class="entry-num">no. '+e.id+'</div>' +
+      '<div class="entry-num'+(state.mode==='advanced'?' editable':'')+'" data-editnum="'+e.id+'" title="'+(state.mode==='advanced'?'Click to change this entry\'s number':'')+'">no. '+e.id+'</div>' +
       '<div class="entry-body">' +
         '<div class="entry-head" data-toggle="'+e.id+'">' +
           '<h3 class="entry-title">'+escapeHtml(e.title||'untitled')+'</h3>' +
@@ -2241,7 +2249,7 @@
           '<div class="field"><label>Page</label><input type="text" id="f-page" placeholder="e.g. 340"></div>' +
         '</div>' +
         '<div class="field"><label>Video link</label><input type="text" id="f-video" placeholder="https://youtube.com/..."></div>' +
-        '<div class="field" id="numberField"><label>Entry number</label><input type="text" id="f-number" placeholder=""><div class="hint">Override the auto-assigned number to migrate an old notebook or backfill a note. Use a decimal (e.g. 47.1) to insert between two existing entries.</div></div>' +
+        '<div class="field" id="numberField"><label>Entry number</label><input type="text" id="f-number" placeholder=""><div class="hint" id="numberFieldHint">Override the auto-assigned number to migrate an old notebook or backfill a note. Use a decimal (e.g. 47.1) to insert between two existing entries.</div></div>' +
       '</div>'
     ) : '') +
     '<div class="form-actions">' +
@@ -2366,6 +2374,15 @@
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-edit]'), function(el){
       el.addEventListener('click', function(ev){ ev.stopPropagation(); openEditEntry(Number(el.getAttribute('data-edit'))); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-editnum]'), function(el){
+      el.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        if(state.mode!=='advanced') return;
+        openEditEntry(Number(el.getAttribute('data-editnum')));
+        var nf = document.getElementById('f-number');
+        if(nf){ nf.focus(); nf.select(); }
+      });
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-quotecard]'), function(el){
       el.addEventListener('click', function(ev){
@@ -2736,6 +2753,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       document.getElementById('f-page').value='';
       document.getElementById('f-video').value='';
       document.getElementById('f-number').value = String(nb().nextId);
+      var numHint2 = document.getElementById('numberFieldHint');
+      if(numHint2) numHint2.textContent = 'Override the auto-assigned number to migrate an old notebook or backfill a note. Use a decimal (e.g. 47.1) to insert between two existing entries.';
     }
     presetBookId = null;
     document.getElementById('entryForm').scrollIntoView({behavior:'smooth', block:'start'});
@@ -2760,7 +2779,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       document.getElementById('f-page').value = e.page || '';
       document.getElementById('f-video').value = e.videoLink || '';
       var numField = document.getElementById('numberField');
-      if(numField) numField.style.display='none';
+      if(numField){
+        numField.style.display='';
+        document.getElementById('f-number').value = String(e.id);
+        var numHint = document.getElementById('numberFieldHint');
+        if(numHint) numHint.textContent = "Change this to fix an out-of-sequence number, e.g. to fill a gap left by a deleted note. You can't reuse a number another entry already has.";
+      }
     }
     document.getElementById('entryForm').scrollIntoView({behavior:'smooth', block:'start'});
     maybeRestoreDraft();
@@ -2804,17 +2828,47 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     }
 
     if(editingId){
+      var newNum = editingId;
+      if(state.mode==='advanced'){
+        var numFieldEl = document.getElementById('numberField');
+        var numInputEl = document.getElementById('f-number');
+        if(numFieldEl && numFieldEl.style.display!=='none' && numInputEl){
+          var wantNum = parseFloat(numInputEl.value);
+          if(!isNaN(wantNum) && wantNum !== editingId){
+            var numDup = nb().entries.some(function(e){ return e.id===wantNum && e.id!==editingId; });
+            if(numDup){ flash('That number is already used by another entry — try a decimal like '+wantNum+'.1'); return; }
+            newNum = wantNum;
+          }
+        }
+      }
       var idx = nb().entries.findIndex(function(e){ return e.id===editingId; });
       if(idx!==-1){
         nb().entries[idx] = Object.assign({}, nb().entries[idx], {
-          title:title, ref:ref, tags:tags, body:body, related:related,
+          id:newNum, title:title, ref:ref, tags:tags, body:body, related:related,
           bookId:bookId, page:page, videoLink:videoLink,
           photos: pendingPhotos, photo: undefined,
           updated: new Date().toISOString()
         });
         delete nb().entries[idx].photo;
       }
-      flash('Entry no. '+editingId+' updated');
+      if(newNum !== editingId){
+        // Keep two-way cross-references pointing at the right entry after a renumber
+        nb().entries.forEach(function(e){
+          if(e.related && e.related.length){
+            e.related = e.related.map(function(rid){ return rid===editingId ? newNum : rid; });
+          }
+        });
+        // If this was the most recently issued number and nothing newer has claimed it,
+        // free it back up so the next new entry picks up right where it left off.
+        if(editingId === nb().nextId - 1){
+          nb().nextId = editingId;
+        }
+        if(newNum >= nb().nextId) nb().nextId = Math.floor(newNum)+1;
+        openEntryId = newNum;
+        flash('Entry renumbered from no. '+editingId+' to no. '+newNum);
+      } else {
+        flash('Entry no. '+editingId+' updated');
+      }
     } else {
       var num = nb().nextId;
       if(state.mode==='advanced'){
