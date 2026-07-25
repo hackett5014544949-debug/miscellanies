@@ -60,6 +60,23 @@
     text-decoration:underline;
   }
 
+  .quickstart-video-wrap{margin:18px 0 4px;}
+  .quickstart-video-btn{
+    display:inline-flex; align-items:center; gap:10px;
+    background:var(--rubric); color:var(--rubric-bg);
+    font-family:'Cormorant Garamond', serif; font-weight:700; font-size:20px;
+    padding:13px 26px; border-radius:999px; text-decoration:none;
+    box-shadow:var(--shadow); border:1px solid var(--rubric);
+    transition:transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .quickstart-video-btn:hover{ transform:translateY(-1px); box-shadow:0 4px 16px rgba(122,46,42,0.3); }
+  .quickstart-video-btn .qs-play{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:50%; background:var(--rubric-bg);
+    flex-shrink:0;
+  }
+  .quickstart-video-btn .qs-play svg{ width:11px; height:11px; margin-left:2px; }
+
   .modebar{
     display:flex; justify-content:center; align-items:center; gap:14px;
     margin-bottom:22px; flex-wrap:wrap;
@@ -379,6 +396,12 @@
       <span class="epi-attr">&mdash; Jonathan Edwards, Resolution 35, Dec. 18, 1722</span>
     </div>
     <div id="studyBibleLink"></div>
+    <div class="quickstart-video-wrap">
+      <a class="quickstart-video-btn" href="https://youtu.be/wUf8HQVj-V0?si=ao3fAUInqKgZQCaj" target="_blank" rel="noopener">
+        <span class="qs-play"><svg viewBox="0 0 24 24" fill="#7A2E2A"><polygon points="4,2 22,12 4,22"/></svg></span>
+        Quick start guide video
+      </a>
+    </div>
   </div>
 
   <div class="modebar">
