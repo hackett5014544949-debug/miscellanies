@@ -30,7 +30,7 @@
     background: radial-gradient(ellipse at top, #efe8d8, var(--paper) 60%);
     color: var(--ink);
     font-family:'EB Garamond', serif;
-    font-size:17px;
+    font-size:calc(17px * var(--fsz, 1));
     line-height:1.55;
   }
   .wrap{max-width:920px; margin:0 auto; padding:44px 22px 100px;}
@@ -263,7 +263,10 @@
   .word-popup{position:fixed; max-width:300px; max-height:min(70vh, 420px); overflow-y:auto; overscroll-behavior:contain; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:10px 12px; font-size:13.5px; box-shadow:var(--shadow); z-index:60; display:none; line-height:1.4;}
   .word-popup.open{display:block;}
   .word-popup .word-close{position:sticky; top:-10px; float:right; margin:-10px -12px 4px 8px; background:var(--card); border:none; color:var(--ink-faint); font-family:'JetBrains Mono', monospace; font-size:14px; cursor:pointer; padding:6px 10px;}
-  
+  .dict-word{border-bottom:1px dotted var(--brass); cursor:pointer;}
+  .dict-word:hover{background:var(--brass-bg);}
+  .stream-list .entry:first-child{padding-top:0;}
+
 
   /* stacked bookcase */
   .bookcase{
@@ -361,6 +364,10 @@
       <button data-mode="advanced">advanced</button>
     </div>
     <div class="pillgroup" id="viewToggle"></div>
+    <div class="pillgroup">
+      <button class="btn small ghost" id="fontDownBtn" title="Smaller text" aria-label="Decrease text size" style="font-family:'JetBrains Mono',monospace;">A&#8722;</button>
+      <button class="btn small ghost" id="fontUpBtn" title="Larger text" aria-label="Increase text size" style="font-family:'JetBrains Mono',monospace;">A+</button>
+    </div>
     <button class="btn small ghost" id="guideBtn" title="How to use this notebook" aria-label="Open the guide">guide</button>
     <button class="btn small ghost" id="themeBtn" title="Toggle dark mode" aria-label="Toggle dark mode">&#9789;</button>
   </div>
@@ -2155,6 +2162,45 @@ var watsonDict = null;
     var title = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
     return watsonDict[title] || null;
   }
+  // Wrap words that exist in Watson's dictionary with a .dict-word span so it's visually
+  // obvious they're tappable. Only touches plain text nodes inside entry/passage text,
+  // and skips anything already inside a link or an already-wrapped word.
+  function highlightDictWords(root){
+    if(!watsonDict) return;
+    var containers = (root||document).querySelectorAll('.entry-text, .passage-panel');
+    Array.prototype.forEach.call(containers, function(container){
+      var walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null, false);
+      var nodes = [];
+      var n;
+      while((n = walker.nextNode())) nodes.push(n);
+      nodes.forEach(function(node){
+        if(!node.nodeValue || !/[A-Za-z]{2,}/.test(node.nodeValue)) return;
+        if(node.parentNode && node.parentNode.closest && node.parentNode.closest('a, .dict-word, .word-popup')) return;
+        var text = node.nodeValue;
+        var re = /[A-Za-z']+/g;
+        var last = 0, m, changed = false, frag = document.createDocumentFragment();
+        while((m = re.exec(text))){
+          var word = m[0];
+          var key = word.replace(/[^A-Za-z'\-]/g,'');
+          if(!key){ continue; }
+          var title = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
+          if(watsonDict[title]){
+            changed = true;
+            if(m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+            var span = document.createElement('span');
+            span.className = 'dict-word';
+            span.textContent = word;
+            frag.appendChild(span);
+            last = re.lastIndex;
+          }
+        }
+        if(changed){
+          if(last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+          node.parentNode.replaceChild(frag, node);
+        }
+      });
+    });
+  }
   function repositionWordPopup(x, y){
     var pop = document.getElementById('wordPopup');
     if(!pop || !pop.classList.contains('open')) return;
@@ -2162,9 +2208,15 @@ var watsonDict = null;
     if(typeof y !== 'number') y = pop._lastY;
     pop._lastX = x; pop._lastY = y;
     var margin = 10;
+    var vv = window.visualViewport;
+    var vw = (vv && vv.width) || window.innerWidth;
+    var vh = (vv && vv.height) || window.innerHeight;
+    // Cap the popup's height to whatever actually fits in the visible viewport
+    // (mobile browsers resize this as the address bar shows/hides, so recompute every time).
+    pop.style.maxHeight = Math.max(120, Math.min(vh - margin*2, 420)) + 'px';
     var w = pop.offsetWidth, h = pop.offsetHeight;
-    var left = Math.max(margin, Math.min(x, window.innerWidth - w - margin));
-    var top = Math.max(margin, Math.min(y + 12, window.innerHeight - h - margin));
+    var left = Math.max(margin, Math.min(x, vw - w - margin));
+    var top = Math.max(margin, Math.min(y + 12, vh - h - margin));
     pop.style.left = left+'px';
     pop.style.top = top+'px';
   }
@@ -2285,6 +2337,7 @@ var watsonDict = null;
           loadPassage(Number(btn.getAttribute('data-eid')), btn.getAttribute('data-ref'), btn.getAttribute('data-tr'));
         });
       });
+      ensureWatsonDict(function(){ highlightDictWords(panel); });
     }
 
     if(passageCache[cacheKey]){
@@ -2768,18 +2821,18 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   }
 
   /* ---------- OPEN BOOK VIEW ---------- */
-  var activeTabId = null;
+  var activeTabId = null; // READER_TAB_ID (reading the built-in text) or 'notes' (scrollable note list)
   function renderOpenBook(){
     var book = nb().books.find(function(b){ return b.id === state.openBookId; });
     if(!book){ state.view='library'; renderAll(); return; }
     var textSrc = BOOK_TEXT_SOURCES[book.id];
     var notes = nb().entries.filter(function(e){ return e.bookId === book.id; });
-    notes.sort(function(a,b){ return (parseFloat(a.page)||0) - (parseFloat(b.page)||0); });
-    var validTab = (activeTabId === READER_TAB_ID && textSrc) || notes.some(function(n){return n.id===activeTabId;});
-    if(!validTab){
-      activeTabId = textSrc ? READER_TAB_ID : (notes.length ? notes[0].id : null);
+    notes.sort(function(a,b){ return (parseFloat(a.page)||0) - (parseFloat(b.page)||0) || (a.id - b.id); });
+    if(!textSrc){
+      activeTabId = 'notes';
+    } else if(activeTabId !== READER_TAB_ID && activeTabId !== 'notes'){
+      activeTabId = READER_TAB_ID;
     }
-    var active = (activeTabId === READER_TAB_ID) ? null : notes.find(function(n){ return n.id === activeTabId; });
 
     var html = '<div class="openbook">';
     html += '<div class="openbook-top">';
@@ -2802,39 +2855,20 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     '</div>';
     html += '</div>';
 
-    html += '<div class="spread">';
-    html += '<div class="tabs-rail">';
     if(textSrc){
-      html += '<div class="tabitem'+(activeTabId===READER_TAB_ID?' active':'')+'" data-tab="'+READER_TAB_ID+'" style="font-weight:600;">&#128214; read</div>';
-    }
-    if(notes.length===0 && !textSrc){
-      html += '<div style="padding:12px; font-size:12px; color:var(--ink-faint); font-style:italic;">no notes yet</div>';
-    } else {
-      notes.forEach(function(n){
-        html += '<div class="tabitem'+(n.id===activeTabId?' active':'')+'" data-tab="'+n.id+'">p. '+escapeHtml(n.page||'&mdash;')+' &middot; no. '+n.id+'</div>';
-      });
-    }
-    html += '</div>';
-
-    html += '<div class="page-pane">';
-    if(activeTabId === READER_TAB_ID && textSrc){
-      html += renderReaderPane(book, textSrc);
-    } else if(active){
-      html += '<div class="page-num-corner">no. '+active.id+(active.page?' &middot; p. '+escapeHtml(active.page):'')+'</div>';
-      html += '<h3 class="entry-title" style="margin-bottom:6px;">'+escapeHtml(active.title||'untitled')+'</h3>';
-      if(active.ref) html += '<div class="badge ref" data-passage="'+active.id+'" data-ref="'+escapeHtml(active.ref)+'" style="margin-bottom:6px; display:inline-block; cursor:pointer;" title="Click to read this passage">'+escapeHtml(active.ref)+' &#128214;</div>';
-      html += '<div class="passage-panel'+(openPassageId===active.id?' open':'')+'" id="passage-'+active.id+'"></div>';
-      if((active.photos||[]).length) html += '<div class="photo-gallery">'+(active.photos||[]).map(function(p){ return '<img class="entry-photo" src="'+p+'">'; }).join('')+'</div>';
-      html += '<div style="white-space:pre-wrap; margin-top:8px;">'+linkify(active.body||'', active.id)+'</div>';
-      if(active.videoLink) html += '<div style="margin-top:10px; font-size:13.5px;"><a href="'+escapeHtml(active.videoLink)+'" target="_blank" rel="noopener" style="color:var(--blue);">watch related video &rarr;</a></div>';
-      html += '<div class="form-actions" style="margin-top:16px;">' +
-        '<button class="btn small" id="editTabBtn">Edit this entry</button>' +
+      html += '<div class="pillgroup" style="margin:4px 0 16px;">' +
+        '<button id="bpReadBtn" class="'+(activeTabId===READER_TAB_ID?'active':'')+'">&#128214; Read text</button>' +
+        '<button id="bpNotesBtn" class="'+(activeTabId==='notes'?'active':'')+'">&#128221; My notes ('+notes.length+')</button>' +
       '</div>';
-    } else {
-      html += '<div class="empty">Add a note for this book from the entry form, and tag it with this book to see it here.</div>';
     }
-    html += '</div>';
-    html += '</div>';
+
+    if(activeTabId === READER_TAB_ID && textSrc){
+      html += '<div class="page-pane">' + renderReaderPane(book, textSrc) + '</div>';
+    } else if(notes.length === 0){
+      html += '<div class="empty">No notes yet for this '+(book.type==='notebook'?'notebook':'book')+'. Click &ldquo;+ add note&rdquo; above to add your first one &mdash; scroll down here to read back through them any time.</div>';
+    } else {
+      html += '<div class="stream-list" id="bookNotesList">' + notes.map(entryHtml).join('') + '</div>';
+    }
     html += '</div>';
 
     document.getElementById('app').innerHTML = html;
@@ -2851,37 +2885,74 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     document.getElementById('statusSelect').addEventListener('change', function(e){
       book.status = e.target.value; persist(); renderOpenBook();
     });
-    Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function(el){
-      el.addEventListener('click', function(){
-        var v = el.getAttribute('data-tab');
-        activeTabId = (v === READER_TAB_ID) ? READER_TAB_ID : Number(v);
-        renderOpenBook();
-      });
-    });
+    var bpReadBtn = document.getElementById('bpReadBtn');
+    if(bpReadBtn) bpReadBtn.addEventListener('click', function(){ activeTabId = READER_TAB_ID; renderOpenBook(); });
+    var bpNotesBtn = document.getElementById('bpNotesBtn');
+    if(bpNotesBtn) bpNotesBtn.addEventListener('click', function(){ activeTabId = 'notes'; renderOpenBook(); });
     if(activeTabId === READER_TAB_ID && textSrc){
       wireReaderPane(book, textSrc);
-    }
-    var editBtn = document.getElementById('editTabBtn');
-    if(editBtn){
-      editBtn.addEventListener('click', function(){
-        state.view='stream'; renderAll();
-        setTimeout(function(){ openEditEntry(active.id); }, 30);
+    } else {
+      Array.prototype.forEach.call(document.querySelectorAll('#bookNotesList [data-toggle]'), function(el){
+        el.addEventListener('click', function(){
+          var id = Number(el.getAttribute('data-toggle'));
+          openEntryId = (openEntryId===id) ? null : id;
+          renderOpenBook();
+        });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('#bookNotesList [data-jump]'), function(el){
+        el.addEventListener('click', function(ev){ ev.stopPropagation(); jumpTo(Number(el.getAttribute('data-jump'))); });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('#bookNotesList [data-edit]'), function(el){
+        el.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          var id = Number(el.getAttribute('data-edit'));
+          // the edit form lives in the stream view's DOM, so hop over there first
+          state.view = 'stream'; renderAll();
+          setTimeout(function(){ openEditEntry(id); }, 30);
+        });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('#bookNotesList [data-quotecard]'), function(el){
+        el.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          var e = nb().entries.find(function(x){ return x.id === Number(el.getAttribute('data-quotecard')); });
+          if(e) generateQuoteCard(e);
+        });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('#bookNotesList [data-delete]'), function(el){
+        el.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          var id = Number(el.getAttribute('data-delete'));
+          var e = nb().entries.find(function(x){ return x.id === id; });
+          if(!e) return;
+          if(!nb().trash) nb().trash = [];
+          nb().entries = nb().entries.filter(function(x){ return x.id !== id; });
+          nb().trash.push({ entry:e, deletedAt:new Date().toISOString() });
+          noteEdit();
+          persist(); renderOpenBook();
+          flash('Entry no. '+id+' moved to trash', 'Undo', function(){
+            nb().trash = nb().trash.filter(function(t){ return t.entry.id !== id; });
+            nb().entries.push(e);
+            persist(); renderOpenBook();
+          });
+        });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('#bookNotesList [data-passage]'), function(el){
+        el.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          var id = Number(el.getAttribute('data-passage'));
+          var ref = el.getAttribute('data-ref');
+          if(openPassageId === id && openPassageRef === ref){
+            openPassageId = null; openPassageRef = null;
+          } else {
+            openPassageId = id; openPassageRef = ref;
+          }
+          openPassageTranslation = 'kjv';
+          renderOpenBook();
+          if(openPassageId === id) loadPassage(id, ref, 'kjv');
+        });
       });
     }
-    Array.prototype.forEach.call(document.querySelectorAll('[data-passage="'+(active?active.id:'')+'"]'), function(passageBadge){
-      passageBadge.addEventListener('click', function(ev){
-        ev.stopPropagation();
-        var ref = passageBadge.getAttribute('data-ref') || active.ref;
-        if(openPassageId === active.id && openPassageRef === ref){
-          openPassageId = null; openPassageRef = null;
-        } else {
-          openPassageId = active.id; openPassageRef = ref;
-        }
-        openPassageTranslation = 'kjv';
-        renderOpenBook();
-        if(openPassageId === active.id) loadPassage(active.id, ref, 'kjv');
-      });
-    });
+    ensureWatsonDict(function(){ highlightDictWords(); });
   }
 
   /* ---------- MODALS ---------- */
@@ -3160,6 +3231,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     else if(state.view==='book') renderOpenBook();
     else if(state.view==='index') renderIndex();
     wireModals();
+    ensureWatsonDict(function(){ highlightDictWords(); });
+    applyFontScale();
   }
   document.getElementById('modeToggle').addEventListener('click', function(e){
     var b = e.target.closest('button[data-mode]');
@@ -3179,6 +3252,28 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     state.theme = (state.theme === 'dark') ? 'light' : 'dark';
     document.body.classList.toggle('dark', state.theme === 'dark');
     persist();
+  });
+
+  var FONT_SCALES = [0.85, 1, 1.15, 1.3, 1.45, 1.6];
+  function applyFontScale(){
+    var cur = (state.settings && state.settings.fontScale) || 1;
+    document.documentElement.style.setProperty('--fsz', cur);
+  }
+  document.getElementById('fontDownBtn').addEventListener('click', function(){
+    var cur = (state.settings.fontScale) || 1;
+    var i = FONT_SCALES.indexOf(cur);
+    if(i === -1) i = FONT_SCALES.indexOf(1);
+    if(i > 0) i--;
+    state.settings.fontScale = FONT_SCALES[i];
+    persist(); applyFontScale();
+  });
+  document.getElementById('fontUpBtn').addEventListener('click', function(){
+    var cur = (state.settings.fontScale) || 1;
+    var i = FONT_SCALES.indexOf(cur);
+    if(i === -1) i = FONT_SCALES.indexOf(1);
+    if(i < FONT_SCALES.length-1) i++;
+    state.settings.fontScale = FONT_SCALES[i];
+    persist(); applyFontScale();
   });
 
   document.getElementById('helpBtn').addEventListener('click', function(){
@@ -3393,6 +3488,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
 
   load();
   document.body.classList.toggle('dark', state.theme === 'dark');
+  applyFontScale();
   renderMastheadLink();
   renderAll();
   renderFolderBtn();
