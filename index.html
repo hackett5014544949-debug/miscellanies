@@ -2153,7 +2153,13 @@
 
 var watsonDict = null;
   function ensureWatsonDict(cb){
-    if(watsonDict){ cb(); return; }
+    // Always resolve asynchronously, even on a cache hit. Some callers (like the
+    // dictionary reader) call this from inside a render that is still building its
+    // own HTML string; firing cb() synchronously here would trigger a re-entrant
+    // render that finishes and updates the DOM *before* the outer render is done,
+    // so the outer render's stale output then overwrites it a moment later — the
+    // dictionary reader would appear to hang forever on "loading...".
+    if(watsonDict){ setTimeout(cb, 0); return; }
     fetch('watson.json').then(function(r){ return r.json(); }).then(function(d){ watsonDict = d; cb(); }).catch(function(){ flash('Dictionary unavailable (offline?)'); });
   }
   function lookupWatson(word){
@@ -2694,7 +2700,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     return readerState[bookId];
   }
   function ensureReaderText(file, cb){
-    if(readerTextCache[file]){ cb(readerTextCache[file]); return; }
+    if(readerTextCache[file]){ setTimeout(function(){ cb(readerTextCache[file]); }, 0); return; }
     if(file === 'watson.json'){
       // Watson's dictionary is already fetched/cached by the tap-to-define feature —
       // reuse that copy instead of downloading the same ~6MB file twice.
