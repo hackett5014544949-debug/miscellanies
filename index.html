@@ -1898,6 +1898,7 @@
     }
     document.getElementById('app').innerHTML = html;
     wireStream();
+    ensureWatsonDict(function(){ highlightDictWords(); });
   }
 
   function entryHtml(e){
