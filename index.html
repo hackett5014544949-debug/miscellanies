@@ -266,6 +266,12 @@
   .dict-word{border-bottom:1px dotted var(--brass); cursor:pointer;}
   .dict-word:hover{background:var(--brass-bg);}
   .stream-list .entry:first-child{padding-top:0;}
+  .verse-note-mark{cursor:pointer; color:var(--rubric); font-weight:700; font-size:1.05em; margin-left:1px; text-decoration:none;}
+  .verse-note-mark:hover{text-decoration:underline;}
+  .verse-note-item{margin:0 0 10px; padding-bottom:10px; border-bottom:1px solid var(--line);}
+  .verse-note-item:last-child{border-bottom:none; margin-bottom:0; padding-bottom:0;}
+  .verse-note-title{font-family:'Cormorant Garamond', serif; font-weight:600; font-size:1.05em;}
+  .verse-note-open{display:inline-block; margin-top:6px; color:var(--blue); cursor:pointer;}
 
 
   /* stacked bookcase */
@@ -1149,6 +1155,57 @@
       if(slug && slugs.indexOf(slug) === -1) slugs.push(slug);
     });
     return slugs;
+  }
+
+  // --- Verse-level note markers (shown as clickable asterisks in the Bible reader) ---
+  // Parses a single ref segment (e.g. "Ezek 16:38-40") down to its book slug, chapter,
+  // and *starting* verse only — a note on a range is marked at the verse it begins on,
+  // not repeated across the whole range.
+  function parseSingleRefForVerse(refPart){
+    var m = (refPart||'').match(/^\s*((?:[1-3]\s*)?[A-Za-z][A-Za-z .]*?)\.?\s+(\d+)(?::(\d+))?/);
+    if(!m) return null;
+    var key = normalizeBookKey(m[1]);
+    var slug = GREEK_BOOKS[key] || (LXX_BOOKS[key] && LXX_BOOKS[key][1]);
+    if(!slug) return null;
+    return { slug: slug, chapter: Number(m[2]), verse: m[3] ? Number(m[3]) : null };
+  }
+  // Maps a reader's displayed book name (e.g. "Ezekiel", "1 Corinthians") to the same
+  // canonical slug space used by parseSingleRefForVerse, so the two can be compared.
+  function slugForDisplayBook(name){
+    var key = normalizeBookKey(name);
+    return GREEK_BOOKS[key] || (LXX_BOOKS[key] && LXX_BOOKS[key][1]) || null;
+  }
+  // Builds { verseNumber -> [entries] } for every entry in the current notebook whose
+  // ref field (or one of its semicolon/comma-separated parts) points into this chapter.
+  function notesByVerseForChapter(slug, chapter){
+    var map = {};
+    if(!slug) return map;
+    (nb().entries || []).forEach(function(e){
+      if(!e || !e.ref) return;
+      splitRefs(e.ref).forEach(function(part){
+        var p = parseSingleRefForVerse(part);
+        if(p && p.slug === slug && p.chapter === chapter && p.verse){
+          if(!map[p.verse]) map[p.verse] = [];
+          if(map[p.verse].indexOf(e) === -1) map[p.verse].push(e);
+        }
+      });
+    });
+    return map;
+  }
+  function showVerseNotesPopup(ids, x, y){
+    var entries = (nb().entries || []).filter(function(e){ return ids.indexOf(e.id) !== -1; });
+    if(!entries.length){ hideWordPopup(); return; }
+    var html = '<div style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-bottom:8px;">'+entries.length+' note'+(entries.length===1?'':'s')+' on this verse</div>' +
+      entries.map(function(e){
+        var snippet = (e.body||'').replace(/\s+/g,' ').trim();
+        if(snippet.length > 160) snippet = snippet.slice(0,160)+'…';
+        return '<div class="verse-note-item">' +
+          '<div class="verse-note-title">'+escapeHtml(e.title||'untitled')+'</div>' +
+          (snippet ? '<div style="margin-top:4px;">'+escapeHtml(snippet)+'</div>' : '') +
+          '<a href="#" class="verse-note-open" data-open-entry="'+e.id+'">Open note &rarr;</a>' +
+        '</div>';
+      }).join('');
+    showWordPopup(html, x, y);
   }
   // Propose a "main" scripture reference for an entry from its own body text.
   // Prefers the first chapter:verse citation; falls back to the first chapter reference.
@@ -2247,6 +2304,20 @@ var watsonDict = null;
   function handleWordTap(e){
     var target = e.target;
     if(!target.closest) return;
+    if(target.closest('.verse-note-mark')){
+      e.preventDefault();
+      var vnm = target.closest('.verse-note-mark');
+      var noteIds = (vnm.getAttribute('data-note-ids')||'').split(',').filter(Boolean).map(Number);
+      showVerseNotesPopup(noteIds, e.clientX, e.clientY);
+      return;
+    }
+    if(target.closest('.verse-note-open')){
+      e.preventDefault();
+      var openId = Number(target.closest('.verse-note-open').getAttribute('data-open-entry'));
+      hideWordPopup();
+      jumpTo(openId);
+      return;
+    }
     if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); repositionWordPopup(); } return; }
           if(target.closest('.word-close')){ e.preventDefault(); hideWordPopup(); return; }
           if(target.closest('.word-popup')) return;
@@ -2821,8 +2892,18 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     html += '</div>';
     html += '<h3 style="font-family:\'Cormorant Garamond\', serif; margin:0 0 12px;">'+escapeHtml(rs.book)+' '+rs.chapter+'</h3>';
     html += '<div class="reader-text" style="font-size:calc(16.5px * var(--fsz, 1)); line-height:1.75;">';
+    var noteSlug = slugForDisplayBook(rs.book);
+    var notesByVerse = notesByVerseForChapter(noteSlug, Number(rs.chapter));
     html += verseNums.map(function(v){
-      return '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+escapeHtml(chapterData[v])+' ';
+      var marks = '';
+      var notesHere = notesByVerse[v];
+      if(notesHere && notesHere.length){
+        var ids = notesHere.map(function(e){ return e.id; }).join(',');
+        marks = notesHere.map(function(){
+          return '<sup class="verse-note-mark" data-note-ids="'+ids+'" title="'+notesHere.length+' note'+(notesHere.length===1?'':'s')+' on this verse &mdash; click to read">*</sup>';
+        }).join('');
+      }
+      return '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+marks+escapeHtml(chapterData[v])+' ';
     }).join('');
     html += '</div>';
     return html;
