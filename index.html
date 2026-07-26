@@ -77,6 +77,24 @@
   }
   .quickstart-video-btn .qs-play svg{ width:11px; height:11px; margin-left:2px; }
 
+  .folder-status{
+    display:inline-flex; align-items:center; gap:8px; margin:14px 0 0;
+    font-family:'JetBrains Mono', monospace; font-size:12.5px; padding:8px 16px;
+    border-radius:999px; border:1px solid var(--line);
+  }
+  .folder-status.connected{ background:var(--blue-bg); color:var(--blue); border-color:var(--blue); }
+  .folder-status.pending{
+    background:var(--rubric); color:var(--rubric-bg); border-color:var(--rubric);
+    cursor:pointer; font-weight:600; box-shadow:var(--shadow);
+    animation:folderPulse 1.6s ease-in-out infinite;
+  }
+  .folder-status.pending:hover{ filter:brightness(1.08); }
+  @keyframes folderPulse{
+    0%,100%{ box-shadow:0 2px 10px rgba(122,46,42,0.14); }
+    50%{ box-shadow:0 2px 18px rgba(122,46,42,0.55); }
+  }
+  .folder-status .fs-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; background:currentColor; }
+
   .modebar{
     display:flex; justify-content:center; align-items:center; gap:14px;
     margin-bottom:22px; flex-wrap:wrap;
@@ -406,6 +424,7 @@
         Quick start guide video
       </a>
     </div>
+    <div id="folderStatusBanner"></div>
   </div>
 
   <div class="modebar">
@@ -1966,8 +1985,9 @@
 
   function renderFolderBtn(){
     var btn = document.getElementById('folderBtn');
-    if(!btn) return;
-    if(!FS_SUPPORTED){ btn.style.display = 'none'; return; }
+    var banner = document.getElementById('folderStatusBanner');
+    if(!btn){ renderFolderStatusBanner(banner); return; }
+    if(!FS_SUPPORTED){ btn.style.display = 'none'; renderFolderStatusBanner(banner); return; }
     if(dirHandle){
       btn.textContent = 'Folder: '+dirHandle.name+' ×';
       btn.title = 'Your notebook is saved as real files in this folder, including a read-only "Open on iPhone" page you can view on your phone. Click to disconnect (files stay put; app returns to browser-only storage).';
@@ -1977,6 +1997,22 @@
     } else {
       btn.textContent = 'Save to folder…';
       btn.title = 'Save your notebook as real files in a folder you choose. Works offline. Pick a cloud-synced folder (Dropbox, iCloud Drive, OneDrive…) to sync across devices — the app itself never sends your notes anywhere.';
+    }
+    renderFolderStatusBanner(banner);
+  }
+
+  function renderFolderStatusBanner(banner){
+    if(!banner) banner = document.getElementById('folderStatusBanner');
+    if(!banner) return;
+    if(!FS_SUPPORTED){ banner.innerHTML = ''; return; }
+    if(dirHandle){
+      banner.innerHTML = '<div class="folder-status connected" title="Your notes are saving as real files in this folder."><span class="fs-dot"></span>Connected to folder: '+escapeHtml(dirHandle.name)+'</div>';
+    } else if(pendingHandle){
+      banner.innerHTML = '<div class="folder-status pending" id="folderStatusReconnect" title="Click to re-grant access — browsers periodically ask again, this is normal."><span class="fs-dot"></span>Not connected &mdash; click to reconnect folder: '+escapeHtml(pendingHandle.name)+'</div>';
+      var rc = document.getElementById('folderStatusReconnect');
+      if(rc) rc.addEventListener('click', function(){ document.getElementById('folderBtn').click(); });
+    } else {
+      banner.innerHTML = '';
     }
   }
 
