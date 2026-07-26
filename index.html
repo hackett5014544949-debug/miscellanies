@@ -1519,9 +1519,11 @@
       Object.keys(state.notebooks||{}).forEach(function(nbId){
         var nbk = state.notebooks[nbId];
         if(!nbk || !nbk.books) return;
-        var hadOld = nbk.books.some(function(b){ return /^bk_s\d+$/.test(b.id); });
         nbk.books = nbk.books.filter(function(b){ return !/^bk_s\d+$/.test(b.id); });
-        if(hadOld && !nbk.books.some(function(b){ return b.id==='bk_kjv'; })){
+        // Backfill the built-in reference library whenever it's missing — whether this
+        // notebook previously had old-style placeholder books, or never had any reference
+        // books at all (e.g. a notebook.json saved from before the library existed).
+        if(!nbk.books.some(function(b){ return b.id==='bk_kjv'; })){
           nbk.books = STARTER_BOOKS.concat(nbk.books);
         }
       });
@@ -1935,9 +1937,11 @@
           Object.keys(state.notebooks||{}).forEach(function(nbId){
             var nbk = state.notebooks[nbId];
             if(!nbk || !nbk.books) return;
-            var hadOld = nbk.books.some(function(b){ return /^bk_s\d+$/.test(b.id); });
             nbk.books = nbk.books.filter(function(b){ return !/^bk_s\d+$/.test(b.id); });
-            if(hadOld && !nbk.books.some(function(b){ return b.id==='bk_kjv'; })){
+            // Backfill the built-in reference library whenever it's missing — whether this
+            // notebook previously had old-style placeholder books, or never had any reference
+            // books at all (e.g. a notebook.json saved from before the library existed).
+            if(!nbk.books.some(function(b){ return b.id==='bk_kjv'; })){
               nbk.books = STARTER_BOOKS.concat(nbk.books);
             }
           });
@@ -4026,6 +4030,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
       migratePhotos(state.notebooks[id].entries);
       fillEmptyRefs(state.notebooks[id].entries);
+      var nbk = state.notebooks[id];
+      if(!nbk.books) nbk.books = [];
+      nbk.books = nbk.books.filter(function(b){ return !/^bk_s\d+$/.test(b.id); });
+      if(!nbk.books.some(function(b){ return b.id==='bk_kjv'; })){
+        nbk.books = STARTER_BOOKS.concat(nbk.books);
+      }
     });
   }
   document.getElementById('importFile').addEventListener('change', function(e){
