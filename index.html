@@ -1498,6 +1498,32 @@
       return (state.notebooks[id].entries||[]).some(function(e){ return e.id===num && e!==excludeEntry; });
     });
   }
+  // The main "Miscellanies" notebook (id 'default') acts as a master feed showing every
+  // entry from every notebook combined — other notebooks (e.g. a "Sermons" notebook) still
+  // show only their own entries. This mirrors how library books never get their own separate
+  // numbering: everything ultimately belongs to one running Miscellanies sequence.
+  function isMasterNotebook(){ return state.activeNotebookId === 'default'; }
+  function allEntriesFlat(){
+    var out = [];
+    Object.keys(state.notebooks||{}).forEach(function(nid){
+      (state.notebooks[nid].entries||[]).forEach(function(e){
+        var copy = Object.assign({}, e);
+        copy._nb = nid;
+        out.push(copy);
+      });
+    });
+    return out;
+  }
+  function findEntryAnywhere(id){
+    var found = null;
+    Object.keys(state.notebooks||{}).some(function(nid){
+      var e = (state.notebooks[nid].entries||[]).find(function(x){ return x.id===id; });
+      if(e){ found = {entry:e, nbId:nid}; return true; }
+      return false;
+    });
+    return found;
+  }
+
   // One-time healing pass, run whenever data is loaded: brings every notebook's counter
   // up to the true shared high-water mark (checking both stored nextId values and actual
   // entry ids, in case older per-notebook data drifted out of sync before this update).
@@ -2150,12 +2176,17 @@
     if(tag && (e.tags||[]).indexOf(tag) === -1) return false;
     if(!q) return true;
     q = q.toLowerCase();
-    var book = (nb().books.find(function(b){return b.id===e.bookId;})||{}).title || '';
+    var srcNbk = state.notebooks[e._nb || state.activeNotebookId] || nb();
+    var book = ((srcNbk.books||[]).find(function(b){return b.id===e.bookId;})||{}).title || '';
     var hay = [e.title, e.body, e.ref, (e.tags||[]).join(' '), book].join(' ').toLowerCase();
     return hay.indexOf(q) !== -1;
   }
 
   function jumpTo(id){
+    // The master "Miscellanies" notebook always shows every entry from every notebook,
+    // so jumping there guarantees the target is visible regardless of which notebook
+    // it actually lives in.
+    if(state.notebooks['default']) state.activeNotebookId = 'default';
     state.search=''; state.tagFilter=''; state.view='stream'; state.openBookId=null;
     openEntryId = id;
     renderAll();
@@ -2214,7 +2245,7 @@
 
   /* ---------- STREAM VIEW ---------- */
   function renderStream(){
-    var entries = nb().entries;
+    var entries = isMasterNotebook() ? allEntriesFlat() : nb().entries;
     var tags = allTags(entries);
     var visible = entries.filter(function(e){ return matches(e, state.search, state.tagFilter); });
     visible.sort(function(a,b){ return b.id - a.id; });
@@ -2275,17 +2306,22 @@
   }
 
   function entryHtml(e){
+    var srcNbId = e._nb || state.activeNotebookId;
+    var srcNbk = state.notebooks[srcNbId] || nb();
     var isOpen = openEntryId === e.id;
-    var book = nb().books.find(function(b){ return b.id === e.bookId; });
+    var book = (srcNbk.books||[]).find(function(b){ return b.id === e.bookId; });
     var related = (e.related||[]).filter(function(rid){
-      return nb().entries.some(function(x){ return x.id === rid; });
+      return !!findEntryAnywhere(rid);
     });
     var relatedHtml = related.length ? 'see also &mdash; ' + related.map(function(rid){
       return '<a data-jump="'+rid+'">no. '+rid+'</a>';
     }).join(', ') : '';
-    var refBy = nb().entries.filter(function(x){
-      return x.id !== e.id && (x.related||[]).indexOf(e.id) !== -1;
-    }).map(function(x){ return x.id; });
+    var refBy = [];
+    Object.keys(state.notebooks||{}).forEach(function(nid){
+      (state.notebooks[nid].entries||[]).forEach(function(x){
+        if(x.id !== e.id && (x.related||[]).indexOf(e.id) !== -1) refBy.push(x.id);
+      });
+    });
     if(refBy.length){
       var refByHtml = 'referenced by &mdash; ' + refBy.map(function(rid){
         return '<a data-jump="'+rid+'">no. '+rid+'</a>';
@@ -2296,10 +2332,13 @@
     var badges = '';
     if(e.ref) badges += '<span class="badge ref" data-passage="'+e.id+'" data-ref="'+escapeHtml(e.ref)+'" style="cursor:pointer;" title="Click to read this passage (KJV)">'+escapeHtml(e.ref)+' &#128214;</span>';
     if(book) badges += '<span class="badge book">'+escapeHtml(book.title)+(e.page?', p. '+escapeHtml(e.page):'')+'</span>';
+    if(isMasterNotebook() && srcNbId!=='default' && state.notebooks[srcNbId]){
+      badges += '<span class="badge" style="background:var(--blue-bg); color:var(--blue);" title="This entry lives in the '+escapeHtml(state.notebooks[srcNbId].name)+' notebook">'+escapeHtml(state.notebooks[srcNbId].name)+'</span>';
+    }
 
     return '' +
     '<div class="entry" id="entry-'+e.id+'">' +
-      '<div class="entry-num'+(state.mode==='advanced'?' editable':'')+'" data-editnum="'+e.id+'" title="'+(state.mode==='advanced'?'Click to change this entry\'s number':'')+'">no. '+e.id+'</div>' +
+      '<div class="entry-num'+(state.mode==='advanced'?' editable':'')+'" data-editnum="'+e.id+'" data-nb="'+srcNbId+'" title="'+(state.mode==='advanced'?'Click to change this entry\'s number':'')+'">no. '+e.id+'</div>' +
       '<div class="entry-body">' +
         '<div class="entry-head" data-toggle="'+e.id+'">' +
           '<h3 class="entry-title">'+escapeHtml(e.title||'untitled')+'</h3>' +
@@ -2312,9 +2351,9 @@
         (e.videoLink ? '<div class="entry-video'+(isOpen?' open':'')+'"><a href="'+escapeHtml(e.videoLink)+'" target="_blank" rel="noopener">watch related video &rarr;</a></div>' : '') +
         (relatedHtml ? '<div class="entry-related'+(isOpen?' open':'')+'">'+relatedHtml+'</div>' : '') +
         '<div class="entry-actions'+(isOpen?' open':'')+'">' +
-          '<button class="btn small" data-edit="'+e.id+'">Edit</button>' +
-          '<button class="btn small" data-quotecard="'+e.id+'">Share quote</button>' +
-          '<button class="btn small rubric" data-delete="'+e.id+'">Delete</button>' +
+          '<button class="btn small" data-edit="'+e.id+'" data-nb="'+srcNbId+'">Edit</button>' +
+          '<button class="btn small" data-quotecard="'+e.id+'" data-nb="'+srcNbId+'">Share quote</button>' +
+          '<button class="btn small rubric" data-delete="'+e.id+'" data-nb="'+srcNbId+'">Delete</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -2468,13 +2507,30 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-jump]'), function(el){
       el.addEventListener('click', function(ev){ ev.stopPropagation(); jumpTo(Number(el.getAttribute('data-jump'))); });
     });
+    // Actions on an entry shown in the master feed but living in a different notebook
+    // switch into that notebook's context first, so editing/deleting/renumbering works
+    // exactly as it always has once you land there.
+    function switchToEntryNotebook(el){
+      var targetNb = el.getAttribute('data-nb');
+      if(targetNb && targetNb !== state.activeNotebookId && state.notebooks[targetNb]){
+        state.activeNotebookId = targetNb;
+        persist(); renderAll();
+        return true;
+      }
+      return false;
+    }
     Array.prototype.forEach.call(document.querySelectorAll('[data-edit]'), function(el){
-      el.addEventListener('click', function(ev){ ev.stopPropagation(); openEditEntry(Number(el.getAttribute('data-edit'))); });
+      el.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        switchToEntryNotebook(el);
+        openEditEntry(Number(el.getAttribute('data-edit')));
+      });
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-editnum]'), function(el){
       el.addEventListener('click', function(ev){
         ev.stopPropagation();
         if(state.mode!=='advanced') return;
+        switchToEntryNotebook(el);
         openEditEntry(Number(el.getAttribute('data-editnum')));
         var nf = document.getElementById('f-number');
         if(nf){ nf.focus(); nf.select(); }
@@ -2483,14 +2539,15 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-quotecard]'), function(el){
       el.addEventListener('click', function(ev){
         ev.stopPropagation();
-        var e = nb().entries.find(function(x){ return x.id === Number(el.getAttribute('data-quotecard')); });
-        if(e) generateQuoteCard(e);
+        var found = findEntryAnywhere(Number(el.getAttribute('data-quotecard')));
+        if(found) generateQuoteCard(found.entry);
       });
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-delete]'), function(el){
       el.addEventListener('click', function(ev){
         ev.stopPropagation();
         var id = Number(el.getAttribute('data-delete'));
+        switchToEntryNotebook(el);
         var e = nb().entries.find(function(x){ return x.id === id; });
         if(!e) return;
         if(!nb().trash) nb().trash = [];
@@ -3066,7 +3123,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   /* ---------- INDEX VIEW (Edwards kept a running index to his Miscellanies; this is that, computed live) ---------- */
   var indexTab = 'topic';
   function renderIndex(){
-    var entries = nb().entries;
+    var entries = isMasterNotebook() ? allEntriesFlat() : nb().entries;
     var html = '<div class="indexbox">';
     html += '<div class="shelf-head"><div class="t">Index</div><div class="s">every entry, gathered by topic and by scripture &mdash; just as Edwards kept his own index</div></div>';
     html += '<div class="index-tabs"><button class="btn small'+(indexTab==='topic'?' primary':'')+'" data-idxtab="topic">by topic</button>' +
