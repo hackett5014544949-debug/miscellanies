@@ -83,6 +83,11 @@
     border-radius:999px; border:1px solid var(--line);
   }
   .folder-status.connected{ background:var(--blue-bg); color:var(--blue); border-color:var(--blue); }
+  .folder-status.none{
+    background:transparent; color:var(--ink-faint); border-color:var(--line);
+    cursor:pointer; font-style:italic;
+  }
+  .folder-status.none:hover{ color:var(--ink-soft); border-color:var(--ink-faint); }
   .folder-status.pending{
     background:var(--rubric); color:var(--rubric-bg); border-color:var(--rubric);
     cursor:pointer; font-weight:600; box-shadow:var(--shadow);
@@ -586,6 +591,7 @@
 
       <h4>Where your notes live</h4>
       <p>By default, in this browser on this computer &mdash; automatic, nothing to set up. For notes as real files on your hard drive, switch to Advanced and click <b>"Save to folder&hellip;"</b> (Chrome and Edge only). Everything then saves to a folder you choose, and keeps working offline. The app also quietly keeps a rolling set of dated backup copies inside that folder &mdash; a handful of recent daily snapshots, pruned automatically &mdash; as a safety net on top of your own manual backups.</p>
+      <p>Right at the top of the app, a small status pill always tells you where things stand, in both Simple and Advanced mode: an italic note if you're on browser-only storage (click it to connect a folder), a calm blue confirmation once a folder is connected, or a bold, pulsing reconnect prompt if your browser needs you to re-grant access &mdash; browsers do this periodically for security, and it's normal. You never have to go digging through Advanced mode to check; if something needs your attention, it's visible the moment you open the app.</p>
 
       <h4>Scripture references and the built-in Bible reader</h4>
       <p>Any entry with a scripture reference shows it as a clickable badge &mdash; tap it to read that passage inline, in the King James Version by default, with buttons to switch to the American Standard Version, the Greek New Testament, the Septuagint, or jump out to the LSB, NKJV, or NET. Words that appear in Watson's Bible Dictionary are underlined right in the passage text &mdash; tap one for its definition, with a "read full entry" link if it's long.</p>
@@ -2012,7 +2018,9 @@
       var rc = document.getElementById('folderStatusReconnect');
       if(rc) rc.addEventListener('click', function(){ document.getElementById('folderBtn').click(); });
     } else {
-      banner.innerHTML = '';
+      banner.innerHTML = '<div class="folder-status none" id="folderStatusNone" title="Click to save your notes as real files in a folder you choose."><span class="fs-dot"></span>Notes are only saved in this browser &mdash; click to save to a folder</div>';
+      var fn = document.getElementById('folderStatusNone');
+      if(fn) fn.addEventListener('click', function(){ document.getElementById('folderBtn').click(); });
     }
   }
 
