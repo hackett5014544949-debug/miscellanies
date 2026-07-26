@@ -487,7 +487,7 @@
 
 <div class="modal-overlay" id="bookModal">
   <div class="modal">
-    <h3>New book</h3><div class="field"><label for="bk-type">Type</label><select id="bk-type"><option value="book">Book</option><option value="notebook">Notebook</option></select></div>
+    <h3 id="bookModalHeading">New book</h3><div class="field"><label for="bk-type">Type</label><select id="bk-type"><option value="book">Book</option><option value="notebook">Notebook</option></select></div>
     <div class="field"><label for="bk-title">Title</label><input type="text" id="bk-title" placeholder="e.g. History of the Christian Church, Vol. 2"></div>
     <div class="field"><label for="bk-author">Author</label><input type="text" id="bk-author" placeholder="e.g. Philip Schaff"></div>
     <div class="field">
@@ -2393,6 +2393,7 @@
     '</div>';
   }
 
+  var editingBookId = null;
   var pendingPhotos = [];
   var presetBookId = null;
   var promotingInboxId = null;
@@ -3248,6 +3249,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     document.getElementById('app').innerHTML = html;
     Array.prototype.forEach.call(document.querySelectorAll('.addbook-spine'), function(el){
       el.addEventListener('click', function(){
+        editingBookId = null;
+        document.getElementById('bookModalHeading').textContent = 'New book';
+        document.getElementById('bkSave').textContent = 'Add to shelf';
+        document.getElementById('bk-title').value = '';
+        document.getElementById('bk-author').value = '';
+        document.getElementById('bk-status').value = 'reading';
         document.getElementById('bookModal').classList.add('open');
         document.getElementById('bk-type').value = el.getAttribute('data-addtype');
         document.getElementById('bk-title').focus();
@@ -3525,6 +3532,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         '<option value="finished"'+(book.status==='finished'?' selected':'')+'>finished</option>' +
       '</select>' +
       '<button class="btn small primary" id="addNoteToBookBtn" style="margin-right:8px;">+ add note</button>' +
+      '<button class="btn small" id="editBookBtn" style="margin-right:8px;">Edit</button>' +
+      '<button class="btn small rubric" id="removeBookBtn" style="margin-right:8px;">Remove from shelf</button>' +
       '<button class="btn small" id="closeBookBtn">&larr; back to shelf</button>' +
     '</div>';
     html += '</div>';
@@ -3558,6 +3567,28 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     });
     document.getElementById('statusSelect').addEventListener('change', function(e){
       book.status = e.target.value; persist(); renderOpenBook();
+    });
+    document.getElementById('editBookBtn').addEventListener('click', function(){
+      editingBookId = book.id;
+      document.getElementById('bookModalHeading').textContent = 'Edit book';
+      document.getElementById('bkSave').textContent = 'Save changes';
+      document.getElementById('bk-type').value = book.type || 'book';
+      document.getElementById('bk-title').value = book.title || '';
+      document.getElementById('bk-author').value = book.author || '';
+      document.getElementById('bk-status').value = book.status || 'reading';
+      document.getElementById('bookModal').classList.add('open');
+      document.getElementById('bk-title').focus();
+    });
+    document.getElementById('removeBookBtn').addEventListener('click', function(){
+      var noteCount = (nb().entries||[]).filter(function(e){ return e.bookId === book.id; }).length;
+      var msg = 'Remove "'+book.title+'" from the shelf?';
+      if(noteCount) msg += '\n\n'+noteCount+' note'+(noteCount===1?'':'s')+' tagged to it will stay in your notebook, just no longer linked to this book.';
+      if(!confirm(msg)) return;
+      nb().entries.forEach(function(e){ if(e.bookId === book.id) e.bookId = null; });
+      nb().books = nb().books.filter(function(b){ return b.id !== book.id; });
+      state.view = 'library'; state.openBookId = null;
+      persist(); renderAll();
+      flash('"'+book.title+'" removed from the shelf');
     });
     var bpReadBtn = document.getElementById('bpReadBtn');
     if(bpReadBtn) bpReadBtn.addEventListener('click', function(){ activeTabId = READER_TAB_ID; renderOpenBook(); });
@@ -3652,12 +3683,23 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
 
     document.getElementById('bkCancel').addEventListener('click', function(){
       document.getElementById('bookModal').classList.remove('open');
+      editingBookId = null;
     });
     document.getElementById('bkSave').addEventListener('click', function(){
       var title = document.getElementById('bk-title').value.trim();
       if(!title){ flash('Give the book a title'); return; }
       var author = document.getElementById('bk-author').value.trim();
       var status = document.getElementById('bk-status').value; var type = document.getElementById('bk-type').value;
+      if(editingBookId){
+        var bk = nb().books.find(function(b){ return b.id===editingBookId; });
+        if(bk){ bk.title=title; bk.author=author; bk.status=status; bk.type=type; }
+        editingBookId = null;
+        document.getElementById('bookModal').classList.remove('open');
+        persist();
+        if(state.view==='library') renderLibrary(); else renderOpenBook();
+        flash('"'+title+'" updated');
+        return;
+      }
       var id = 'bk_' + Date.now();
       nb().books.push({ id:id, title:title, author:author, status:status, type:type });
       document.getElementById('bk-title').value='';
