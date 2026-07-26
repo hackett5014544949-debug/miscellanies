@@ -634,7 +634,7 @@
       <p>The shelf (Advanced &rarr; library) comes stocked with real, full public-domain texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
 
       <h4>Multiple notebooks</h4>
-      <p>The notebook tabs near the top let you keep entirely separate notebooks &mdash; say, one for personal study and one for a class you teach. Each has its own entries, books, and numbering.</p>
+      <p>The notebook tabs near the top let you keep entirely separate notebooks &mdash; say, one for personal study and one for a class you teach. Each keeps its own entries and its own library shelf, but by default they all share <b>one running number sequence</b>: if your last entry anywhere was no. 147, the next new entry in any notebook becomes no. 148, exactly like adding a new book to your shelf never restarts your numbering.</p>
 
       <h4>The index</h4>
       <p>Edwards kept a running index to find his own Miscellanies later &mdash; this notebook keeps one automatically. Advanced &rarr; <b>index</b> shows every entry grouped by topic tag, and every entry grouped by scripture book in canonical order.</p>
@@ -1467,6 +1467,51 @@
   }
   function nb(){ return state.notebooks[state.activeNotebookId]; }
 
+  // Entry numbers are shared across every notebook by default (one running "Miscellanies"
+  // sequence), the same way library books never get their own separate numbering. These
+  // helpers keep every notebook's counter in lockstep and check for number collisions
+  // across all notebooks, not just the one currently open.
+  function globalNextId(){
+    var m = 1;
+    Object.keys(state.notebooks||{}).forEach(function(id){
+      var n = (state.notebooks[id]||{}).nextId || 1;
+      if(n > m) m = n;
+    });
+    return m;
+  }
+  function syncNextIdEverywhere(v){
+    Object.keys(state.notebooks||{}).forEach(function(id){
+      var nbk = state.notebooks[id];
+      if(!nbk) return;
+      if(!nbk.nextId || v > nbk.nextId) nbk.nextId = v;
+    });
+  }
+  // Unlike syncNextIdEverywhere (which only ever raises the counter), this force-sets it —
+  // used only when reclaiming a gap after renumbering the most-recently-issued entry down.
+  function setNextIdEverywhere(v){
+    Object.keys(state.notebooks||{}).forEach(function(id){
+      if(state.notebooks[id]) state.notebooks[id].nextId = v;
+    });
+  }
+  function entryNumberTakenAnywhere(num, excludeEntry){
+    return Object.keys(state.notebooks||{}).some(function(id){
+      return (state.notebooks[id].entries||[]).some(function(e){ return e.id===num && e!==excludeEntry; });
+    });
+  }
+  // One-time healing pass, run whenever data is loaded: brings every notebook's counter
+  // up to the true shared high-water mark (checking both stored nextId values and actual
+  // entry ids, in case older per-notebook data drifted out of sync before this update).
+  function healNextIdAcrossNotebooks(){
+    var m = 1;
+    Object.keys(state.notebooks||{}).forEach(function(id){
+      var nbk = state.notebooks[id];
+      if(!nbk) return;
+      if(nbk.nextId && nbk.nextId > m) m = nbk.nextId;
+      (nbk.entries||[]).forEach(function(e){ var fid = Math.floor(e.id)+1; if(fid > m) m = fid; });
+    });
+    setNextIdEverywhere(m);
+  }
+
   function linkify(text, entryId){
     var escaped = escapeHtml(text);
     var urlPattern = /((https?:\/\/|www\.)[^\s<]+)/gi;
@@ -1541,6 +1586,7 @@
       migratePhotos(state.notebooks[id].entries);
       fillEmptyRefs(state.notebooks[id].entries);
     });
+    healNextIdAcrossNotebooks();
   }
 
   // Old entries had a single e.photo string; new entries use e.photos (array). Migrate in place.
@@ -1956,6 +2002,7 @@
           if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
           if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
         });
+        healNextIdAcrossNotebooks();
       });
     });
   }
@@ -2329,9 +2376,9 @@
                           var __qtitle = __qw.slice(0,8).join(' ');
                           if(__qw.length > 8) __qtitle += '…';
                           var __qref = proposeRefFromBody(text);
-                          var __qnum = nb().nextId;
+                          var __qnum = globalNextId();
                           nb().entries.push({ id:__qnum, title:__qtitle, ref:__qref, tags:[], body:text, related:[], bookId:null, page:'', videoLink:'', photos:[], created:new Date().toISOString() });
-                          if(__qnum >= nb().nextId) nb().nextId = Math.floor(__qnum)+1;
+                          syncNextIdEverywhere(Math.floor(__qnum)+1);
                           noteEdit();
                           persist();
                           renderStream();
@@ -2801,7 +2848,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       document.getElementById('f-book').value = presetBookId || '';
       document.getElementById('f-page').value='';
       document.getElementById('f-video').value='';
-      document.getElementById('f-number').value = String(nb().nextId);
+      document.getElementById('f-number').value = String(globalNextId());
       var numHint2 = document.getElementById('numberFieldHint');
       if(numHint2) numHint2.textContent = 'Override the auto-assigned number to migrate an old notebook or backfill a note. Use a decimal (e.g. 47.1) to insert between two existing entries.';
     }
@@ -2864,7 +2911,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     var missing = [];
     refNums.forEach(function(n){
       if(editingId !== null && n === editingId) return;
-      var exists = nb().entries.some(function(e){ return e.id === n; });
+      var exists = entryNumberTakenAnywhere(n, null);
       if(!exists && missing.indexOf(n) === -1) missing.push(n);
     });
     if(missing.length && !confirm('This entry refers to no. '+missing.join(', no. ')+' — which do'+(missing.length>1?'':'es')+' not exist (yet).\n\nSave anyway?')) return;
@@ -2884,7 +2931,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         if(numFieldEl && numFieldEl.style.display!=='none' && numInputEl){
           var wantNum = parseFloat(numInputEl.value);
           if(!isNaN(wantNum) && wantNum !== editingId){
-            var numDup = nb().entries.some(function(e){ return e.id===wantNum && e.id!==editingId; });
+            var editingEntry = nb().entries.find(function(e){ return e.id===editingId; });
+            var numDup = entryNumberTakenAnywhere(wantNum, editingEntry);
             if(numDup){ flash('That number is already used by another entry — try a decimal like '+wantNum+'.1'); return; }
             newNum = wantNum;
           }
@@ -2908,25 +2956,28 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
           }
         });
         // If this was the most recently issued number (the "tip"), recompute the counter
-        // from whatever the true highest active number is now, so the next new entry
-        // continues counting up from there (e.g. renumber 127->124, next entry becomes 125).
-        if(editingId === nb().nextId - 1){
+        // from whatever the true highest active number is now, across every notebook,
+        // so the next new entry continues counting up from there (e.g. renumber
+        // 127->124, next entry anywhere becomes 125).
+        if(editingId === globalNextId() - 1){
           var maxActive = 0;
-          nb().entries.forEach(function(e){ var fid = Math.floor(e.id); if(fid > maxActive) maxActive = fid; });
-          nb().nextId = maxActive + 1;
+          Object.keys(state.notebooks||{}).forEach(function(id){
+            (state.notebooks[id].entries||[]).forEach(function(e){ var fid = Math.floor(e.id); if(fid > maxActive) maxActive = fid; });
+          });
+          setNextIdEverywhere(maxActive + 1);
         }
-        if(newNum >= nb().nextId) nb().nextId = Math.floor(newNum)+1;
+        if(newNum >= globalNextId()) syncNextIdEverywhere(Math.floor(newNum)+1);
         openEntryId = newNum;
         flash('Entry renumbered from no. '+editingId+' to no. '+newNum);
       } else {
         flash('Entry no. '+editingId+' updated');
       }
     } else {
-      var num = nb().nextId;
+      var num = globalNextId();
       if(state.mode==='advanced'){
         var custom = parseFloat(document.getElementById('f-number').value);
         if(!isNaN(custom)){
-          var dup = nb().entries.some(function(e){ return e.id===custom; });
+          var dup = entryNumberTakenAnywhere(custom, null);
           if(dup){ flash('That number is already used — try a decimal like '+custom+'.1'); return; }
           num = custom;
         }
@@ -2936,7 +2987,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         bookId:bookId, page:page, videoLink:videoLink, photos:pendingPhotos,
         created:new Date().toISOString()
       });
-      if(num >= nb().nextId) nb().nextId = Math.floor(num)+1;
+      syncNextIdEverywhere(Math.floor(num)+1);
       openEntryId = num;
       if(promotingInboxId){
         nb().inbox = nb().inbox.filter(function(i){ return i.id !== promotingInboxId; });
@@ -3534,7 +3585,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       var name = document.getElementById('nb-name').value.trim();
       if(!name){ flash('Give the notebook a name'); return; }
       var id = 'nb_' + Date.now();
-      state.notebooks[id] = { id:id, name:name, nextId:1, entries:[], books:[], inbox:[], trash:[] };
+      state.notebooks[id] = { id:id, name:name, nextId:globalNextId(), entries:[], books:[], inbox:[], trash:[] };
       state.activeNotebookId = id;
       document.getElementById('nb-name').value='';
       document.getElementById('nbModal').classList.remove('open');
@@ -4037,6 +4088,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         nbk.books = STARTER_BOOKS.concat(nbk.books);
       }
     });
+    healNextIdAcrossNotebooks();
   }
   document.getElementById('importFile').addEventListener('change', function(e){
     var file = e.target.files[0];
