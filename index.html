@@ -3661,11 +3661,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   }
 
   /* ---------- MODALS ---------- */
-  function wireModals(){
-    document.getElementById('addNbBtn') && document.getElementById('addNbBtn').addEventListener('click', function(){
-      document.getElementById('nbModal').classList.add('open');
-      document.getElementById('nb-name').focus();
-    });
+  // Static modal buttons (#nbCancel/#nbSave/#bkCancel/#bkSave) live in the page's
+  // static HTML shell and are never recreated, so they must be wired EXACTLY ONCE
+  // at boot. Wiring them from inside renderAll() (which fires on nearly every
+  // action) stacked a fresh listener on top of the old ones every render, which
+  // is what caused editing a book to silently create duplicates.
+  function wireStaticModals(){
     document.getElementById('nbCancel').addEventListener('click', function(){
       document.getElementById('nbModal').classList.remove('open');
     });
@@ -3707,6 +3708,17 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       document.getElementById('bookModal').classList.remove('open');
       persist(); renderLibrary();
       flash('"'+title+'" added to the shelf');
+    });
+  }
+
+  // Notebook tabs (and the "+ notebook" button) live inside #notebookTabs, whose
+  // innerHTML IS regenerated fresh on every renderChrome() call — so, unlike the
+  // static modal buttons above, these genuinely need re-wiring on every render
+  // since they're brand-new DOM nodes each time.
+  function wireModals(){
+    document.getElementById('addNbBtn') && document.getElementById('addNbBtn').addEventListener('click', function(){
+      document.getElementById('nbModal').classList.add('open');
+      document.getElementById('nb-name').focus();
     });
 
     Array.prototype.forEach.call(document.querySelectorAll('[data-nb]'), function(el){
@@ -4246,6 +4258,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   document.body.classList.toggle('dark', state.theme === 'dark');
   applyFontScale();
   renderMastheadLink();
+  wireStaticModals();
   renderAll();
   renderFolderBtn();
   if(IS_PHONE){ initPhoneMode(); } else { restoreFolder(); }
