@@ -170,7 +170,38 @@
     display:inline-block; font-family:'JetBrains Mono', monospace; font-size:11px;
     color:var(--ink-soft); border:1px solid var(--line); padding:1px 7px; border-radius:4px; margin:5px 5px 0 0;
   }
-  .entry-photo{max-width:220px; border-radius:5px; margin-top:10px; border:1px solid var(--line); display:block;}
+  .entry-photo{width:64px; height:64px; object-fit:cover; border-radius:5px; border:1px solid var(--line); display:block; cursor:zoom-in;}
+  .entry-photo:hover{filter:brightness(0.93);}
+  .photo-lightbox{
+    position:fixed; inset:0; background:rgba(20,17,12,0.92); display:none;
+    align-items:center; justify-content:center; z-index:80; flex-direction:column;
+    touch-action:none;
+  }
+  .photo-lightbox.open{display:flex;}
+  .photo-lightbox-viewport{
+    flex:1; width:100%; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; position:relative; cursor:grab;
+  }
+  .photo-lightbox-viewport.dragging{cursor:grabbing;}
+  .photo-lightbox-viewport img{
+    max-width:92vw; max-height:82vh; user-select:none; -webkit-user-drag:none;
+    transition:transform .06s linear; will-change:transform;
+  }
+  .photo-lightbox-bar{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    padding:14px 0 22px;
+  }
+  .photo-lightbox-bar button{
+    font-family:'JetBrains Mono', monospace; font-size:18px; width:38px; height:38px;
+    border-radius:8px; border:1px solid rgba(232,225,208,0.35); background:rgba(232,225,208,0.08);
+    color:var(--paper); cursor:pointer;
+  }
+  .photo-lightbox-bar button:hover{background:rgba(232,225,208,0.18);}
+  .photo-lightbox-close{
+    position:absolute; top:16px; right:20px; font-size:26px; color:var(--paper);
+    cursor:pointer; line-height:1; background:none; border:none;
+  }
+  .photo-lightbox-hint{color:var(--ink-faint); font-size:12.5px; text-align:center; padding-bottom:6px;}
   .entry-text{margin-top:10px; white-space:pre-wrap; display:none;}
   .entry-text.open{display:block;}
   .entry-related{margin-top:10px; font-size:14px; color:var(--rubric); font-style:italic; display:none;}
@@ -384,7 +415,14 @@
 
   /* photo gallery */
   .photo-gallery{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
-  .photo-gallery .entry-photo{max-width:150px; margin-top:0;}
+  .photo-gallery .entry-photo{margin-top:0;}
+  .pending-photo-thumb{position:relative; display:inline-block; margin:6px 6px 0 0;}
+  .pending-photo-thumb img{width:56px; height:56px; object-fit:cover; border-radius:5px; border:1px solid var(--line); display:block;}
+  .pending-photo-remove{
+    position:absolute; top:-7px; right:-7px; width:19px; height:19px; border-radius:50%;
+    background:var(--rubric); color:#fff; border:none; font-size:13px; line-height:1;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;
+  }
 
   /* focus mode */
   body.focus-mode .masthead, body.focus-mode .modebar, body.focus-mode .notebooktabs,
@@ -543,6 +581,19 @@
   </div>
 </div>
 
+<div class="photo-lightbox" id="photoLightbox">
+  <button class="photo-lightbox-close" id="photoLightboxClose" aria-label="Close" title="Close">&times;</button>
+  <div class="photo-lightbox-viewport" id="photoLightboxViewport">
+    <img id="photoLightboxImg" src="" alt="Photo">
+  </div>
+  <div class="photo-lightbox-hint">Scroll or pinch to zoom &middot; drag to pan</div>
+  <div class="photo-lightbox-bar">
+    <button id="photoLightboxZoomOut" title="Zoom out">&minus;</button>
+    <button id="photoLightboxZoomReset" title="Reset zoom" style="width:auto; padding:0 12px; font-size:13px;">reset</button>
+    <button id="photoLightboxZoomIn" title="Zoom in">+</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="phoneModeModal">
   <div class="modal" style="max-width:460px;">
     <h3>You're on a phone &mdash; a few things to know</h3>
@@ -619,13 +670,13 @@
         <li><b>Save to folder&hellip;</b> is desktop-only (Chrome and Edge); phones can't connect to a folder the same way, so the button is hidden there, and any automatic rotating backups only happen on the desktop copy connected to a folder.</li>
       </ol>
 
-      <h4>Why entry numbers sometimes skip</h4>
-      <p>Every entry gets a permanent number the moment it's created, and that number is <b>never handed to a different entry later</b> &mdash; even if the original is deleted. So if you delete notes 124, 125, and 126, your next new entry becomes 127, not 124. That gap is intentional, not a bug.</p>
-      <p>The reason: these numbers are meant to be cited outside the app, the same way Jonathan Edwards cited his own Miscellanies by number. If you've ever written <b>&ldquo;see no. 47&rdquo;</b> in the margin of your Bible, a journal, or a sermon outline, that note needs to mean the same thing forever. If the app quietly reused deleted numbers, an old handwritten reference could end up pointing at a completely different, unrelated entry &mdash; silently and without warning. Leaving gaps instead of reusing numbers is what keeps every number you've ever written down trustworthy.</p>
-      <h4>Fixing an out-of-sequence number yourself</h4>
-      <p>If you'd rather close a gap on purpose &mdash; say you deleted a note by mistake while recording, or you're migrating an old paper notebook &mdash; you're always free to override it. In Advanced mode, click directly on any entry's number (the <b>no. &hellip;</b> at its left edge) to open it for editing with the number field ready to change. Type the number you want; the app only refuses if another current entry already has it. Renumbering an entry this way also keeps its "see also" and "referenced by" links pointing at the right place automatically.</p>
-      <p>If the entry you're renumbering is your most recent one, the whole gap heals itself from there: say notes 124&ndash;126 got deleted and your newest entry auto-became 127. Click no. 127, change it to 124, and save &mdash; your very next new entry becomes 125, the one after that 126, and so on, refilling the gap in order without any further manual editing. (Renumbering an older entry buried earlier in your notebook doesn't touch the counter at all &mdash; only your single newest entry can "rewind" it this way.)</p>
-      <p>You can also set a number while <b>creating</b> a new entry: the entry form's <b>entry number</b> field lets you type any unused number to backfill an old thought (e.g. add no. 42 while the notebook is only at no. 39). Use a decimal like <b>47.1</b> to slot an entry between two existing ones without disturbing either.</p>
+      <h4>How entry numbers are assigned</h4>
+      <p>By default, a new entry takes the <b>lowest number nothing else is using</b>. So if notes 124, 125, and 126 all get deleted, your next new entry becomes 124 again, not 127 &mdash; deleting a note frees its number for reuse right away, rather than retiring it forever.</p>
+      <p>One thing worth knowing if you cite entries outside the app (writing <b>&ldquo;see no. 47&rdquo;</b> in the margin of a Bible, journal, or sermon outline): once a number is reused, it means whatever entry currently holds it, not necessarily the one you originally had in mind. If a number matters enough to write down permanently, the safest habit is to leave that entry in place rather than deleting it later.</p>
+      <h4>Setting or changing a number yourself</h4>
+      <p>You're always free to override the auto-assigned number. In Advanced mode, click directly on any entry's number (the <b>no. &hellip;</b> at its left edge) to open it for editing with the number field ready to change, or type a specific number into the <b>entry number</b> field while creating a new entry. Renumbering an entry this way also keeps its "see also" and "referenced by" links pointing at the right place automatically.</p>
+      <p>You can't reuse a number another current entry already has. If you try, the app offers a lettered version of it instead &mdash; e.g. if no. 125 is taken, it'll suggest <b>no. 125a</b> (then 125b, 125c, and so on if that's taken too). Accept the suggestion or cancel and pick a different number yourself.</p>
+      <p>Separately, decimals like <b>47.1</b> still work for slotting a new entry between two existing ones without renumbering either — a older, coarser tool than the lettered-suffix system above, kept for backward compatibility with any entries already numbered that way.</p>
 
       <h4>Deleting (and undeleting)</h4>
       <p>Deleted entries move to a Trash at the bottom of the stream, where you can restore them or delete them forever. An Undo button also appears for a few seconds after each delete.</p>
@@ -1498,6 +1549,56 @@
       return (state.notebooks[id].entries||[]).some(function(e){ return e.id===num && e!==excludeEntry; });
     });
   }
+  // Default numbering: instead of always counting past deleted entries (permanently
+  // "retiring" their number), a new entry now fills the lowest whole number not
+  // currently used by any active entry, in any notebook. Deleting a note frees its
+  // number for reuse right away.
+  function nextGapNumber(){
+    var n = 1;
+    while(entryNumberTakenAnywhere(n, null)) n++;
+    return n;
+  }
+  // Single-letter suffixes (125a, 125b, ...) for offering an alternative when someone
+  // manually types a whole number that's already taken. Stored internally as a tiny
+  // decimal (125 + 0.001*n) so every place that already does math on entry ids (sorting,
+  // Math.floor, etc.) keeps working untouched — only display formatting knows about the
+  // letter. This is deliberately a much smaller step than the older manual "insert between
+  // two entries" decimals (e.g. 47.1, 47.25), so the two features never collide.
+  function nextSuffixedNumber(base, excludeEntry){
+    for(var i=1;i<=26;i++){
+      var candidate = Math.round((base + i*0.001) * 1000) / 1000;
+      if(!entryNumberTakenAnywhere(candidate, excludeEntry)) return candidate;
+    }
+    // Exceedingly unlikely (all 26 letters for this number already used) — fall back to
+    // a second letter pass one order of magnitude finer.
+    for(var j=1;j<=26;j++){
+      var candidate2 = Math.round((base + 0.026 + j*0.0001) * 10000) / 10000;
+      if(!entryNumberTakenAnywhere(candidate2, excludeEntry)) return candidate2;
+    }
+    return base + Math.random();
+  }
+  // "125" -> 125, "125a" -> 125.001, "125b" -> 125.002 ... and plain decimals like "47.1"
+  // still pass through unchanged (the older manual out-of-sequence-insert feature).
+  function parseEntryNumInput(str){
+    str = (str||'').trim();
+    var m = str.match(/^(\d+)\s*([a-zA-Z])$/);
+    if(m) return Math.round((parseInt(m[1],10) + (m[2].toLowerCase().charCodeAt(0)-96)*0.001) * 1000) / 1000;
+    return parseFloat(str);
+  }
+  // Reverse of the letter-suffix encoding above, for display: "no. 125a" instead of
+  // "no. 125.001". Any decimal that ISN'T one of our reserved 0.001-0.026 letter steps is
+  // a manually-typed out-of-sequence insert from before this feature, and is shown as-is
+  // (e.g. "no. 47.1") for backward compatibility.
+  function formatEntryNum(id){
+    if(typeof id !== 'number' || isNaN(id)) return String(id);
+    if(Number.isInteger(id)) return String(id);
+    var base = Math.floor(id);
+    var thousandths = Math.round((id - base) * 1000);
+    if(thousandths >= 1 && thousandths <= 26 && Math.abs((id - base) * 1000 - thousandths) < 1e-6){
+      return base + String.fromCharCode(96 + thousandths);
+    }
+    return String(id);
+  }
   // The main "Miscellanies" notebook (id 'default') acts as a master feed showing every
   // entry from every notebook combined — other notebooks (e.g. a "Sermons" notebook) still
   // show only their own entries. This mirrors how library books never get their own separate
@@ -1707,7 +1808,7 @@
         var photo = (e.photos||[]).filter(function(p){ return p && p.indexOf('data:')===0; })
           .map(function(p){ return '<img class="vphoto" src="'+p+'">'; }).join('');
         return '<div class="ventry" data-search="'+escapeHtml((e.title+' '+e.body+' '+e.ref+' '+(e.tags||[]).join(' ')).toLowerCase())+'">' +
-          '<div class="vnum">no. '+e.id+'</div>' +
+          '<div class="vnum">no. '+formatEntryNum(e.id)+'</div>' +
           '<div class="vbody">' +
             '<div class="vhead"><h3>'+escapeHtml(e.title||'untitled')+'</h3>' +
               (e.ref ? '<span class="vbadge">'+escapeHtml(e.ref)+'</span>' : '') +
@@ -2314,7 +2415,7 @@
       return !!findEntryAnywhere(rid);
     });
     var relatedHtml = related.length ? 'see also &mdash; ' + related.map(function(rid){
-      return '<a data-jump="'+rid+'">no. '+rid+'</a>';
+      return '<a data-jump="'+rid+'">no. '+formatEntryNum(rid)+'</a>';
     }).join(', ') : '';
     var refBy = [];
     Object.keys(state.notebooks||{}).forEach(function(nid){
@@ -2324,7 +2425,7 @@
     });
     if(refBy.length){
       var refByHtml = 'referenced by &mdash; ' + refBy.map(function(rid){
-        return '<a data-jump="'+rid+'">no. '+rid+'</a>';
+        return '<a data-jump="'+rid+'">no. '+formatEntryNum(rid)+'</a>';
       }).join(', ');
       relatedHtml = relatedHtml ? relatedHtml + ' &nbsp;&middot;&nbsp; ' + refByHtml : refByHtml;
     }
@@ -2338,7 +2439,7 @@
 
     return '' +
     '<div class="entry" id="entry-'+e.id+'">' +
-      '<div class="entry-num'+(state.mode==='advanced'?' editable':'')+'" data-editnum="'+e.id+'" data-nb="'+srcNbId+'" title="'+(state.mode==='advanced'?'Click to change this entry\'s number':'')+'">no. '+e.id+'</div>' +
+      '<div class="entry-num'+(state.mode==='advanced'?' editable':'')+'" data-editnum="'+e.id+'" data-nb="'+srcNbId+'" title="'+(state.mode==='advanced'?'Click to change this entry\'s number':'')+'">no. '+formatEntryNum(e.id)+'</div>' +
       '<div class="entry-body">' +
         '<div class="entry-head" data-toggle="'+e.id+'">' +
           '<h3 class="entry-title">'+escapeHtml(e.title||'untitled')+'</h3>' +
@@ -2346,7 +2447,7 @@
         '</div>' +
         (tagsHtml ? '<div>'+tagsHtml+'</div>' : '') +
         '<div class="passage-panel'+(openPassageId===e.id?' open':'')+'" id="passage-'+e.id+'"></div>' +
-        ((e.photos||[]).length ? '<div class="photo-gallery">'+(e.photos||[]).map(function(p){ return '<img class="entry-photo" src="'+p+'">'; }).join('')+'</div>' : '') +
+        ((e.photos||[]).length ? '<div class="photo-gallery">'+(e.photos||[]).map(function(p, pi){ return '<img class="entry-photo" src="'+p+'" data-photo-entry="'+e.id+'" data-photo-idx="'+pi+'">'; }).join('')+'</div>' : '') +
         '<div class="entry-text'+(isOpen?' open':'')+'">'+linkify(e.body||'', e.id)+'</div>' +
         (e.videoLink ? '<div class="entry-video'+(isOpen?' open':'')+'"><a href="'+escapeHtml(e.videoLink)+'" target="_blank" rel="noopener">watch related video &rarr;</a></div>' : '') +
         (relatedHtml ? '<div class="entry-related'+(isOpen?' open':'')+'">'+relatedHtml+'</div>' : '') +
@@ -2372,7 +2473,7 @@
       '<div class="field"><label>Topics</label><input type="text" id="f-tags" placeholder="comma separated"></div>' +
     '</div>' +
     '<div class="field"><label>Entry <button type="button" class="btn small ghost" id="refPickerBodyBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert reference &hellip;</button></label><textarea id="f-body" placeholder="Write the reflection itself"></textarea></div>' +
-    '<div class="field"><label>Photos (optional)</label><input type="file" id="f-photo" accept="image/*" multiple capture="environment"><div class="hint" id="photoHint"></div><div class="hint">Photos stay only on this computer copy. Anything exported for your phone or the viewer leaves photos out automatically.</div></div>' +
+    '<div class="field"><label>Photos (optional)</label><input type="file" id="f-photo" accept="image/*" multiple capture="environment"><div class="hint" id="photoHint"></div><div id="pendingPhotosPreview" class="photo-gallery" style="margin-top:6px;"></div><div class="hint">Photos stay only on this computer copy. Anything exported for your phone or the viewer leaves photos out automatically.</div></div>' +
     '<div class="field"><label>Related entries <button type="button" class="btn small ghost" id="refPickerBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert &hellip;</button></label><input type="text" id="f-related" placeholder="entry numbers, comma separated"></div>' +
     (state.mode==='advanced' ? (
       '<div class="advonly">' +
@@ -2384,7 +2485,7 @@
           '<div class="field"><label>Page</label><input type="text" id="f-page" placeholder="e.g. 340"></div>' +
         '</div>' +
         '<div class="field"><label>Video link</label><input type="text" id="f-video" placeholder="https://youtube.com/..."></div>' +
-        '<div class="field" id="numberField"><label>Entry number</label><input type="text" id="f-number" placeholder=""><div class="hint" id="numberFieldHint">Override the auto-assigned number to migrate an old notebook or backfill a note. Use a decimal (e.g. 47.1) to insert between two existing entries.</div></div>' +
+        '<div class="field" id="numberField"><label>Entry number</label><input type="text" id="f-number" placeholder=""><div class="hint" id="numberFieldHint">By default a new entry fills the lowest number nothing else is using. Override this to pick a specific number instead. You can\'t reuse one that\'s already taken &mdash; if you try, you\'ll be offered a lettered version instead (e.g. 125a).</div></div>' +
       '</div>'
     ) : '') +
     '<div class="form-actions">' +
@@ -2395,6 +2496,27 @@
 
   var editingBookId = null;
   var pendingPhotos = [];
+  // Small thumbnail strip under the photo picker, shown while composing/editing an
+  // entry, with a per-photo "x" to drop one before saving. Rebuilt fresh each call,
+  // so its listeners never stack (same pattern as any other dynamically-regenerated
+  // list in this app).
+  function renderPendingPhotosPreview(){
+    var box = document.getElementById('pendingPhotosPreview');
+    if(!box) return;
+    if(!pendingPhotos.length){ box.innerHTML=''; return; }
+    box.innerHTML = pendingPhotos.map(function(p, i){
+      return '<div class="pending-photo-thumb"><img src="'+p+'"><button type="button" class="pending-photo-remove" data-remove-photo="'+i+'" title="Remove this photo">&times;</button></div>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('[data-remove-photo]'), function(btn){
+      btn.addEventListener('click', function(){
+        var idx = Number(btn.getAttribute('data-remove-photo'));
+        pendingPhotos.splice(idx, 1);
+        renderPendingPhotosPreview();
+        var hint = document.getElementById('photoHint');
+        if(hint) hint.textContent = pendingPhotos.length ? (pendingPhotos.length+' photo'+(pendingPhotos.length===1?'':'s')+' attached.') : '';
+      });
+    });
+  }
   var presetBookId = null;
   var promotingInboxId = null;
   var lastFocusedField = 'f-related';
@@ -2416,13 +2538,12 @@
                           var __qtitle = __qw.slice(0,8).join(' ');
                           if(__qw.length > 8) __qtitle += '…';
                           var __qref = proposeRefFromBody(text);
-                          var __qnum = globalNextId();
+                          var __qnum = nextGapNumber();
                           nb().entries.push({ id:__qnum, title:__qtitle, ref:__qref, tags:[], body:text, related:[], bookId:null, page:'', videoLink:'', photos:[], created:new Date().toISOString() });
-                          syncNextIdEverywhere(Math.floor(__qnum)+1);
                           noteEdit();
                           persist();
                           renderStream();
-                          flash('Entry no. '+__qnum+' added');
+                          flash('Entry no. '+formatEntryNum(__qnum)+' added');
                     }
               });
         }
@@ -2476,11 +2597,13 @@
           });
         })).then(function(dataUrls){
           pendingPhotos = pendingPhotos.concat(dataUrls);
-          document.getElementById('photoHint').textContent = pendingPhotos.length + ' photo'+(pendingPhotos.length===1?'':'s')+' attached. Selecting more adds to this entry; ' +
-            (state.mode==='advanced' ? 'edit and re-save to clear.' : '');
+          document.getElementById('photoHint').textContent = pendingPhotos.length + ' photo'+(pendingPhotos.length===1?'':'s')+' attached.';
+          renderPendingPhotosPreview();
+          photoInput.value = '';
         });
       });
     }
+    renderPendingPhotosPreview();
     var refPickerBtn = document.getElementById('refPickerBtn');
     if(refPickerBtn) refPickerBtn.addEventListener('click', function(){ lastFocusedField = 'f-related'; openRefPicker(); });
     var refPickerBodyBtn = document.getElementById('refPickerBodyBtn');
@@ -2556,7 +2679,7 @@
         nb().trash.push({ entry:e, deletedAt:new Date().toISOString() });
         noteEdit();
         persist(); renderStream();
-        flash('Entry no. '+id+' moved to trash', 'Undo', function(){
+        flash('Entry no. '+formatEntryNum(id)+' moved to trash', 'Undo', function(){
           nb().trash = nb().trash.filter(function(t){ return t.entry.id !== id; });
           nb().entries.push(e);
           persist(); renderStream();
@@ -2570,15 +2693,15 @@
         if(!t) return;
         nb().trash = nb().trash.filter(function(x){ return x.entry.id !== id; });
         nb().entries.push(t.entry);
-        persist(); renderStream(); flash('Entry no. '+id+' restored');
+        persist(); renderStream(); flash('Entry no. '+formatEntryNum(id)+' restored');
       });
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-purge]'), function(el){
       el.addEventListener('click', function(){
         var id = Number(el.getAttribute('data-purge'));
-        if(!confirm('Permanently delete entry no. '+id+'? This really cannot be undone.')) return;
+        if(!confirm('Permanently delete entry no. '+formatEntryNum(id)+'? This really cannot be undone.')) return;
         nb().trash = (nb().trash||[]).filter(function(x){ return x.entry.id !== id; });
-        persist(); renderStream(); flash('Entry no. '+id+' permanently deleted');
+        persist(); renderStream(); flash('Entry no. '+formatEntryNum(id)+' permanently deleted');
       });
     });
     Array.prototype.forEach.call(document.querySelectorAll('[data-passage]'), function(el){
@@ -2902,13 +3025,14 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     document.getElementById('f-body').value='';
     document.getElementById('f-related').value='';
     document.getElementById('photoHint').textContent='';
+    renderPendingPhotosPreview();
     if(state.mode==='advanced'){
       document.getElementById('f-book').value = presetBookId || '';
       document.getElementById('f-page').value='';
       document.getElementById('f-video').value='';
-      document.getElementById('f-number').value = String(globalNextId());
+      document.getElementById('f-number').value = String(nextGapNumber());
       var numHint2 = document.getElementById('numberFieldHint');
-      if(numHint2) numHint2.textContent = 'Override the auto-assigned number to migrate an old notebook or backfill a note. Use a decimal (e.g. 47.1) to insert between two existing entries.';
+      if(numHint2) numHint2.textContent = 'By default this fills the lowest number nothing else is using. Override it to pick a specific one instead — you can\'t reuse one that\'s taken.';
     }
     presetBookId = null;
     document.getElementById('entryForm').scrollIntoView({behavior:'smooth', block:'start'});
@@ -2921,13 +3045,14 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     if(!e) return;
     editingId = id; pendingPhotos = (e.photos||(e.photo?[e.photo]:[])).slice();
     document.getElementById('entryForm').classList.add('open');
-    document.getElementById('formHeading').textContent = 'Edit entry no. '+id;
+    document.getElementById('formHeading').textContent = 'Edit entry no. '+formatEntryNum(id);
     document.getElementById('f-title').value = e.title||'';
     document.getElementById('f-ref').value = e.ref||'';
     document.getElementById('f-tags').value = (e.tags||[]).join(', ');
     document.getElementById('f-body').value = e.body||'';
-    document.getElementById('f-related').value = (e.related||[]).join(', ');
-    document.getElementById('photoHint').textContent = pendingPhotos.length ? (pendingPhotos.length+' photo'+(pendingPhotos.length===1?'':'s')+' attached. Selecting new ones adds more.') : '';
+    document.getElementById('f-related').value = (e.related||[]).map(formatEntryNum).join(', ');
+    document.getElementById('photoHint').textContent = pendingPhotos.length ? (pendingPhotos.length+' photo'+(pendingPhotos.length===1?'':'s')+' attached.') : '';
+    renderPendingPhotosPreview();
     if(state.mode==='advanced'){
       document.getElementById('f-book').value = e.bookId || '';
       document.getElementById('f-page').value = e.page || '';
@@ -2935,9 +3060,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       var numField = document.getElementById('numberField');
       if(numField){
         numField.style.display='';
-        document.getElementById('f-number').value = String(e.id);
+        document.getElementById('f-number').value = formatEntryNum(e.id);
         var numHint = document.getElementById('numberFieldHint');
-        if(numHint) numHint.textContent = "Change this to fix an out-of-sequence number, e.g. to fill a gap left by a deleted note. You can't reuse a number another entry already has.";
+        if(numHint) numHint.textContent = "Change this to renumber the entry. You can't reuse a number another entry already has — if you try, you'll be offered a lettered version instead (e.g. 125a).";
       }
     }
     document.getElementById('entryForm').scrollIntoView({behavior:'smooth', block:'start'});
@@ -2960,12 +3085,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     var ref = document.getElementById('f-ref').value.trim();
     var tags = parseList(document.getElementById('f-tags').value);
     var relatedRaw = parseList(document.getElementById('f-related').value);
-    var related = relatedRaw.map(function(s){ return parseFloat(s.replace(/[^0-9.]/g,'')); }).filter(function(n){ return !isNaN(n); });
+    var related = relatedRaw.map(function(s){ return parseEntryNumInput(s.replace(/[^0-9.a-zA-Z]/g,'')); }).filter(function(n){ return !isNaN(n); });
 
     // Cross-reference validation: catch "see no. X" (or a related-entry number) pointing at nothing
     var refNums = related.slice();
-    var noRx = /\b[Nn]o\.\s?(\d+(?:\.\d+)?)\b/g, m2;
-    while((m2 = noRx.exec(body))) refNums.push(parseFloat(m2[1]));
+    var noRx = /\b[Nn]o\.\s?(\d+(?:\.\d+)?[a-zA-Z]?)\b/g, m2;
+    while((m2 = noRx.exec(body))) refNums.push(parseEntryNumInput(m2[1]));
     var missing = [];
     refNums.forEach(function(n){
       if(editingId !== null && n === editingId) return;
@@ -2987,11 +3112,15 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         var numFieldEl = document.getElementById('numberField');
         var numInputEl = document.getElementById('f-number');
         if(numFieldEl && numFieldEl.style.display!=='none' && numInputEl){
-          var wantNum = parseFloat(numInputEl.value);
+          var wantNum = parseEntryNumInput(numInputEl.value);
           if(!isNaN(wantNum) && wantNum !== editingId){
             var editingEntry = nb().entries.find(function(e){ return e.id===editingId; });
             var numDup = entryNumberTakenAnywhere(wantNum, editingEntry);
-            if(numDup){ flash('That number is already used by another entry — try a decimal like '+wantNum+'.1'); return; }
+            if(numDup){
+              var suggestion = nextSuffixedNumber(Math.floor(wantNum), editingEntry);
+              if(!confirm('No. '+formatEntryNum(wantNum)+' is already taken.\n\nUse no. '+formatEntryNum(suggestion)+' instead?')) return;
+              wantNum = suggestion;
+            }
             newNum = wantNum;
           }
         }
@@ -3013,30 +3142,25 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
             e.related = e.related.map(function(rid){ return rid===editingId ? newNum : rid; });
           }
         });
-        // If this was the most recently issued number (the "tip"), recompute the counter
-        // from whatever the true highest active number is now, across every notebook,
-        // so the next new entry continues counting up from there (e.g. renumber
-        // 127->124, next entry anywhere becomes 125).
-        if(editingId === globalNextId() - 1){
-          var maxActive = 0;
-          Object.keys(state.notebooks||{}).forEach(function(id){
-            (state.notebooks[id].entries||[]).forEach(function(e){ var fid = Math.floor(e.id); if(fid > maxActive) maxActive = fid; });
-          });
-          setNextIdEverywhere(maxActive + 1);
-        }
-        if(newNum >= globalNextId()) syncNextIdEverywhere(Math.floor(newNum)+1);
+        // Numbers are no longer permanently retired: the number this entry used to have
+        // is now free and will be picked up by the next new entry via nextGapNumber(),
+        // wherever it happens to sit in the sequence.
         openEntryId = newNum;
-        flash('Entry renumbered from no. '+editingId+' to no. '+newNum);
+        flash('Entry renumbered from no. '+formatEntryNum(editingId)+' to no. '+formatEntryNum(newNum));
       } else {
-        flash('Entry no. '+editingId+' updated');
+        flash('Entry no. '+formatEntryNum(editingId)+' updated');
       }
     } else {
-      var num = globalNextId();
+      var num = nextGapNumber();
       if(state.mode==='advanced'){
-        var custom = parseFloat(document.getElementById('f-number').value);
+        var custom = parseEntryNumInput(document.getElementById('f-number').value);
         if(!isNaN(custom)){
           var dup = entryNumberTakenAnywhere(custom, null);
-          if(dup){ flash('That number is already used — try a decimal like '+custom+'.1'); return; }
+          if(dup){
+            var suggestion2 = nextSuffixedNumber(Math.floor(custom), null);
+            if(!confirm('No. '+formatEntryNum(custom)+' is already taken.\n\nUse no. '+formatEntryNum(suggestion2)+' instead?')) return;
+            custom = suggestion2;
+          }
           num = custom;
         }
       }
@@ -3045,13 +3169,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         bookId:bookId, page:page, videoLink:videoLink, photos:pendingPhotos,
         created:new Date().toISOString()
       });
-      syncNextIdEverywhere(Math.floor(num)+1);
       openEntryId = num;
       if(promotingInboxId){
         nb().inbox = nb().inbox.filter(function(i){ return i.id !== promotingInboxId; });
         promotingInboxId = null;
       }
-      flash('Entry no. '+num+' added');
+      flash('Entry no. '+formatEntryNum(num)+' added');
     }
     clearDraft();
     noteEdit();
@@ -3145,7 +3268,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         tagNames.forEach(function(t){
           html += '<div class="index-group"><h3>'+escapeHtml(t)+'</h3><div class="idxlist">' +
             byTag[t].sort(function(a,b){ return a.id-b.id; }).map(function(e){
-              return '<a data-jump="'+e.id+'">no. '+e.id+' &mdash; '+escapeHtml(e.title||'untitled')+'</a>';
+              return '<a data-jump="'+e.id+'">no. '+formatEntryNum(e.id)+' &mdash; '+escapeHtml(e.title||'untitled')+'</a>';
             }).join('') +
           '</div></div>';
         });
@@ -3171,7 +3294,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         slugs.forEach(function(slug){
           html += '<div class="index-group"><h3>'+escapeHtml(prettifySlug(slug))+'</h3><div class="idxlist">' +
             byBook[slug].sort(function(a,b){ return a.id-b.id; }).map(function(e){
-              return '<a data-jump="'+e.id+'">no. '+e.id+' &mdash; '+escapeHtml(e.ref||'')+', '+escapeHtml(e.title||'untitled')+'</a>';
+              return '<a data-jump="'+e.id+'">no. '+formatEntryNum(e.id)+' &mdash; '+escapeHtml(e.ref||'')+', '+escapeHtml(e.title||'untitled')+'</a>';
             }).join('') +
           '</div></div>';
         });
@@ -3634,7 +3757,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
           nb().trash.push({ entry:e, deletedAt:new Date().toISOString() });
           noteEdit();
           persist(); renderOpenBook();
-          flash('Entry no. '+id+' moved to trash', 'Undo', function(){
+          flash('Entry no. '+formatEntryNum(id)+' moved to trash', 'Undo', function(){
             nb().trash = nb().trash.filter(function(t){ return t.entry.id !== id; });
             nb().entries.push(e);
             persist(); renderOpenBook();
@@ -3666,6 +3789,79 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   // at boot. Wiring them from inside renderAll() (which fires on nearly every
   // action) stacked a fresh listener on top of the old ones every render, which
   // is what caused editing a book to silently create duplicates.
+  // Photo lightbox: click any entry photo (thumbnails are only 64px) to see it full
+  // size with scroll/pinch zoom and drag-to-pan. All the lightbox's own controls are
+  // static, permanent elements, so — same lesson as wireStaticModals below — they're
+  // wired exactly once here at boot. The trigger itself uses a delegated listener on
+  // document (also bound once) so it keeps working no matter how many times the entry
+  // list underneath it gets re-rendered.
+  function initPhotoLightbox(){
+    var lb = document.getElementById('photoLightbox');
+    var vp = document.getElementById('photoLightboxViewport');
+    var img = document.getElementById('photoLightboxImg');
+    if(!lb || !vp || !img) return;
+    var scale = 1, tx = 0, ty = 0, dragging = false, startX, startY, startTx, startTy;
+
+    function apply(){ img.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+scale+')'; }
+    function resetZoom(){ scale = 1; tx = 0; ty = 0; apply(); }
+    function openLightbox(src){ img.src = src; resetZoom(); lb.classList.add('open'); }
+    function closeLightbox(){ lb.classList.remove('open'); img.src = ''; }
+
+    document.addEventListener('click', function(ev){
+      var t = ev.target;
+      if(t && t.classList && t.classList.contains('entry-photo')) openLightbox(t.getAttribute('src'));
+    });
+    document.getElementById('photoLightboxClose').addEventListener('click', closeLightbox);
+    lb.addEventListener('click', function(ev){ if(ev.target === lb) closeLightbox(); });
+    document.addEventListener('keydown', function(ev){
+      if(ev.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
+    });
+    document.getElementById('photoLightboxZoomIn').addEventListener('click', function(){ scale = Math.min(6, scale+0.4); apply(); });
+    document.getElementById('photoLightboxZoomOut').addEventListener('click', function(){ scale = Math.max(1, scale-0.4); if(scale===1){ tx=0; ty=0; } apply(); });
+    document.getElementById('photoLightboxZoomReset').addEventListener('click', resetZoom);
+
+    vp.addEventListener('wheel', function(ev){
+      ev.preventDefault();
+      scale = Math.min(6, Math.max(1, scale + (ev.deltaY > 0 ? -0.15 : 0.15)));
+      if(scale===1){ tx=0; ty=0; }
+      apply();
+    }, {passive:false});
+
+    vp.addEventListener('mousedown', function(ev){
+      if(scale <= 1) return;
+      dragging = true; vp.classList.add('dragging');
+      startX = ev.clientX; startY = ev.clientY; startTx = tx; startTy = ty;
+    });
+    window.addEventListener('mousemove', function(ev){
+      if(!dragging) return;
+      tx = startTx + (ev.clientX - startX); ty = startTy + (ev.clientY - startY);
+      apply();
+    });
+    window.addEventListener('mouseup', function(){ dragging = false; vp.classList.remove('dragging'); });
+
+    var pinchDist = null, pinchScale = 1;
+    vp.addEventListener('touchstart', function(ev){
+      if(ev.touches.length === 2){
+        pinchDist = Math.hypot(ev.touches[0].clientX-ev.touches[1].clientX, ev.touches[0].clientY-ev.touches[1].clientY);
+        pinchScale = scale;
+      } else if(ev.touches.length === 1 && scale > 1){
+        dragging = true;
+        startX = ev.touches[0].clientX; startY = ev.touches[0].clientY; startTx = tx; startTy = ty;
+      }
+    }, {passive:true});
+    vp.addEventListener('touchmove', function(ev){
+      if(ev.touches.length === 2 && pinchDist){
+        var d = Math.hypot(ev.touches[0].clientX-ev.touches[1].clientX, ev.touches[0].clientY-ev.touches[1].clientY);
+        scale = Math.min(6, Math.max(1, pinchScale * (d / pinchDist)));
+        apply();
+      } else if(ev.touches.length === 1 && dragging){
+        tx = startTx + (ev.touches[0].clientX - startX); ty = startTy + (ev.touches[0].clientY - startY);
+        apply();
+      }
+    }, {passive:true});
+    vp.addEventListener('touchend', function(){ dragging = false; pinchDist = null; });
+  }
+
   function wireStaticModals(){
     document.getElementById('nbCancel').addEventListener('click', function(){
       document.getElementById('nbModal').classList.remove('open');
@@ -3740,7 +3936,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     var list = document.getElementById('refPickerList');
     if(!entries.length){ list.innerHTML = '<div class="refpick-item" style="cursor:default;">No matching entries.</div>'; return; }
     list.innerHTML = entries.map(function(e){
-      return '<div class="refpick-item" data-pick="'+e.id+'"><span class="rnum">no. '+e.id+'</span>'+escapeHtml(e.title||'untitled')+'</div>';
+      return '<div class="refpick-item" data-pick="'+e.id+'"><span class="rnum">no. '+formatEntryNum(e.id)+'</span>'+escapeHtml(e.title||'untitled')+'</div>';
     }).join('');
     Array.prototype.forEach.call(list.querySelectorAll('[data-pick]'), function(el){
       el.addEventListener('click', function(){
@@ -3805,7 +4001,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     ctx.fillStyle = '#8a7038';
     ctx.font = '600 26px Georgia, serif';
     ctx.textAlign = 'center';
-    ctx.fillText('MISCELLANIES  •  no. ' + e.id, W/2, 150);
+    ctx.fillText('MISCELLANIES  •  no. ' + formatEntryNum(e.id), W/2, 150);
 
     ctx.fillStyle = '#2A241C';
     ctx.font = '700 44px Georgia, serif';
@@ -3857,7 +4053,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       var entriesHtml = byYear[y].map(function(e){
         var book = n.books.find(function(b){ return b.id===e.bookId; });
         return '<div class="ventry">' +
-          '<div class="vnum">no. '+e.id+'</div>' +
+          '<div class="vnum">no. '+formatEntryNum(e.id)+'</div>' +
           '<div class="vbody">' +
             '<h3>'+escapeHtml(e.title||'untitled')+(e.ref?' <span class="vref">&mdash; '+escapeHtml(e.ref)+'</span>':'')+'</h3>' +
             (book ? '<div class="vbook">'+escapeHtml(book.title)+'</div>' : '') +
@@ -4259,6 +4455,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   applyFontScale();
   renderMastheadLink();
   wireStaticModals();
+  initPhotoLightbox();
   renderAll();
   renderFolderBtn();
   if(IS_PHONE){ initPhoneMode(); } else { restoreFolder(); }
