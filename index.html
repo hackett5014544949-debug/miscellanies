@@ -340,6 +340,8 @@
   .word-popup .word-close{position:sticky; top:-10px; float:right; margin:-10px -12px 4px 8px; background:var(--card); border:none; color:var(--ink-faint); font-family:'JetBrains Mono', monospace; font-size:14px; cursor:pointer; padding:6px 10px;}
   .dict-word{border-bottom:1px dotted var(--brass); cursor:pointer;}
   .dict-word:hover{background:var(--brass-bg);}
+  .grk-word{border-bottom:1px dotted var(--brass); cursor:pointer;}
+  .grk-word:hover{background:var(--brass-bg);}
   .stream-list .entry:first-child{padding-top:0;}
   .verse-note-mark{cursor:pointer; color:var(--rubric); font-weight:700; font-size:1.05em; margin-left:1px; text-decoration:none;}
   .verse-note-mark:hover{text-decoration:underline;}
@@ -645,7 +647,7 @@
       <p>Right at the top of the app, a small status pill always tells you where things stand, in both Simple and Advanced mode: an italic note if you're on browser-only storage (click it to connect a folder), a calm blue confirmation once a folder is connected, or a bold, pulsing reconnect prompt if your browser needs you to re-grant access &mdash; browsers do this periodically for security, and it's normal. You never have to go digging through Advanced mode to check; if something needs your attention, it's visible the moment you open the app.</p>
 
       <h4>Scripture references and the built-in Bible reader</h4>
-      <p>Any entry with a scripture reference shows it as a clickable badge &mdash; tap it to read that passage inline, in the King James Version by default, with buttons to switch to the American Standard Version, the Greek New Testament, the Septuagint, or jump out to the LSB, NKJV, or NET. Words that appear in Watson's Bible Dictionary are underlined right in the passage text &mdash; tap one for its definition, with a "read full entry" link if it's long.</p>
+      <p>Any entry with a scripture reference shows it as a clickable badge &mdash; tap it to read that passage inline, in the King James Version by default, with buttons to switch to the American Standard Version, the Greek New Testament, the Septuagint, or jump out to the LSB, NKJV, or NET. Words that appear in Watson's Bible Dictionary are underlined right in the passage text &mdash; tap one for its definition, with a "read full entry" link if it's long. In the Robinson&ndash;Pierpont Greek reader, every Greek word is tappable the same way &mdash; it shows the word's Strong's number and its definition from Dodson's Greek lexicon.</p>
 
       <h4>Font size</h4>
       <p>The <b>A&minus;</b> / <b>A+</b> buttons near the top control text size for the whole app, including the dictionary popup and the Bible reader &mdash; useful for reading on a phone or just easier eyes.</p>
@@ -2739,6 +2741,41 @@ var watsonDict = null;
     var title = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
     return watsonDict[title] || null;
   }
+  // Strong's-number data for the Robinson-Pierpont Greek NT (rp_strongs.json: book -> chapter -> verse -> [strongNum,...],
+  // one number per word in reading order, aligned against robinson_pierpont.json's own word-splitting) and Dodson's
+  // public-domain Greek lexicon keyed by Strong's number (dodson.json: {num: {greek, brief, def}}). Same lazy-load-once,
+  // async-resolve-even-on-cache-hit pattern as ensureWatsonDict, for the same re-entrant-render reason.
+  var rpStrongsData = null;
+  function ensureRpStrongs(cb){
+    if(rpStrongsData){ setTimeout(cb, 0); return; }
+    fetch('rp_strongs.json').then(function(r){ return r.json(); }).then(function(d){ rpStrongsData = d; cb(); }).catch(function(){ cb(); });
+  }
+  var dodsonDict = null;
+  function ensureDodson(cb){
+    if(dodsonDict){ setTimeout(cb, 0); return; }
+    fetch('dodson.json').then(function(r){ return r.json(); }).then(function(d){ dodsonDict = d; cb(); }).catch(function(){ flash('Dictionary unavailable (offline?)'); });
+  }
+  // Strip the same leading/trailing punctuation set used to build rp_strongs.json, so word
+  // boundaries here line up exactly with the word order the numbers were aligned against.
+  var GRK_PUNCT_RE = /^[\u00b7,.;:!?\u2019\u2018"\u00ab\u00bb()\[\]]+|[\u00b7,.;:!?\u2019\u2018"\u00ab\u00bb()\[\]]+$/g;
+  function renderGreekVerseWords(text, nums){
+    if(!nums || !nums.length) return escapeHtml(text);
+    var cleaned = text.replace(/\u00b6/g, ' ');
+    var parts = cleaned.split(/(\s+)/);
+    var wi = 0;
+    var out = parts.map(function(part){
+      if(part === '' || /^\s+$/.test(part)) return escapeHtml(part);
+      var core = part.replace(GRK_PUNCT_RE, '');
+      var leadEnd = part.indexOf(core);
+      var leadStr = leadEnd > 0 ? part.slice(0, leadEnd) : '';
+      var trailStr = leadEnd >= 0 ? part.slice(leadEnd + core.length) : '';
+      if(!core){ return escapeHtml(part); }
+      var num = nums[wi]; wi++;
+      if(!num) return escapeHtml(part);
+      return escapeHtml(leadStr) + '<span class="grk-word" data-strong="'+num+'">'+escapeHtml(core)+'</span>' + escapeHtml(trailStr);
+    });
+    return out.join('');
+  }
   // Wrap words that exist in Watson's dictionary with a .dict-word span so it's visually
   // obvious they're tappable. Only touches plain text nodes inside entry/passage text,
   // and skips anything already inside a link or an already-wrapped word.
@@ -2844,6 +2881,23 @@ var watsonDict = null;
     if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); repositionWordPopup(); } return; }
           if(target.closest('.word-close')){ e.preventDefault(); hideWordPopup(); return; }
           if(target.closest('.word-popup')) return;
+    var grkWord = target.closest('.grk-word');
+    if(grkWord){
+      e.preventDefault();
+      var num = grkWord.getAttribute('data-strong');
+      ensureDodson(function(){
+        var entry = dodsonDict && dodsonDict[num];
+        if(entry){
+          var def = entry.def || entry.brief || '';
+          var truncated = def.length > 500; var snippet = truncated ? def.slice(0,500)+'\u2026' : def;
+          showWordPopup('<b>'+escapeHtml(grkWord.textContent)+'</b> <span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s '+escapeHtml(num)+'</span><div class="word-body" style="margin-top:6px;">'+escapeHtml(snippet)+'</div>'+(truncated ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY);
+          if(truncated){ var wp2 = document.getElementById('wordPopup'); if(wp2) wp2._fullDef = def; }
+        } else {
+          hideWordPopup();
+        }
+      });
+      return;
+    }
     if(!target.closest('.entry-text, .passage-panel')){ hideWordPopup(); return; }
     var range;
     if(document.caretRangeFromPoint){
@@ -3516,6 +3570,10 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
 
     // kind === 'verses'
     var isGreekNt = (src.file === 'robinson_pierpont.json' || src.file === 'scrivener_tr.json');
+    var hasStrongs = (src.file === 'robinson_pierpont.json');
+    if(hasStrongs && !rpStrongsData){
+      ensureRpStrongs(function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); });
+    }
     var bookNames = isGreekNt ? ntBookOrderNames().filter(function(n){ return data[n]; }) : Object.keys(data);
     if(!rs.book || !data[rs.book]) rs.book = bookNames[0];
     var chapters = Object.keys(data[rs.book]||{}).map(Number).sort(function(a,b){ return a-b; });
@@ -3549,7 +3607,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
           return '<sup class="verse-note-mark" data-note-ids="'+ids+'" title="'+notesHere.length+' note'+(notesHere.length===1?'':'s')+' on this verse &mdash; click to read">*</sup>';
         }).join('');
       }
-      return '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+marks+escapeHtml(chapterData[v])+' ';
+      var vNums = (hasStrongs && rpStrongsData && rpStrongsData[rs.book] && rpStrongsData[rs.book][rs.chapter]) ? rpStrongsData[rs.book][rs.chapter][v] : null;
+      var verseHtml = vNums ? renderGreekVerseWords(chapterData[v], vNums) : escapeHtml(chapterData[v]);
+      return '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+marks+verseHtml+' ';
     }).join('');
     html += '</div>';
     return html;
