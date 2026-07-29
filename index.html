@@ -3075,6 +3075,33 @@ var watsonDict = null;
       return;
     }
     if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); repositionWordPopup(); } return; }
+    var concOpenLink = target.closest('.concordance-open');
+    if(concOpenLink){
+      e.preventDefault();
+      var concStrong = concOpenLink.getAttribute('data-strong');
+      var concPop = document.getElementById('wordPopup');
+      ensureRpStrongs(function(){
+        ensureReaderText('robinson_pierpont.json', function(){
+          if(concPop) showWordPopup(renderStrongsConcordancePopup(concStrong), concPop._lastX, concPop._lastY);
+        });
+      });
+      return;
+    }
+    var concMoreBtn = target.closest('.concordance-more');
+    if(concMoreBtn){
+      e.preventDefault();
+      var concMoreStrong = concMoreBtn.getAttribute('data-strong');
+      var concMoreReveal = Number(concMoreBtn.getAttribute('data-reveal')||0) + BIBLE_LOOKUP_PAGE;
+      var concMorePop = document.getElementById('wordPopup');
+      if(concMorePop) showWordPopup(renderStrongsConcordancePopup(concMoreStrong, concMoreReveal), concMorePop._lastX, concMorePop._lastY);
+      return;
+    }
+    var concResult = target.closest('.concordance-result');
+    if(concResult){
+      e.preventDefault();
+      jumpToBibleVerse('bk_rp', concResult.getAttribute('data-book'), Number(concResult.getAttribute('data-chapter')), concResult.getAttribute('data-verse'));
+      return;
+    }
           if(target.closest('.word-close')){ e.preventDefault(); hideWordPopup(); return; }
     var lookupTrBtn = target.closest('.biblelookup-tr');
     if(lookupTrBtn){
@@ -3120,10 +3147,14 @@ var watsonDict = null;
           var truncated = def.length > 500; var snippet = truncated ? def.slice(0,500)+'\u2026' : def;
           var meta = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s '+escapeHtml(num)+'</span>' +
             (parsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(parsing)+'</div>' : '');
-          showWordPopup('<b>'+escapeHtml(grkWord.textContent)+'</b> '+meta+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(snippet)+'</div>'+(truncated ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY);
+          var concordanceLink = '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="concordance-open" data-strong="'+escapeHtml(num)+'">See every other place this word (Strong&rsquo;s '+escapeHtml(num)+') appears in the RP text &#8594;</a></div>';
+          showWordPopup('<b>'+escapeHtml(grkWord.textContent)+'</b> '+meta+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(snippet)+'</div>'+(truncated ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : '')+concordanceLink, e.clientX, e.clientY);
           if(truncated){ var wp2 = document.getElementById('wordPopup'); if(wp2) wp2._fullDef = def; }
         } else {
-          hideWordPopup();
+          var meta2 = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s '+escapeHtml(num)+'</span>' +
+            (parsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(parsing)+'</div>' : '');
+          var concordanceLink2 = '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="concordance-open" data-strong="'+escapeHtml(num)+'">See every other place this word (Strong&rsquo;s '+escapeHtml(num)+') appears in the RP text &#8594;</a></div>';
+          showWordPopup('<b>'+escapeHtml(grkWord.textContent)+'</b> '+meta2+'<div class="word-body" style="margin-top:6px; font-style:italic; color:var(--ink-faint);">No Dodson entry found for this Strong&rsquo;s number.</div>'+concordanceLink2, e.clientX, e.clientY);
         }
       });
       return;
@@ -3847,6 +3878,89 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     html += '</div>';
     return html;
   }
+
+  // Re-splits a verse's Greek text the same way renderGreekVerseWords does, and wraps
+  // the word at the given position (0-based, matching rp_strongs.json's per-word array)
+  // in <mark> — used by the Strong's concordance popup to point at the matched word
+  // inside each result's verse text, rather than just showing the bare verse.
+  function highlightGreekWordAt(text, wordIndex){
+    var cleaned = (text||'').replace(/¶/g, ' ');
+    var parts = cleaned.split(/(\s+)/);
+    var wi = 0;
+    var out = parts.map(function(part){
+      if(part === '' || /^\s+$/.test(part)) return escapeHtml(part);
+      var core = part.replace(GRK_PUNCT_RE, '');
+      var leadEnd = part.indexOf(core);
+      var leadStr = leadEnd > 0 ? part.slice(0, leadEnd) : '';
+      var trailStr = leadEnd >= 0 ? part.slice(leadEnd + core.length) : '';
+      if(!core) return escapeHtml(part);
+      var isMatch = (wi === wordIndex);
+      wi++;
+      return escapeHtml(leadStr) + (isMatch ? '<mark>'+escapeHtml(core)+'</mark>' : escapeHtml(core)) + escapeHtml(trailStr);
+    });
+    return out.join('');
+  }
+
+  // "See every other place this word appears" — reuses rp_strongs.json (already loaded
+  // for the tap-to-parse feature) purely as an index: scan every book/chapter/verse for
+  // word positions sharing this Strong's number, then pull the actual Greek text for each
+  // hit from the already-cached robinson_pierpont.json to render as a scrollable list,
+  // same show-more paging pattern as the Bible word-search popup. Clicking a result jumps
+  // into the full RP reader at that verse.
+  function findStrongsOccurrences(strongNum){
+    var results = [];
+    if(!rpStrongsData) return results;
+    Object.keys(rpStrongsData).forEach(function(book){
+      var chapters = rpStrongsData[book];
+      Object.keys(chapters).forEach(function(ch){
+        var verses = chapters[ch];
+        Object.keys(verses).forEach(function(v){
+          var words = verses[v] || [];
+          for(var i=0; i<words.length; i++){
+            if(words[i] && String(words[i][0]) === String(strongNum)){
+              results.push({ book:book, chapter:Number(ch), verse:Number(v), wordIndex:i });
+            }
+          }
+        });
+      });
+    });
+    results.sort(function(a,b){
+      if(a.book !== b.book) return a.book < b.book ? -1 : 1;
+      return (a.chapter - b.chapter) || (a.verse - b.verse);
+    });
+    return results;
+  }
+  function renderStrongsConcordancePopup(strongNum, revealCount){
+    revealCount = revealCount || BIBLE_LOOKUP_PAGE;
+    var html = '<b>Strong&rsquo;s '+escapeHtml(strongNum)+' elsewhere in the RP text</b>';
+    var rpData = readerTextCache['robinson_pierpont.json'];
+    if(!rpStrongsData || !rpData){
+      html += '<div class="status">loading&hellip;</div>';
+      return html;
+    }
+    var results = findStrongsOccurrences(strongNum);
+    if(!results.length){
+      html += '<div class="empty" style="font-size:13px;">No other occurrences found.</div>';
+      return html;
+    }
+    html += '<div style="font-size:11px; color:var(--ink-faint); margin:6px 0;">'+results.length+' occurrence'+(results.length===1?'':'s')+' in the RP2018 text</div>';
+    var capped = results.slice(0, revealCount);
+    html += '<div style="max-height:280px; overflow-y:auto;">';
+    html += capped.map(function(r){
+      var verseText = ((rpData[r.book]||{})[r.chapter]||{})[r.verse] || '';
+      var snippet = highlightGreekWordAt(verseText, r.wordIndex);
+      return '<div class="concordance-result" data-book="'+escapeHtml(r.book)+'" data-chapter="'+r.chapter+'" data-verse="'+r.verse+'" style="padding:7px 0; border-bottom:1px solid var(--line); cursor:pointer;">' +
+        '<div style="font-family:\'JetBrains Mono\', monospace; font-size:10.5px; color:var(--ink-faint);">'+escapeHtml(r.book)+' '+r.chapter+':'+r.verse+'</div>' +
+        '<div style="font-size:13px;">'+snippet+'</div>' +
+      '</div>';
+    }).join('');
+    html += '</div>';
+    if(results.length > revealCount){
+      html += '<div style="padding-top:8px;"><button type="button" class="btn small concordance-more" data-strong="'+escapeHtml(strongNum)+'" data-reveal="'+revealCount+'">Show '+Math.min(BIBLE_LOOKUP_PAGE, results.length-revealCount)+' more (of '+results.length+')</button></div>';
+    }
+    return html;
+  }
+
   // Navigates straight into the full Bible reader at a specific book/chapter/verse (used
   // when a right-click lookup result is clicked). Forces advanced mode + the reader tab,
   // since the library/book reader is an advanced-mode-only surface.
