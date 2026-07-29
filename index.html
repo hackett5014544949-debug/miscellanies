@@ -4887,6 +4887,13 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       if(nextBtn) nextBtn.addEventListener('click', function(){ rs.page = rs.page+1; renderOpenBook(); });
     } else {
       var data = readerTextCache[src.file];
+      // Guards against a real race: if this pane's renderReaderPane() call ran before
+      // its text finished fetching, it rendered a plain "loading..." placeholder (no
+      // toolbar, no selects) and kicked off ensureReaderText() to fetch + re-render.
+      // wireReaderPane() still runs against that placeholder DOM either way, so without
+      // this early return, Object.keys(data) below throws on the still-undefined data.
+      // Once the fetch resolves, its callback re-renders (and re-wires) for real.
+      if(!data) return;
       var isGreekNt = (src.file === 'robinson_pierpont.json' || src.file === 'scrivener_tr.json');
       var bookNames = isGreekNt ? ntBookOrderNames().filter(function(n){ return data[n]; }) : Object.keys(data);
       var bookSelect = document.getElementById('readerBookSelect');
