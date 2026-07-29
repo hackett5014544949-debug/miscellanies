@@ -466,6 +466,7 @@
     <h1>Digging Deep: Notetaker Deluxe</h1>
     <div class="sub">inspired by Jonathan Edwards &mdash; a running notebook, entered and cross-referenced as occasion offers</div>
     <div class="brand">a Biblical Studies and Reviews notebook</div>
+    <div class="sub" id="creditLine" style="cursor:pointer; font-size:12.5px; margin-top:2px;" title="See full credits in the Guide">Includes the Text-Critical English New Testament &amp; ASV: Byzantine Text with Apocrypha, &copy; Robert Adam Boyd &mdash; used with permission. <span style="text-decoration:underline;">Full credits</span></div>
     <div class="epigraph">
       &ldquo;Resolved, whenever I so much question whether I have done my duty, as that my quiet
       and calm is thereby disturbed, to set it down, and also how the question was resolved.&rdquo;
@@ -1729,10 +1730,21 @@
       }
     }
     var nonDefaultIds = Object.keys(state.notebooks).filter(function(id){ return id !== 'default'; });
-    if(!nonDefaultIds.length){ state[NOTEBOOK_UNIFY_FLAG] = true; return; }
+    if(!nonDefaultIds.length){ state[NOTEBOOK_UNIFY_FLAG] = true; return false; }
 
     try{
-      localStorage.setItem('miscellanies-pre-notebook-unify-backup-'+Date.now(), JSON.stringify({ savedAt:new Date().toISOString(), notebooks: state.notebooks }));
+      var backupKey = 'miscellanies-pre-notebook-unify-backup-'+Date.now();
+      localStorage.setItem(backupKey, JSON.stringify({ savedAt:new Date().toISOString(), notebooks: state.notebooks }));
+      // This backup is a one-time safety net, not a growing log — prune older copies
+      // so a folder with a stale pre-migration file can't slowly fill localStorage
+      // by re-triggering this on every connect. Keep the 2 most recent.
+      var oldBackupKeys = [];
+      for(var bi=0; bi<localStorage.length; bi++){
+        var bk = localStorage.key(bi);
+        if(bk && bk.indexOf('miscellanies-pre-notebook-unify-backup-') === 0 && bk !== backupKey) oldBackupKeys.push(bk);
+      }
+      oldBackupKeys.sort();
+      while(oldBackupKeys.length > 1){ localStorage.removeItem(oldBackupKeys.shift()); }
     }catch(e){}
     if(typeof dirHandle !== 'undefined' && dirHandle){
       try{
@@ -1777,6 +1789,7 @@
 
     state.activeNotebookId = 'default';
     state[NOTEBOOK_UNIFY_FLAG] = true;
+    return true;
   }
 
   function linkify(text, entryId){
@@ -2271,8 +2284,13 @@
           if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
           if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
         });
-        unifyNotebooksIntoLibrary();
+        var didMigrate = unifyNotebooksIntoLibrary();
         healNextIdAcrossNotebooks();
+        // If this folder's notebook.json predated the notebook-redesign migration,
+        // write the now-unified structure straight back to disk. Otherwise a stale
+        // on-disk file just re-triggers this same migration (and a fresh localStorage
+        // safety-net backup) on every single reconnect, forever.
+        if(didMigrate){ try{ persistToFolder(); }catch(e){} }
       });
     });
   }
@@ -5338,6 +5356,22 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   document.getElementById('guideBtn').addEventListener('click', function(){
     document.getElementById('guideModal').classList.add('open');
   });
+  var creditLineEl = document.getElementById('creditLine');
+  if(creditLineEl){
+    creditLineEl.addEventListener('click', function(){
+      document.getElementById('guideModal').classList.add('open');
+      Array.prototype.forEach.call(document.querySelectorAll('#guideTabs [data-guidetab]'), function(b){ b.classList.remove('active'); });
+      var fullBtn = document.querySelector('#guideTabs [data-guidetab="full"]');
+      if(fullBtn) fullBtn.classList.add('active');
+      document.getElementById('guideTabQuick').style.display = 'none';
+      document.getElementById('guideTabFull').style.display = 'block';
+      document.getElementById('guideTabFeatures').style.display = 'none';
+      setTimeout(function(){
+        var creditPara = document.getElementById('guideTabFull').querySelector('p:last-of-type');
+        if(creditPara) creditPara.scrollIntoView({ behavior:'smooth', block:'start' });
+      }, 50);
+    });
+  }
   document.getElementById('guideClose').addEventListener('click', function(){
     document.getElementById('guideModal').classList.remove('open');
   });
