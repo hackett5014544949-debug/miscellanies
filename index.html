@@ -3004,6 +3004,18 @@ var watsonDict = null;
       });
       return;
     }
+    var lookupMoreBtn = target.closest('.biblelookup-more');
+    if(lookupMoreBtn){
+      e.preventDefault();
+      var moreWord = lookupMoreBtn.getAttribute('data-word');
+      var moreTr = lookupMoreBtn.getAttribute('data-tr');
+      var moreReveal = Number(lookupMoreBtn.getAttribute('data-reveal')||0) + BIBLE_LOOKUP_PAGE;
+      var morePop = document.getElementById('wordPopup');
+      ensureReaderText(moreTr === 'asv' ? 'asv.json' : 'kjv.json', function(){
+        if(morePop) showWordPopup(renderBibleLookupPopup(moreWord, moreTr, moreReveal), morePop._lastX, morePop._lastY);
+      });
+      return;
+    }
     var lookupResult = target.closest('.biblelookup-result');
     if(lookupResult){
       e.preventDefault();
@@ -3635,7 +3647,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   var READER_TAB_ID = '__read__';
   var READER_PAGE_SIZE = 20;
   var DICT_PAGE_SIZE = 12;
-  var SEARCH_RESULTS_CAP = 300;
+  var SEARCH_RESULTS_PAGE = 50; // how many results reveal per "show more" click in the in-reader Bible search
   // Strips accents/diacritics (Greek polytonic marks included) so users can search
   // Greek texts without typing exact breathing/accent marks, and so search is generally
   // more forgiving. Uses Unicode NFD decomposition + strips combining marks (U+0300-U+036F).
@@ -3646,16 +3658,17 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   var readerState = {};       // book id -> { page, query, book, chapter } (in-memory only)
 
   function readerStateFor(bookId){
-    if(!readerState[bookId]) readerState[bookId] = { page:0, query:'', bibleSearchOpen:false, bibleSearchQuery:'', bibleSearchResults:null };
+    if(!readerState[bookId]) readerState[bookId] = { page:0, query:'', bibleSearchOpen:false, bibleSearchQuery:'', bibleSearchResults:null, bibleSearchReveal:SEARCH_RESULTS_PAGE };
     return readerState[bookId];
   }
   // Renders the right-click "look up this word in the Bible" popup content (used from
   // handleWordTap's contextmenu handler on entry text). Searches the bundled KJV or ASV
   // JSON (same data + search logic as the in-reader Bible search) and lists matches, each
   // clickable to jump straight into the full reader at that verse.
-  var BIBLE_LOOKUP_RESULT_CAP = 25;
-  function renderBibleLookupPopup(word, translation){
+  var BIBLE_LOOKUP_PAGE = 25; // how many results reveal per "show more" click in the right-click lookup popup
+  function renderBibleLookupPopup(word, translation, revealCount){
     translation = translation === 'asv' ? 'asv' : 'kjv';
+    revealCount = revealCount || BIBLE_LOOKUP_PAGE;
     var file = translation === 'asv' ? 'asv.json' : 'kjv.json';
     var label = translation === 'asv' ? 'ASV' : 'KJV';
     var html = '<b>Look up &ldquo;'+escapeHtml(word)+'&rdquo;</b>';
@@ -3675,7 +3688,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       return html;
     }
     var qNorm = stripDiacritics(word).toLowerCase();
-    var capped = results.slice(0, BIBLE_LOOKUP_RESULT_CAP);
+    var capped = results.slice(0, revealCount);
+    html += '<div style="font-size:11px; color:var(--ink-faint); margin-bottom:6px;">'+results.length+' match'+(results.length===1?'':'es')+' in the '+label+'</div>';
     html += '<div style="max-height:260px; overflow-y:auto;">';
     html += capped.map(function(r){
       var textNorm = stripDiacritics(r.text).toLowerCase();
@@ -3689,8 +3703,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         '<div style="font-size:12.5px;">'+snippet+'</div>' +
       '</div>';
     }).join('');
-    if(results.length > BIBLE_LOOKUP_RESULT_CAP){
-      html += '<div style="font-size:11px; color:var(--ink-faint); padding-top:6px;">+'+(results.length - BIBLE_LOOKUP_RESULT_CAP)+' more matches not shown</div>';
+    if(results.length > revealCount){
+      html += '<div style="padding-top:8px;"><button type="button" class="btn small biblelookup-more" data-word="'+escapeHtml(word)+'" data-tr="'+translation+'" data-reveal="'+revealCount+'">Show '+Math.min(BIBLE_LOOKUP_PAGE, results.length-revealCount)+' more (of '+results.length+')</button></div>';
     }
     html += '</div>';
     return html;
@@ -3738,7 +3752,6 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
           var textNorm = stripDiacritics(text).toLowerCase();
           if(textNorm.indexOf(qNorm) !== -1){
             results.push({ book: book, chapter: ch, verse: v, text: text });
-            if(results.length >= SEARCH_RESULTS_CAP) return results;
           }
         }
       }
@@ -3878,12 +3891,14 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       html += '</div>';
       if(rs.bibleSearchResults){
         var results = rs.bibleSearchResults;
-        html += '<div class="reader-search-results" style="margin-bottom:20px; border:1px solid var(--line); border-radius:6px; max-height:340px; overflow-y:auto;">';
+        var reveal = rs.bibleSearchReveal || SEARCH_RESULTS_PAGE;
+        html += '<div style="font-size:11.5px; color:var(--ink-faint); margin-bottom:6px;">'+results.length+' match'+(results.length===1?'':'es')+' in '+escapeHtml(book.title)+'</div>';
+        html += '<div class="reader-search-results" style="margin-bottom:8px; border:1px solid var(--line); border-radius:6px; max-height:340px; overflow-y:auto;">';
         if(!results.length){
           html += '<div class="empty" style="padding:14px;">No matches in '+escapeHtml(book.title)+'.</div>';
         } else {
           var qNorm = stripDiacritics(rs.bibleSearchQuery||'').toLowerCase();
-          html += results.map(function(r){
+          html += results.slice(0, reveal).map(function(r){
             var textNorm = stripDiacritics(r.text).toLowerCase();
             var idx = textNorm.indexOf(qNorm);
             var snippet = escapeHtml(r.text);
@@ -3895,11 +3910,11 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
               '<div style="font-size:13.5px;">'+snippet+'</div>' +
             '</div>';
           }).join('');
-          if(results.length >= SEARCH_RESULTS_CAP){
-            html += '<div class="empty" style="padding:10px 12px; font-size:11.5px;">Showing the first '+SEARCH_RESULTS_CAP+' matches &mdash; narrow your search to see more precise results.</div>';
-          }
         }
         html += '</div>';
+        if(results.length > reveal){
+          html += '<div style="margin-bottom:20px;"><button class="btn small" id="bibleSearchShowMoreBtn">Show '+Math.min(SEARCH_RESULTS_PAGE, results.length-reveal)+' more (of '+results.length+')</button></div>';
+        }
       }
     }
 
@@ -4005,6 +4020,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       function runBibleSearch(){
         var q = (searchInput ? searchInput.value : rs.bibleSearchQuery || '').trim();
         rs.bibleSearchQuery = q;
+        rs.bibleSearchReveal = SEARCH_RESULTS_PAGE;
         rs.bibleSearchResults = q ? searchBibleData(data, bookNames, q) : null;
         renderOpenBook();
       }
@@ -4012,6 +4028,11 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       if(searchInput){
         searchInput.addEventListener('keydown', function(ev){ if(ev.key === 'Enter'){ ev.preventDefault(); runBibleSearch(); } });
       }
+      var showMoreBtn = document.getElementById('bibleSearchShowMoreBtn');
+      if(showMoreBtn) showMoreBtn.addEventListener('click', function(){
+        rs.bibleSearchReveal = (rs.bibleSearchReveal || SEARCH_RESULTS_PAGE) + SEARCH_RESULTS_PAGE;
+        renderOpenBook();
+      });
       Array.prototype.forEach.call(document.querySelectorAll('.search-result-item'), function(item){
         item.addEventListener('click', function(){
           rs.book = item.getAttribute('data-book');
