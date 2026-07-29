@@ -686,6 +686,10 @@
       <h4>The library</h4>
       <p>The shelf (Advanced &rarr; library) comes stocked with real, full public-domain texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
 
+      <h4>Where the library texts come from</h4>
+      <p>The King James Version, American Standard Version, Scrivener Textus Receptus, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses are long-established English public-domain texts. The Robinson&ndash;Pierpont Greek New Testament is the <b>2018 edition</b> (RP2018) &mdash; specifically release v3.3.2 of the <a href="https://github.com/byztxt/byzantine-majority-text" target="_blank" rel="noopener">byztxt/byzantine-majority-text</a> project, current as of July 2023, which digitizes Dr. Maurice A. Robinson's own text and is dedicated to the public domain (Unlicense). The Strong's numbers and grammatical parsing shown when you tap a Greek word come from that same byztxt project; the English glosses in that popup come from <a href="https://github.com/biblicalhumanities/Dodson-Greek-Lexicon" target="_blank" rel="noopener">Jeffrey Dodson's Greek lexicon</a> (also public domain), compiled from the older public-domain lexicons of Abbott-Smith, Berry, Souter, and Strong. Watson's Bible Dictionary is Richard Watson's own public-domain dictionary.</p>
+      <p><b>A note on accuracy:</b> all of this &mdash; the Greek text itself, its Strong's numbers, its grammatical parsing, and the Dodson definitions &mdash; is reproduced as-is from those source projects and is only as accurate as they are. None of it has been independently checked against a print edition or critical apparatus by hand. Treat the tap-to-parse feature as a study aid, not a substitute for a scholarly Greek text or lexicon when precision matters.</p>
+
       <h4>Multiple notebooks</h4>
       <p>The notebook tabs near the top let you keep entirely separate notebooks &mdash; say, one for personal study and one for a class you teach. Each keeps its own entries and its own library shelf, but by default they all share <b>one running number sequence</b>: if your last entry anywhere was no. 147, the next new entry in any notebook becomes no. 148, exactly like adding a new book to your shelf never restarts your numbering.</p>
 
@@ -3704,6 +3708,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     html += '<button class="btn small" id="readerNextBtn"'+(atEnd?' disabled':'')+'>next &rarr;</button>';
     html += '</div>';
     html += '<h3 style="font-family:\'Cormorant Garamond\', serif; margin:0 0 12px;">'+escapeHtml(rs.book)+' '+rs.chapter+'</h3>';
+    if(hasStrongs){
+      html += '<p style="font-size:11.5px; color:var(--ink-faint); margin:-8px 0 14px;">RP2018 Greek text, Strong&rsquo;s numbers, and parsing via the byztxt project (public domain) &middot; definitions via Dodson&rsquo;s lexicon (public domain) &middot; reproduced as-is, not independently verified &mdash; see guide for details</p>';
+    }
     html += '<div class="reader-text" style="font-size:calc(16.5px * var(--fsz, 1)); line-height:1.75;">';
     var noteSlug = slugForDisplayBook(rs.book);
     var notesByVerse = notesByVerseForChapter(noteSlug, Number(rs.chapter));
