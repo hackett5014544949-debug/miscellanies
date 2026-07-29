@@ -3368,7 +3368,6 @@ var watsonDict = null;
     }
     var verseNumAdd = target.closest('.verse-num-add');
     if(verseNumAdd){
-      window.__vnaDebug = 'branch-entered';
       e.preventDefault();
       var vnBook = verseNumAdd.getAttribute('data-book');
       var vnChapter = verseNumAdd.getAttribute('data-chapter');
@@ -3377,10 +3376,8 @@ var watsonDict = null;
       presetRef = vnBook + ' ' + vnChapter + ':' + vnVerse;
       state.mode = 'advanced';
       state.view = 'stream';
-      window.__vnaDebug = 'about-to-renderAll, view=' + state.view;
       renderAll();
-      window.__vnaDebug = 'renderAll-done';
-      setTimeout(function(){ openNewEntry(); window.__vnaDebug = 'openNewEntry-done'; }, 20);
+      setTimeout(function(){ openNewEntry(); }, 20);
       return;
     }
     var tcentFnMark = target.closest('.tcent-fn-mark');
