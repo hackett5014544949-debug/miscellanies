@@ -354,6 +354,15 @@
   .tcent-fn-mark{cursor:pointer; color:var(--rubric); font-size:0.85em; margin:0 1px;}
   .tcent-fn-mark:hover{text-decoration:underline;}
   .verse-num-add:hover{color:var(--rubric); text-decoration:underline;}
+  .verse-row.vhl-yellow{background:rgba(240,200,60,0.35); border-radius:3px;}
+  .verse-row.vhl-green{background:rgba(120,180,90,0.32); border-radius:3px;}
+  .verse-row.vhl-blue{background:rgba(110,150,210,0.28); border-radius:3px;}
+  .verse-row.vhl-pink{background:rgba(215,130,150,0.3); border-radius:3px;}
+  .verse-hl-toggle{cursor:pointer; font-size:0.8em; margin-right:3px; opacity:.45; user-select:none;}
+  .verse-hl-toggle:hover{opacity:1;}
+  .verse-hl-toggle.vhl-active{opacity:1;}
+  .vhl-swatch{display:inline-block; width:16px; height:16px; border-radius:3px; margin-right:8px; cursor:pointer; vertical-align:middle; border:1px solid var(--line);}
+  .vhl-swatch:hover{outline:2px solid var(--ink-faint);}
   .stream-list .entry:first-child{padding-top:0;}
   .verse-note-mark{cursor:pointer; color:var(--rubric); font-weight:700; font-size:1.05em; margin-left:1px; text-decoration:none;}
   .verse-note-mark:hover{text-decoration:underline;}
@@ -1422,6 +1431,42 @@
       });
     });
     return map;
+  }
+  // Whole-verse highlighting: a lightweight, reference-based (not translation-specific)
+  // colored background per book/chapter/verse, stored per-notebook so it shows up no
+  // matter which Bible edition you're reading that same passage in. Mirrors the existing
+  // notesByVerseForChapter pattern of keying off book+chapter+verse rather than a specific
+  // translation file, and reuses the same word-popup UI the rest of the reader uses.
+  var VHL_COLORS = ['yellow', 'green', 'blue', 'pink'];
+  function verseHighlightKey(book, chapter, verse){
+    return book + '|' + chapter + '|' + verse;
+  }
+  function getVerseHighlight(book, chapter, verse){
+    var hl = nb().highlights;
+    if(!hl) return null;
+    return hl[verseHighlightKey(book, chapter, verse)] || null;
+  }
+  function setVerseHighlight(book, chapter, verse, color){
+    if(!nb().highlights) nb().highlights = {};
+    var key = verseHighlightKey(book, chapter, verse);
+    if(color) nb().highlights[key] = color;
+    else delete nb().highlights[key];
+    persist();
+  }
+  function renderHighlightPickerPopup(book, chapter, verse){
+    var current = getVerseHighlight(book, chapter, verse);
+    var html = '<div class="word-popup-inner">';
+    html += '<div style="font-family:\'JetBrains Mono\', monospace; font-size:11px; color:var(--ink-faint); margin-bottom:8px;">Highlight '+escapeHtml(book)+' '+chapter+':'+verse+'</div>';
+    html += '<div>';
+    var swatchColors = { yellow:'#f0c83c', green:'#78b45a', blue:'#6e96d2', pink:'#d78296' };
+    VHL_COLORS.forEach(function(c){
+      html += '<span class="vhl-swatch vhl-pick" data-color="'+c+'" data-vbook="'+escapeHtml(book)+'" data-vchapter="'+chapter+'" data-vverse="'+verse+'" style="background:'+swatchColors[c]+';'+(current===c?' outline:2px solid var(--ink);':'')+'" title="'+c+'"></span>';
+    });
+    if(current){
+      html += '<span class="vhl-swatch vhl-pick" data-color="" data-vbook="'+escapeHtml(book)+'" data-vchapter="'+chapter+'" data-vverse="'+verse+'" style="background:var(--paper); font-size:10px; text-align:center; line-height:16px;" title="Remove highlight">&times;</span>';
+    }
+    html += '</div></div>';
+    return html;
   }
   function showVerseNotesPopup(ids, x, y){
     var entries = (nb().entries || []).filter(function(e){ return ids.indexOf(e.id) !== -1; });
@@ -3366,6 +3411,27 @@ var watsonDict = null;
       jumpTo(openId);
       return;
     }
+    var vhlPick = target.closest('.vhl-pick');
+    if(vhlPick){
+      e.preventDefault();
+      var vhlBook = vhlPick.getAttribute('data-vbook');
+      var vhlChapter = Number(vhlPick.getAttribute('data-vchapter'));
+      var vhlVerse = Number(vhlPick.getAttribute('data-vverse'));
+      var vhlColorPicked = vhlPick.getAttribute('data-color') || null;
+      setVerseHighlight(vhlBook, vhlChapter, vhlVerse, vhlColorPicked);
+      hideWordPopup();
+      if(activeTabId === READER_TAB_ID) renderOpenBook();
+      return;
+    }
+    var vhlToggle = target.closest('.verse-hl-toggle');
+    if(vhlToggle){
+      e.preventDefault();
+      var vhtBook = vhlToggle.getAttribute('data-book');
+      var vhtChapter = vhlToggle.getAttribute('data-chapter');
+      var vhtVerse = vhlToggle.getAttribute('data-verse');
+      showWordPopup(renderHighlightPickerPopup(vhtBook, Number(vhtChapter), Number(vhtVerse)), e.clientX, e.clientY);
+      return;
+    }
     var verseNumAdd = target.closest('.verse-num-add');
     if(verseNumAdd){
       e.preventDefault();
@@ -4766,7 +4832,11 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       var vEntries = (hasStrongs && rpStrongsData && rpStrongsData[rs.book] && rpStrongsData[rs.book][rs.chapter]) ? rpStrongsData[rs.book][rs.chapter][v] : null;
       var hebEntries = (isHebrewOt && hebrewStrongsData && hebrewStrongsData[rs.book] && hebrewStrongsData[rs.book][rs.chapter]) ? hebrewStrongsData[rs.book][rs.chapter][v] : null;
       var verseHtml = vEntries ? renderGreekVerseWords(chapterData[v], vEntries) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v])));
-      return '<span id="verseRow-'+v+'" class="verse-row">' +
+      var vhlColor = getVerseHighlight(rs.book, rs.chapter, v);
+      var vhlClass = vhlColor ? (' vhl-'+vhlColor) : '';
+      var vhlToggleHtml = '<span class="verse-hl-toggle'+(vhlColor?' vhl-active':'')+'" data-book="'+escapeHtml(rs.book)+'" data-chapter="'+rs.chapter+'" data-verse="'+v+'" title="Highlight this verse">&#9635;</span>';
+      return '<span id="verseRow-'+v+'" class="verse-row'+vhlClass+'">' +
+        vhlToggleHtml +
         '<span class="verse-num-add" data-book="'+escapeHtml(rs.book)+'" data-chapter="'+rs.chapter+'" data-verse="'+v+'" title="Click to start a new note on '+escapeHtml(rs.book)+' '+rs.chapter+':'+v+'" style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px; cursor:pointer;">'+v+'</span>'+marks+verseHtml+' </span>';
     }).join('');
     html += '</div>';
