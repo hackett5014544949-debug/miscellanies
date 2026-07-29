@@ -2748,12 +2748,12 @@ var watsonDict = null;
   var rpStrongsData = null;
   function ensureRpStrongs(cb){
     if(rpStrongsData){ setTimeout(cb, 0); return; }
-    fetch('rp_strongs.json').then(function(r){ return r.json(); }).then(function(d){ rpStrongsData = d; cb(); }).catch(function(){ cb(); });
+    fetch('rp_strongs.json?v=2').then(function(r){ return r.json(); }).then(function(d){ rpStrongsData = d; cb(); }).catch(function(){ cb(); });
   }
   var dodsonDict = null;
   function ensureDodson(cb){
     if(dodsonDict){ setTimeout(cb, 0); return; }
-    fetch('dodson.json').then(function(r){ return r.json(); }).then(function(d){ dodsonDict = d; cb(); }).catch(function(){ flash('Dictionary unavailable (offline?)'); });
+    fetch('dodson.json?v=2').then(function(r){ return r.json(); }).then(function(d){ dodsonDict = d; cb(); }).catch(function(){ flash('Dictionary unavailable (offline?)'); });
   }
   // Strip the same leading/trailing punctuation set used to build rp_strongs.json, so word
   // boundaries here line up exactly with the word order the numbers were aligned against.
