@@ -338,6 +338,8 @@
   .word-popup{position:fixed; max-width:min(420px, 90vw); max-height:min(70vh, 420px); overflow-y:auto; overscroll-behavior:contain; background:var(--card); border:1px solid var(--line); border-radius:6px; padding:10px 12px; font-size:calc(13.5px * var(--fsz, 1)); box-shadow:var(--shadow); z-index:60; display:none; line-height:1.4;}
   .word-popup.open{display:block;}
   .word-popup .word-close{position:sticky; top:-10px; float:right; margin:-10px -12px 4px 8px; background:var(--card); border:none; color:var(--ink-faint); font-family:'JetBrains Mono', monospace; font-size:14px; cursor:pointer; padding:6px 10px;}
+  .search-result-item:hover{background:var(--brass-bg);}
+  .verse-row.flash-highlight{background:var(--brass-bg); border-radius:3px; transition:background 2s ease;}
   .dict-word{border-bottom:1px dotted var(--brass); cursor:pointer;}
   .dict-word:hover{background:var(--brass-bg);}
   .grk-word{cursor:pointer;}
@@ -3576,12 +3578,47 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   var READER_TAB_ID = '__read__';
   var READER_PAGE_SIZE = 20;
   var DICT_PAGE_SIZE = 12;
+  var SEARCH_RESULTS_CAP = 300;
+  // Strips accents/diacritics (Greek polytonic marks included) so users can search
+  // Greek texts without typing exact breathing/accent marks, and so search is generally
+  // more forgiving. Uses Unicode NFD decomposition + strips combining marks (U+0300-U+036F).
+  function stripDiacritics(s){
+    return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
   var readerTextCache = {};   // file name -> parsed JSON (loaded once, reused)
   var readerState = {};       // book id -> { page, query, book, chapter } (in-memory only)
 
   function readerStateFor(bookId){
-    if(!readerState[bookId]) readerState[bookId] = { page:0, query:'' };
+    if(!readerState[bookId]) readerState[bookId] = { page:0, query:'', bibleSearchOpen:false, bibleSearchQuery:'', bibleSearchResults:null };
     return readerState[bookId];
+  }
+  // Searches every book/chapter/verse of a loaded 'verses'-kind translation (KJV, ASV, RP, TR)
+  // for a substring match. Diacritic-insensitive so Greek can be searched without exact accents.
+  function searchBibleData(data, bookNames, query){
+    var results = [];
+    var qNorm = stripDiacritics(query).toLowerCase();
+    if(!qNorm) return results;
+    for(var bi=0; bi<bookNames.length; bi++){
+      var book = bookNames[bi];
+      var chapters = data[book];
+      if(!chapters) continue;
+      var chNums = Object.keys(chapters).map(Number).sort(function(a,b){ return a-b; });
+      for(var ci=0; ci<chNums.length; ci++){
+        var ch = chNums[ci];
+        var verses = chapters[ch];
+        var vNums = Object.keys(verses).map(Number).sort(function(a,b){ return a-b; });
+        for(var vi=0; vi<vNums.length; vi++){
+          var v = vNums[vi];
+          var text = verses[v];
+          var textNorm = stripDiacritics(text).toLowerCase();
+          if(textNorm.indexOf(qNorm) !== -1){
+            results.push({ book: book, chapter: ch, verse: v, text: text });
+            if(results.length >= SEARCH_RESULTS_CAP) return results;
+          }
+        }
+      }
+    }
+    return results;
   }
   function ensureReaderText(file, cb){
     if(readerTextCache[file]){ setTimeout(function(){ cb(readerTextCache[file]); }, 0); return; }
@@ -3706,7 +3743,41 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     }).join('') + '</select>';
     html += '<button class="btn small" id="readerPrevBtn"'+(atStart?' disabled':'')+'>&larr; prev</button>';
     html += '<button class="btn small" id="readerNextBtn"'+(atEnd?' disabled':'')+'>next &rarr;</button>';
+    html += '<button class="btn small'+(rs.bibleSearchOpen?' active':'')+'" id="readerBibleSearchToggle">&#128269; search this book</button>';
     html += '</div>';
+
+    if(rs.bibleSearchOpen){
+      html += '<div class="reader-toolbar" style="display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">';
+      html += '<input type="text" id="bibleSearchInput" placeholder="Search every chapter for a word or phrase&hellip;" value="'+escapeHtml(rs.bibleSearchQuery||'')+'" style="flex:1; min-width:180px; font-family:\'EB Garamond\', serif; font-size:14.5px; padding:7px 10px; border:1px solid var(--line); border-radius:5px; background:var(--paper); color:var(--ink);">';
+      html += '<button class="btn small" id="bibleSearchBtn">Search</button>';
+      html += '</div>';
+      if(rs.bibleSearchResults){
+        var results = rs.bibleSearchResults;
+        html += '<div class="reader-search-results" style="margin-bottom:20px; border:1px solid var(--line); border-radius:6px; max-height:340px; overflow-y:auto;">';
+        if(!results.length){
+          html += '<div class="empty" style="padding:14px;">No matches in '+escapeHtml(book.title)+'.</div>';
+        } else {
+          var qNorm = stripDiacritics(rs.bibleSearchQuery||'').toLowerCase();
+          html += results.map(function(r){
+            var textNorm = stripDiacritics(r.text).toLowerCase();
+            var idx = textNorm.indexOf(qNorm);
+            var snippet = escapeHtml(r.text);
+            if(idx !== -1 && qNorm){
+              snippet = escapeHtml(r.text.slice(0,idx)) + '<mark>' + escapeHtml(r.text.slice(idx, idx+qNorm.length)) + '</mark>' + escapeHtml(r.text.slice(idx+qNorm.length));
+            }
+            return '<div class="search-result-item" data-book="'+escapeHtml(r.book)+'" data-chapter="'+r.chapter+'" data-verse="'+r.verse+'" style="padding:9px 12px; border-bottom:1px solid var(--line); cursor:pointer;">' +
+              '<div style="font-family:\'JetBrains Mono\', monospace; font-size:11px; color:var(--ink-faint); margin-bottom:3px;">'+escapeHtml(r.book)+' '+r.chapter+':'+r.verse+'</div>' +
+              '<div style="font-size:13.5px;">'+snippet+'</div>' +
+            '</div>';
+          }).join('');
+          if(results.length >= SEARCH_RESULTS_CAP){
+            html += '<div class="empty" style="padding:10px 12px; font-size:11.5px;">Showing the first '+SEARCH_RESULTS_CAP+' matches &mdash; narrow your search to see more precise results.</div>';
+          }
+        }
+        html += '</div>';
+      }
+    }
+
     html += '<h3 style="font-family:\'Cormorant Garamond\', serif; margin:0 0 12px;">'+escapeHtml(rs.book)+' '+rs.chapter+'</h3>';
     if(hasStrongs){
       html += '<p style="font-size:11.5px; color:var(--ink-faint); margin:-8px 0 14px;">RP2018 Greek text, Strong&rsquo;s numbers, and parsing via the byztxt project (public domain) &middot; definitions via Dodson&rsquo;s lexicon (public domain) &middot; reproduced as-is, not independently verified &mdash; see guide for details</p>';
@@ -3725,7 +3796,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       }
       var vEntries = (hasStrongs && rpStrongsData && rpStrongsData[rs.book] && rpStrongsData[rs.book][rs.chapter]) ? rpStrongsData[rs.book][rs.chapter][v] : null;
       var verseHtml = vEntries ? renderGreekVerseWords(chapterData[v], vEntries) : escapeHtml(chapterData[v]);
-      return '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+marks+verseHtml+' ';
+      return '<span id="verseRow-'+v+'" class="verse-row">' +
+        '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+marks+verseHtml+' </span>';
     }).join('');
     html += '</div>';
     return html;
@@ -3797,6 +3869,40 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       }
       if(prevBtn) prevBtn.addEventListener('click', function(){ goRelative(-1); });
       if(nextBtn) nextBtn.addEventListener('click', function(){ goRelative(1); });
+
+      var searchToggle = document.getElementById('readerBibleSearchToggle');
+      if(searchToggle) searchToggle.addEventListener('click', function(){
+        rs.bibleSearchOpen = !rs.bibleSearchOpen;
+        renderOpenBook();
+      });
+      var searchInput = document.getElementById('bibleSearchInput');
+      var searchBtn = document.getElementById('bibleSearchBtn');
+      function runBibleSearch(){
+        var q = (searchInput ? searchInput.value : rs.bibleSearchQuery || '').trim();
+        rs.bibleSearchQuery = q;
+        rs.bibleSearchResults = q ? searchBibleData(data, bookNames, q) : null;
+        renderOpenBook();
+      }
+      if(searchBtn) searchBtn.addEventListener('click', runBibleSearch);
+      if(searchInput){
+        searchInput.addEventListener('keydown', function(ev){ if(ev.key === 'Enter'){ ev.preventDefault(); runBibleSearch(); } });
+      }
+      Array.prototype.forEach.call(document.querySelectorAll('.search-result-item'), function(item){
+        item.addEventListener('click', function(){
+          rs.book = item.getAttribute('data-book');
+          rs.chapter = Number(item.getAttribute('data-chapter'));
+          var targetVerse = item.getAttribute('data-verse');
+          renderOpenBook();
+          setTimeout(function(){
+            var row = document.getElementById('verseRow-'+targetVerse);
+            if(row){
+              row.scrollIntoView({ behavior:'smooth', block:'center' });
+              row.classList.add('flash-highlight');
+              setTimeout(function(){ row.classList.remove('flash-highlight'); }, 2000);
+            }
+          }, 0);
+        });
+      });
     }
   }
 
