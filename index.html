@@ -339,6 +339,8 @@
   .word-popup.open{display:block;}
   .word-popup .word-close{position:sticky; top:-10px; float:right; margin:-10px -12px 4px 8px; background:var(--card); border:none; color:var(--ink-faint); font-family:'JetBrains Mono', monospace; font-size:14px; cursor:pointer; padding:6px 10px;}
   .search-result-item:hover{background:var(--brass-bg);}
+  .biblelookup-result:hover{background:var(--brass-bg);}
+  button.btn.active{background:var(--ink); color:var(--paper);}
   .verse-row.flash-highlight{background:var(--brass-bg); border-radius:3px; transition:background 2s ease;}
   .dict-word{border-bottom:1px dotted var(--brass); cursor:pointer;}
   .dict-word:hover{background:var(--brass-bg);}
@@ -2991,6 +2993,24 @@ var watsonDict = null;
     }
     if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); repositionWordPopup(); } return; }
           if(target.closest('.word-close')){ e.preventDefault(); hideWordPopup(); return; }
+    var lookupTrBtn = target.closest('.biblelookup-tr');
+    if(lookupTrBtn){
+      e.preventDefault();
+      var lookupWord = lookupTrBtn.getAttribute('data-word');
+      var lookupTr = lookupTrBtn.getAttribute('data-tr');
+      var lookupPop = document.getElementById('wordPopup');
+      ensureReaderText(lookupTr === 'asv' ? 'asv.json' : 'kjv.json', function(){
+        if(lookupPop) showWordPopup(renderBibleLookupPopup(lookupWord, lookupTr), lookupPop._lastX, lookupPop._lastY);
+      });
+      return;
+    }
+    var lookupResult = target.closest('.biblelookup-result');
+    if(lookupResult){
+      e.preventDefault();
+      var resultTr = lookupResult.getAttribute('data-tr');
+      jumpToBibleVerse(resultTr === 'asv' ? 'bk_asv' : 'bk_kjv', lookupResult.getAttribute('data-book'), Number(lookupResult.getAttribute('data-chapter')), lookupResult.getAttribute('data-verse'));
+      return;
+    }
           if(target.closest('.word-popup')) return;
     var grkWord = target.closest('.grk-word');
     if(grkWord){
@@ -3040,6 +3060,43 @@ var watsonDict = null;
     });
   }
   document.addEventListener('click', handleWordTap);
+  // Right-click a word inside a saved entry's body to look it up across the bundled
+  // KJV/ASV Bible text (same search used by the in-reader Bible search), with results
+  // that jump straight into the full reader. Scoped to '.entry-text' only, so it doesn't
+  // fight the browser's native context menu everywhere else in the app.
+  function handleEntryWordContextMenu(e){
+    var target = e.target;
+    if(!target.closest || !target.closest('.entry-text')) return;
+    var range;
+    if(document.caretRangeFromPoint){
+      range = document.caretRangeFromPoint(e.clientX, e.clientY);
+    } else if(document.caretPositionFromPoint){
+      var pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+      if(pos){ range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+    }
+    if(!range || !range.startContainer || range.startContainer.nodeType !== 3) return;
+    var textNode = range.startContainer;
+    var offset = range.startOffset;
+    var str = textNode.textContent;
+    var wordCharRe = /[A-Za-z'Ͱ-Ͽἀ-῿]/;
+    var start = offset, end = offset;
+    while(start > 0 && wordCharRe.test(str[start-1])) start--;
+    while(end < str.length && wordCharRe.test(str[end])) end++;
+    var word = str.slice(start, end);
+    if(!word) return;
+    e.preventDefault();
+    var pop = document.getElementById('wordPopup');
+    if(!pop){
+      pop = document.createElement('div');
+      pop.id = 'wordPopup';
+      pop.className = 'word-popup';
+      document.body.appendChild(pop);
+    }
+    ensureReaderText('kjv.json', function(){
+      showWordPopup(renderBibleLookupPopup(word, 'kjv'), e.clientX, e.clientY);
+    });
+  }
+  document.addEventListener('contextmenu', handleEntryWordContextMenu);
   
   var offlineBibleData = {};
     var OFFLINE_BOOK_ALIASES = {'Psalm':'Psalms','Song of Songs':'Song of Solomon','Revelations':'Revelation'};
@@ -3591,6 +3648,74 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   function readerStateFor(bookId){
     if(!readerState[bookId]) readerState[bookId] = { page:0, query:'', bibleSearchOpen:false, bibleSearchQuery:'', bibleSearchResults:null };
     return readerState[bookId];
+  }
+  // Renders the right-click "look up this word in the Bible" popup content (used from
+  // handleWordTap's contextmenu handler on entry text). Searches the bundled KJV or ASV
+  // JSON (same data + search logic as the in-reader Bible search) and lists matches, each
+  // clickable to jump straight into the full reader at that verse.
+  var BIBLE_LOOKUP_RESULT_CAP = 25;
+  function renderBibleLookupPopup(word, translation){
+    translation = translation === 'asv' ? 'asv' : 'kjv';
+    var file = translation === 'asv' ? 'asv.json' : 'kjv.json';
+    var label = translation === 'asv' ? 'ASV' : 'KJV';
+    var html = '<b>Look up &ldquo;'+escapeHtml(word)+'&rdquo;</b>';
+    html += '<div style="margin:8px 0 8px; display:flex; gap:6px;">' +
+      '<button type="button" class="btn small biblelookup-tr'+(translation==='kjv'?' active':'')+'" data-tr="kjv" data-word="'+escapeHtml(word)+'">KJV</button>' +
+      '<button type="button" class="btn small biblelookup-tr'+(translation==='asv'?' active':'')+'" data-tr="asv" data-word="'+escapeHtml(word)+'">ASV</button>' +
+    '</div>';
+    var data = readerTextCache[file];
+    if(!data){
+      html += '<div class="status">loading '+label+'&hellip;</div>';
+      return html;
+    }
+    var bookNames = Object.keys(data);
+    var results = searchBibleData(data, bookNames, word);
+    if(!results.length){
+      html += '<div class="empty" style="font-size:13px;">No matches in the '+label+'.</div>';
+      return html;
+    }
+    var qNorm = stripDiacritics(word).toLowerCase();
+    var capped = results.slice(0, BIBLE_LOOKUP_RESULT_CAP);
+    html += '<div style="max-height:260px; overflow-y:auto;">';
+    html += capped.map(function(r){
+      var textNorm = stripDiacritics(r.text).toLowerCase();
+      var idx = textNorm.indexOf(qNorm);
+      var snippet = escapeHtml(r.text);
+      if(idx !== -1 && qNorm){
+        snippet = escapeHtml(r.text.slice(0,idx)) + '<mark>' + escapeHtml(r.text.slice(idx, idx+qNorm.length)) + '</mark>' + escapeHtml(r.text.slice(idx+qNorm.length));
+      }
+      return '<div class="biblelookup-result" data-tr="'+translation+'" data-book="'+escapeHtml(r.book)+'" data-chapter="'+r.chapter+'" data-verse="'+r.verse+'" style="padding:7px 0; border-bottom:1px solid var(--line); cursor:pointer;">' +
+        '<div style="font-family:\'JetBrains Mono\', monospace; font-size:10.5px; color:var(--ink-faint);">'+escapeHtml(r.book)+' '+r.chapter+':'+r.verse+'</div>' +
+        '<div style="font-size:12.5px;">'+snippet+'</div>' +
+      '</div>';
+    }).join('');
+    if(results.length > BIBLE_LOOKUP_RESULT_CAP){
+      html += '<div style="font-size:11px; color:var(--ink-faint); padding-top:6px;">+'+(results.length - BIBLE_LOOKUP_RESULT_CAP)+' more matches not shown</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+  // Navigates straight into the full Bible reader at a specific book/chapter/verse (used
+  // when a right-click lookup result is clicked). Forces advanced mode + the reader tab,
+  // since the library/book reader is an advanced-mode-only surface.
+  function jumpToBibleVerse(bookId, bookName, chapter, verse){
+    hideWordPopup();
+    state.mode = 'advanced';
+    state.openBookId = bookId;
+    state.view = 'book';
+    activeTabId = READER_TAB_ID;
+    var rs = readerStateFor(bookId);
+    rs.book = bookName;
+    rs.chapter = chapter;
+    renderAll();
+    setTimeout(function(){
+      var row = document.getElementById('verseRow-'+verse);
+      if(row){
+        row.scrollIntoView({ behavior:'smooth', block:'center' });
+        row.classList.add('flash-highlight');
+        setTimeout(function(){ row.classList.remove('flash-highlight'); }, 2000);
+      }
+    }, 50);
   }
   // Searches every book/chapter/verse of a loaded 'verses'-kind translation (KJV, ASV, RP, TR)
   // for a substring match. Diacritic-insensitive so Greek can be searched without exact accents.
