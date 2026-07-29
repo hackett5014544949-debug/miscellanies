@@ -351,6 +351,9 @@
   .grk-word:hover{background:var(--brass-bg);}
   .heb-word{cursor:pointer;}
   .heb-word:hover{background:var(--brass-bg);}
+  .tcent-fn-mark{cursor:pointer; color:var(--rubric); font-size:0.85em; margin:0 1px;}
+  .tcent-fn-mark:hover{text-decoration:underline;}
+  .verse-num-add:hover{color:var(--rubric); text-decoration:underline;}
   .stream-list .entry:first-child{padding-top:0;}
   .verse-note-mark{cursor:pointer; color:var(--rubric); font-weight:700; font-size:1.05em; margin-left:1px; text-decoration:none;}
   .verse-note-mark:hover{text-decoration:underline;}
@@ -2693,6 +2696,7 @@
     });
   }
   var presetBookId = null;
+  var presetRef = null; // set when a Bible verse number is clicked, to prefill f-ref in the new-entry form
   var promotingInboxId = null;
   var lastFocusedField = 'f-related';
 
@@ -3722,7 +3726,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     document.getElementById('entryForm').classList.add('open');
     document.getElementById('formHeading').textContent = 'New entry';
     document.getElementById('f-title').value='';
-    document.getElementById('f-ref').value='';
+    document.getElementById('f-ref').value = presetRef || '';
     document.getElementById('f-tags').value='';
     document.getElementById('f-body').value='';
     document.getElementById('f-related').value='';
@@ -3737,6 +3741,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       if(numHint2) numHint2.textContent = 'By default this fills the lowest number nothing else is using. Override it to pick a specific one instead — you can\'t reuse one that\'s taken.';
     }
     presetBookId = null;
+    presetRef = null;
     document.getElementById('entryForm').scrollIntoView({behavior:'smooth', block:'start'});
     document.getElementById('f-title').focus();
     maybeRestoreDraft();
@@ -4748,7 +4753,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       var hebEntries = (isHebrewOt && hebrewStrongsData && hebrewStrongsData[rs.book] && hebrewStrongsData[rs.book][rs.chapter]) ? hebrewStrongsData[rs.book][rs.chapter][v] : null;
       var verseHtml = vEntries ? renderGreekVerseWords(chapterData[v], vEntries) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v])));
       return '<span id="verseRow-'+v+'" class="verse-row">' +
-        '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+marks+verseHtml+' </span>';
+        '<span class="verse-num-add" data-book="'+escapeHtml(rs.book)+'" data-chapter="'+rs.chapter+'" data-verse="'+v+'" title="Click to start a new note on '+escapeHtml(rs.book)+' '+rs.chapter+':'+v+'" style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px; cursor:pointer;">'+v+'</span>'+marks+verseHtml+' </span>';
     }).join('');
     html += '</div>';
     return html;
