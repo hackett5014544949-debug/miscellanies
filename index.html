@@ -750,6 +750,7 @@
     openBookId: null,
     search: '',
     tagFilter: '',
+    collections: [], // saved tag filters that act like a virtual shelf (see renderLibrary)
     settings: { tutorialUrl:'', channelUrl:'', studyBibleUrl:'https://www.amazon.com/dp/1400339537?tag=bsar07-20', membershipUrl:'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join', dataLink:'', hostedViewerBase:'https://hackett5014544949-debug.github.io/miscellanies/viewer.html' },
     notebooks: {
       default: {
@@ -1797,6 +1798,7 @@
     if(state.settings.dataLink === undefined) state.settings.dataLink = '';
     if(state.settings.hostedViewerBase === undefined) state.settings.hostedViewerBase = 'https://hackett5014544949-debug.github.io/miscellanies/viewer.html';
     if(typeof state.editsSinceBackup !== 'number') state.editsSinceBackup = 0;
+    if(!Array.isArray(state.collections)) state.collections = [];
     Object.keys(state.notebooks).forEach(function(id){
       if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
       if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
@@ -2219,6 +2221,7 @@
         if(state.settings.membershipUrl === undefined) state.settings.membershipUrl = 'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join';
     if(state.settings.dataLink === undefined) state.settings.dataLink = '';
     if(state.settings.hostedViewerBase === undefined) state.settings.hostedViewerBase = 'https://hackett5014544949-debug.github.io/miscellanies/viewer.html';
+        if(!Array.isArray(state.collections)) state.collections = [];
         Object.keys(state.notebooks).forEach(function(id){
           if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
           if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
@@ -3685,9 +3688,64 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         html += '</div><div class="shelf-plank"></div></div>';
       });
     });
+    // Collections: saved tag filters that act like a virtual shelf, without the
+    // overhead of a real notebook or book entry — click one to jump straight into
+    // the stream pre-filtered to that topic (see the "All topics" dropdown, which
+    // this is just a nameable, one-click shortcut to).
+    html += '<div class="shelf-head" style="margin-top:18px;"><div class="t" style="font-size:20px;">Collections</div><div class="s">saved topic filters &mdash; click one to see everything tagged that way</div></div>';
+    html += '<div class="bookcase" style="min-height:auto; padding:14px 8px;"><div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">';
+    if(!state.collections.length){
+      html += '<div style="font-size:13px; color:#cfc6ac; font-style:italic; padding:4px 2px;">No collections saved yet &mdash; add one from any topic below.</div>';
+    } else {
+      html += state.collections.map(function(c){
+        return '<span class="collection-chip" data-col="'+c.id+'" style="display:inline-flex; align-items:center; gap:7px; background:var(--brass-bg, #d8cba6); color:#3a3120; border-radius:16px; padding:6px 8px 6px 14px; font-size:13px; cursor:pointer;">' +
+          escapeHtml(c.name||c.tag) +
+          '<button type="button" class="collection-remove" data-col="'+c.id+'" title="Remove this collection" style="border:none; background:transparent; color:#6b5a3e; font-size:15px; line-height:1; cursor:pointer; padding:0 2px;">&times;</button>' +
+        '</span>';
+      }).join('');
+    }
+    html += '<button type="button" class="btn small" id="addCollectionBtn" style="border-radius:16px;">+ collection</button>';
+    html += '</div></div>';
+
     html += '<div class="lib-hint">Click any book to keep your reading notes inside it, buy a copy, or read it free online.</div>';
     html += '</div>';
     document.getElementById('app').innerHTML = html;
+    var addColBtn = document.getElementById('addCollectionBtn');
+    if(addColBtn) addColBtn.addEventListener('click', function(){
+      var tags = allTags(allEntriesFlat());
+      if(!tags.length){ flash('Add a topic tag to an entry first, then come back to save it as a collection'); return; }
+      var typed = (prompt('Save a collection for which topic?\n\nExisting topics:\n'+tags.join(', ')) || '').trim();
+      if(!typed) return;
+      var match = tags.find(function(t){ return t.toLowerCase() === typed.toLowerCase(); });
+      if(!match){ flash('No topic matches "'+typed+'" exactly &mdash; check the spelling against the list'); return; }
+      if(state.collections.some(function(c){ return c.tag === match; })){ flash('"'+match+'" is already saved as a collection'); return; }
+      state.collections.push({ id:'col_'+Date.now(), tag:match, name:match });
+      persist();
+      renderLibrary();
+      flash('"'+match+'" saved as a collection');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.collection-remove'), function(el){
+      el.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var id = el.getAttribute('data-col');
+        var col = state.collections.find(function(c){ return c.id === id; });
+        if(col && !confirm('Remove the "'+(col.name||col.tag)+'" collection? (This only removes the shortcut &mdash; nothing tagged with it is affected.)')) return;
+        state.collections = state.collections.filter(function(c){ return c.id !== id; });
+        persist();
+        renderLibrary();
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.collection-chip'), function(el){
+      el.addEventListener('click', function(){
+        var id = el.getAttribute('data-col');
+        var col = state.collections.find(function(c){ return c.id === id; });
+        if(!col) return;
+        state.search = '';
+        state.tagFilter = col.tag;
+        state.view = 'stream';
+        renderAll();
+      });
+    });
     Array.prototype.forEach.call(document.querySelectorAll('.addbook-spine'), function(el){
       el.addEventListener('click', function(){
         editingBookId = null;
