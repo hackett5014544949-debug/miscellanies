@@ -673,6 +673,7 @@
 
       <h4>Font size</h4>
       <p>The <b>A&minus;</b> / <b>A+</b> buttons near the top control text size for the whole app, including the dictionary popup and the Bible reader &mdash; useful for reading on a phone or just easier eyes.</p>
+      <p>A few keyboard shortcuts work anywhere in the app: press <b>/</b> to jump straight to the search box, <b>n</b> to start a new entry, and <b>Escape</b> to back out of whatever form or modal is open. The moon icon near the guide button switches to a dark theme for reading at night.</p>
 
       <h4>Cross-referencing your own notes</h4>
       <p>The <b>Related entries</b> field when writing a note lets you link it to others you've already written; the entry then shows a "see also" line pointing to them. This works in both directions automatically &mdash; if entry 81 links to entry 123, entry 81 will also show "referenced by &mdash; no. 123," with no extra work on your part.</p>
@@ -5797,6 +5798,36 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       });
     } else {
       connectFolder();
+    }
+  });
+
+  // Global keyboard shortcuts, active in every view. Ignored while typing in any
+  // text field/textarea/contenteditable (except Escape, which should still work to
+  // back out of whatever's open) so single letters like "n" don't hijack normal typing.
+  document.addEventListener('keydown', function(ev){
+    var tag = (ev.target && ev.target.tagName || '').toLowerCase();
+    var typing = tag === 'input' || tag === 'textarea' || tag === 'select' || (ev.target && ev.target.isContentEditable);
+    if(ev.key === 'Escape'){
+      var openForm = document.getElementById('entryForm');
+      var guideM = document.getElementById('guideModal');
+      var bookM = document.getElementById('bookModal');
+      if(openForm && openForm.classList.contains('open')){ closeForm(); return; }
+      if(guideM && guideM.classList.contains('open')){ guideM.classList.remove('open'); return; }
+      if(bookM && bookM.classList.contains('open')){ bookM.classList.remove('open'); return; }
+      return;
+    }
+    if(typing) return;
+    if(ev.key === '/'){
+      var search = document.getElementById('searchInput');
+      if(search){ ev.preventDefault(); search.focus(); search.select(); }
+      return;
+    }
+    if(ev.key === 'n' || ev.key === 'N'){
+      var entryForm = document.getElementById('entryForm');
+      if(entryForm && entryForm.classList.contains('open')) return; // already writing one
+      ev.preventDefault();
+      openNewEntry();
+      return;
     }
   });
 
