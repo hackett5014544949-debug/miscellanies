@@ -691,10 +691,10 @@
       <p>Deleted entries move to a Trash at the bottom of the stream, where you can restore them or delete them forever. An Undo button also appears for a few seconds after each delete.</p>
 
       <h4>The library</h4>
-      <p>The shelf (Advanced &rarr; library) comes stocked with real, full public-domain texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
+      <p>The shelf (Advanced &rarr; library) comes stocked with real, full texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, the Text-Critical English New Testament and the ASV Byzantine Text with Apocrypha, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
 
       <h4>Where the library texts come from</h4>
-      <p>The King James Version, American Standard Version, Scrivener Textus Receptus, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses are long-established English public-domain texts. The Robinson&ndash;Pierpont Greek New Testament is the <b>2018 edition</b> (RP2018) &mdash; specifically release v3.3.2 of the <a href="https://github.com/byztxt/byzantine-majority-text" target="_blank" rel="noopener">byztxt/byzantine-majority-text</a> project, current as of July 2023, which digitizes Dr. Maurice A. Robinson's own text and is dedicated to the public domain (Unlicense). The Strong's numbers and grammatical parsing shown when you tap a Greek word come from that same byztxt project; the English glosses in that popup come from <a href="https://github.com/biblicalhumanities/Dodson-Greek-Lexicon" target="_blank" rel="noopener">Jeffrey Dodson's Greek lexicon</a> (also public domain), compiled from the older public-domain lexicons of Abbott-Smith, Berry, Souter, and Strong. Watson's Bible Dictionary is Richard Watson's own public-domain dictionary.</p>
+      <p>The King James Version, American Standard Version, Scrivener Textus Receptus, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses are long-established English public-domain texts. The Robinson&ndash;Pierpont Greek New Testament is the <b>2018 edition</b> (RP2018) &mdash; specifically release v3.3.2 of the <a href="https://github.com/byztxt/byzantine-majority-text" target="_blank" rel="noopener">byztxt/byzantine-majority-text</a> project, current as of July 2023, which digitizes Dr. Maurice A. Robinson's own text and is dedicated to the public domain (Unlicense). The Strong's numbers and grammatical parsing shown when you tap a Greek word come from that same byztxt project; the English glosses in that popup come from <a href="https://github.com/biblicalhumanities/Dodson-Greek-Lexicon" target="_blank" rel="noopener">Jeffrey Dodson's Greek lexicon</a> (also public domain), compiled from the older public-domain lexicons of Abbott-Smith, Berry, Souter, and Strong. Watson's Bible Dictionary is Richard Watson's own public-domain dictionary. The <b>Text-Critical English New Testament</b> (Byzantine Text Version) is &copy; 2026 Robert Adam Boyd, made available under a <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0</a> license &mdash; used here with attribution, unmodified (unedited, so it keeps its "Text-Critical English New Testament"/"Byzantine Text Version" names, which are trademarks of Robert Adam Boyd). The <b>ASV: Byzantine Text with Apocrypha</b> adapts the public-domain American Standard Version to follow the Byzantine/majority New Testament text and adds the Apocryphal books (drawn from the English Revised Version, Brenton's Septuagint, and Gray's translation, restyled to match the ASV); Adam Boyd's changes were dedicated to the public domain in 2021.</p>
       <p><b>A note on accuracy:</b> all of this &mdash; the Greek text itself, its Strong's numbers, its grammatical parsing, and the Dodson definitions &mdash; is reproduced as-is from those source projects and is only as accurate as they are. None of it has been independently checked against a print edition or critical apparatus by hand. Treat the tap-to-parse feature as a study aid, not a substitute for a scholarly Greek text or lexicon when precision matters.</p>
 
       <h4>Notebooks of your own</h4>
@@ -743,8 +743,19 @@
 
   // 25 classics all Protestants treasure. amzn = affiliate link; free = public-domain copy where one exists.
   function amzn(q){ return 'https://www.amazon.com/s?k='+q+'&tag=bsar07-20'; }
-  var STARTER_BOOKS = [{id:'bk_kjv',title:'King James Version',author:'',status:'',type:'reference'},{id:'bk_asv',title:'American Standard Version',author:'',status:'',type:'reference'},{id:'bk_watson',title:"Watson's Bible Dictionary",author:'Richard Watson',status:'',type:'reference'},{id:'bk_rp',title:'Robinson-Pierpont Greek NT (Byzantine)',author:'',status:'',type:'reference'},{id:'bk_tr',title:'Scrivener Textus Receptus (Greek NT)',author:'',status:'',type:'reference'},{id:'bk_pilgrim',title:"The Pilgrim's Progress",author:'John Bunyan',status:'',type:'reference'},{id:'bk_imitation',title:'The Imitation of Christ',author:'Thomas a Kempis',status:'',type:'reference'},{id:'bk_luther',title:"Luther's 95 Theses",author:'Martin Luther',status:'',type:'reference'}];
+  var STARTER_BOOKS = [{id:'bk_kjv',title:'King James Version',author:'',status:'',type:'reference'},{id:'bk_asv',title:'American Standard Version',author:'',status:'',type:'reference'},{id:'bk_watson',title:"Watson's Bible Dictionary",author:'Richard Watson',status:'',type:'reference'},{id:'bk_rp',title:'Robinson-Pierpont Greek NT (Byzantine)',author:'',status:'',type:'reference'},{id:'bk_tr',title:'Scrivener Textus Receptus (Greek NT)',author:'',status:'',type:'reference'},{id:'bk_tcent',title:'Text-Critical English New Testament (Byzantine)',author:'Robert Adam Boyd',status:'',type:'reference'},{id:'bk_asvbt',title:'ASV: Byzantine Text with Apocrypha',author:'ASV, adapted by Adam Boyd',status:'',type:'reference'},{id:'bk_pilgrim',title:"The Pilgrim's Progress",author:'John Bunyan',status:'',type:'reference'},{id:'bk_imitation',title:'The Imitation of Christ',author:'Thomas a Kempis',status:'',type:'reference'},{id:'bk_luther',title:"Luther's 95 Theses",author:'Martin Luther',status:'',type:'reference'}];
   var SPINE_COLORS = ['#33465C','#5f5644','#6b5a3e','#4a5240','#7a4e3a','#5a3f52','#3f5a52'];
+  // Adds any STARTER_BOOKS not already present (by id) to the front of a notebook's
+  // shelf — covers both a notebook missing the whole built-in library (pre-library
+  // notebook.json) and one that already has some starter books but is simply missing
+  // ones added in a later version of the app (e.g. a newly bundled translation).
+  function backfillStarterBooks(nbk){
+    if(!nbk || !nbk.books) return;
+    var existingIds = {};
+    nbk.books.forEach(function(b){ existingIds[b.id] = true; });
+    var missing = STARTER_BOOKS.filter(function(b){ return !existingIds[b.id]; });
+    if(missing.length) nbk.books = missing.concat(nbk.books);
+  }
 
   var state = {
     mode: 'simple',
@@ -1822,9 +1833,7 @@
         // Backfill the built-in reference library whenever it's missing — whether this
         // notebook previously had old-style placeholder books, or never had any reference
         // books at all (e.g. a notebook.json saved from before the library existed).
-        if(!nbk.books.some(function(b){ return b.id==='bk_kjv'; })){
-          nbk.books = STARTER_BOOKS.concat(nbk.books);
-        }
+        backfillStarterBooks(nbk);
       });
     }catch(e){}
     if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
@@ -2246,9 +2255,7 @@
             // Backfill the built-in reference library whenever it's missing — whether this
             // notebook previously had old-style placeholder books, or never had any reference
             // books at all (e.g. a notebook.json saved from before the library existed).
-            if(!nbk.books.some(function(b){ return b.id==='bk_kjv'; })){
-              nbk.books = STARTER_BOOKS.concat(nbk.books);
-            }
+            backfillStarterBooks(nbk);
           });
         }catch(e){}
         if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
@@ -4009,6 +4016,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     bk_asv:       { file:'asv.json',               kind:'verses' },
     bk_rp:        { file:'robinson_pierpont.json', kind:'verses' },
     bk_tr:        { file:'scrivener_tr.json',      kind:'verses' },
+    bk_tcent:     { file:'tcent.json',             kind:'verses' },
+    bk_asvbt:     { file:'asvbt.json',             kind:'verses' },
     bk_pilgrim:   { file:'pilgrims_progress.json', kind:'paragraphs' },
     bk_imitation: { file:'imitation_of_christ.json', kind:'paragraphs' },
     bk_luther:    { file:'luther_95_theses.json',  kind:'paragraphs' },
@@ -5273,9 +5282,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       var nbk = state.notebooks[id];
       if(!nbk.books) nbk.books = [];
       nbk.books = nbk.books.filter(function(b){ return !/^bk_s\d+$/.test(b.id); });
-      if(!nbk.books.some(function(b){ return b.id==='bk_kjv'; })){
-        nbk.books = STARTER_BOOKS.concat(nbk.books);
-      }
+      backfillStarterBooks(nbk);
     });
     healNextIdAcrossNotebooks();
   }
