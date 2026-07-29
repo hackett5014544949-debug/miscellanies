@@ -3366,6 +3366,20 @@ var watsonDict = null;
       jumpTo(openId);
       return;
     }
+    var verseNumAdd = target.closest('.verse-num-add');
+    if(verseNumAdd){
+      e.preventDefault();
+      var vnBook = verseNumAdd.getAttribute('data-book');
+      var vnChapter = verseNumAdd.getAttribute('data-chapter');
+      var vnVerse = verseNumAdd.getAttribute('data-verse');
+      hideWordPopup();
+      presetRef = vnBook + ' ' + vnChapter + ':' + vnVerse;
+      state.mode = 'advanced';
+      state.view = 'stream';
+      renderAll();
+      setTimeout(function(){ openNewEntry(); }, 20);
+      return;
+    }
     var tcentFnMark = target.closest('.tcent-fn-mark');
     if(tcentFnMark){
       e.preventDefault();
