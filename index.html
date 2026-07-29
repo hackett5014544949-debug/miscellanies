@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Digging Deep: Notetaker Deluxe — Inspired by Jonathan Edwards</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7A2E2A">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -751,6 +754,7 @@
     search: '',
     tagFilter: '',
     collections: [], // saved tag filters that act like a virtual shelf (see renderLibrary)
+    lastOnThisDayDismiss: '', // date string (YYYY-M-D) — hides the "looking back" panel for the rest of that day
     settings: { tutorialUrl:'', channelUrl:'', studyBibleUrl:'https://www.amazon.com/dp/1400339537?tag=bsar07-20', membershipUrl:'https://www.youtube.com/channel/UCK13I_he8MsAidC9eDsfT3A/join', dataLink:'', hostedViewerBase:'https://hackett5014544949-debug.github.io/miscellanies/viewer.html' },
     notebooks: {
       default: {
@@ -1626,6 +1630,38 @@
     });
     return out;
   }
+  function todayDateString(){
+    var d = new Date();
+    return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  }
+  // Surfaces an old entry in the stream — either one written on this same calendar
+  // day in a past year (a real "on this day"), or, failing that, a stable pick from
+  // entries older than 30 days (stable per-day via a date-derived seed, so it doesn't
+  // reshuffle on every re-render, only once a day).
+  function pickOnThisDayEntry(entries){
+    if(!entries || !entries.length) return null;
+    var today = new Date();
+    var todayKey = today.getMonth()+'-'+today.getDate();
+    var sameDay = entries.filter(function(e){
+      if(!e.created) return false;
+      var d = new Date(e.created);
+      if(isNaN(d.getTime())) return false;
+      return (d.getMonth()+'-'+d.getDate())===todayKey && d.getFullYear()!==today.getFullYear();
+    });
+    if(sameDay.length){
+      sameDay.sort(function(a,b){ return new Date(a.created)-new Date(b.created); });
+      return sameDay[0];
+    }
+    var cutoff = new Date(today.getTime() - 30*24*60*60*1000);
+    var old = entries.filter(function(e){
+      var d = new Date(e.created);
+      return !isNaN(d.getTime()) && d < cutoff;
+    });
+    if(!old.length) return null;
+    var seed = today.getFullYear()*372 + today.getMonth()*31 + today.getDate();
+    old.sort(function(a,b){ return a.id - b.id; });
+    return old[seed % old.length];
+  }
   function findEntryAnywhere(id){
     var found = null;
     Object.keys(state.notebooks||{}).some(function(nid){
@@ -2409,7 +2445,8 @@
         {v:'stream', label:'stream'},
         {v:'inbox', label:'inbox' + (inboxCount ? ' ('+inboxCount+')' : '')},
         {v:'library', label:'library'},
-        {v:'index', label:'index'}
+        {v:'index', label:'index'},
+        {v:'stats', label:'stats'}
       ];
       vt.innerHTML = buttons.map(function(b){
         return '<button data-view="'+b.v+'"'+(state.view===b.v?' class="active"':'')+'>'+b.label+'</button>';
@@ -2445,6 +2482,24 @@
     visible.sort(function(a,b){ return b.id - a.id; });
 
     var html = '';
+    var otdEntry = (state.lastOnThisDayDismiss !== todayDateString()) ? pickOnThisDayEntry(entries) : null;
+    if(otdEntry){
+      var otdIsAnniversary = (function(){
+        var d = new Date(otdEntry.created);
+        var today = new Date();
+        return !isNaN(d.getTime()) && d.getMonth()===today.getMonth() && d.getDate()===today.getDate();
+      })();
+      html += '<div style="background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; margin-bottom:18px; box-shadow:var(--shadow);">' +
+        '<div style="display:flex; justify-content:space-between; align-items:baseline;">' +
+          '<div style="font-family:\'JetBrains Mono\', monospace; font-size:11px; letter-spacing:.03em; color:var(--ink-faint); text-transform:uppercase;">'+(otdIsAnniversary?'On this day':'Looking back')+'</div>' +
+          '<a data-otd-dismiss="1" style="cursor:pointer; font-size:12px; color:var(--ink-faint); text-decoration:underline;">dismiss</a>' +
+        '</div>' +
+        '<div style="margin-top:6px; cursor:pointer;" data-otd-jump="'+otdEntry.id+'">' +
+          '<strong>no. '+formatEntryNum(otdEntry.id)+' &mdash; '+escapeHtml(otdEntry.title||'untitled')+'</strong>' +
+          '<div style="font-size:13px; color:var(--ink-soft); margin-top:2px;">'+new Date(otdEntry.created).toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'})+(otdEntry.ref?' &middot; '+escapeHtml(otdEntry.ref):'')+'</div>' +
+        '</div>' +
+      '</div>';
+    }
     if(state.mode==='simple'){
           var qItems = nb().inbox.slice().sort(function(a,b){ return b.created.localeCompare(a.created); });
           html += '<div class="form open" style="margin-bottom:22px;">';
@@ -2615,6 +2670,20 @@
   var lastFocusedField = 'f-related';
 
   function wireStream(){
+        var otdDismissBtn = document.querySelector('[data-otd-dismiss]');
+        if(otdDismissBtn){
+              otdDismissBtn.addEventListener('click', function(e){
+                    e.stopPropagation();
+                    state.lastOnThisDayDismiss = todayDateString();
+                    persist(); renderStream();
+              });
+        }
+        var otdJump = document.querySelector('[data-otd-jump]');
+        if(otdJump){
+              otdJump.addEventListener('click', function(){
+                    jumpTo(Number(otdJump.getAttribute('data-otd-jump')));
+              });
+        }
         var quickSaveBtn = document.getElementById('quickSaveBtn');
         if(quickSaveBtn){
               quickSaveBtn.addEventListener('click', function(){
@@ -3734,6 +3803,64 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     Array.prototype.forEach.call(document.querySelectorAll('[data-jump]'), function(el){
       el.addEventListener('click', function(){ jumpTo(Number(el.getAttribute('data-jump'))); });
     });
+  }
+
+  /* ---------- STATS VIEW ---------- */
+  // A quiet dashboard over your own writing — no chart library, just plain CSS bars,
+  // so it stays offline-friendly like everything else in this single-file app.
+  function statBarRows(pairs, colorVar){
+    if(!pairs.length) return '<div class="empty">Nothing to show yet.</div>';
+    var max = pairs.reduce(function(m,p){ return Math.max(m,p[1]); }, 1);
+    return pairs.map(function(p){
+      var pct = Math.max(4, Math.round((p[1]/max)*100));
+      return '<div style="display:flex; align-items:center; gap:10px; margin:7px 0;">' +
+        '<div style="width:150px; flex-shrink:0; font-size:13.5px; color:var(--ink-soft); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+escapeHtml(p[0])+'</div>' +
+        '<div style="flex:1; background:var(--paper-2); border-radius:4px; overflow:hidden; height:16px;">' +
+          '<div style="width:'+pct+'%; height:100%; background:'+colorVar+'; border-radius:4px;"></div>' +
+        '</div>' +
+        '<div style="width:34px; flex-shrink:0; font-family:\'JetBrains Mono\', monospace; font-size:12px; color:var(--ink-faint);">'+p[1]+'</div>' +
+      '</div>';
+    }).join('');
+  }
+  function renderStats(){
+    var entries = isMasterNotebook() ? allEntriesFlat() : nb().entries;
+    var html = '<div class="indexbox">';
+    html += '<div class="shelf-head"><div class="t">Statistics</div><div class="s">a quiet look back over what you\'ve written &mdash; '+entries.length+' entries in all</div></div>';
+
+    var byTag = {};
+    entries.forEach(function(e){ (e.tags||[]).forEach(function(t){ byTag[t] = (byTag[t]||0)+1; }); });
+    var tagPairs = Object.keys(byTag).map(function(t){ return [t, byTag[t]]; }).sort(function(a,b){ return b[1]-a[1]; }).slice(0, 12);
+
+    var byBook = {};
+    entries.forEach(function(e){
+      var seen = {};
+      bookKeysForRef(e.ref).forEach(function(slug){
+        if(!slug || seen[slug]) return;
+        seen[slug] = true;
+        byBook[slug] = (byBook[slug]||0)+1;
+      });
+    });
+    var bookPairs = Object.keys(byBook).map(function(s){ return [prettifySlug(s), byBook[s]]; }).sort(function(a,b){ return b[1]-a[1]; }).slice(0, 12);
+
+    var byMonth = {};
+    entries.forEach(function(e){
+      var d = new Date(e.created);
+      if(isNaN(d.getTime())) return;
+      var key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      byMonth[key] = (byMonth[key]||0)+1;
+    });
+    var monthKeys = Object.keys(byMonth).sort();
+    var MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var monthPairs = monthKeys.slice(-12).map(function(k){
+      var parts = k.split('-');
+      return [MONTH_NAMES[Number(parts[1])-1]+' '+parts[0], byMonth[k]];
+    });
+
+    html += '<div class="index-group"><h3>Most-used topics</h3>' + statBarRows(tagPairs, 'var(--brass)') + '</div>';
+    html += '<div class="index-group"><h3>Most-referenced scripture books</h3>' + statBarRows(bookPairs, 'var(--blue)') + '</div>';
+    html += '<div class="index-group"><h3>Entries written, by month (last 12)</h3>' + statBarRows(monthPairs, 'var(--rubric)') + '</div>';
+    html += '</div>';
+    document.getElementById('app').innerHTML = html;
   }
 
   /* ---------- LIBRARY VIEW ---------- */
@@ -4908,6 +5035,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     else if(state.view==='library') renderLibrary();
     else if(state.view==='book') renderOpenBook();
     else if(state.view==='index') renderIndex();
+    else if(state.view==='stats') renderStats();
     wireModals();
     ensureWatsonDict(function(){ highlightDictWords(); });
     applyFontScale();
@@ -5214,6 +5342,15 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   renderFolderBtn();
   if(IS_PHONE){ initPhoneMode(); } else { restoreFolder(); }
 })();
+</script>
+<script>
+  // Registered outside the app's own IIFE since it's independent of app state —
+  // makes the app installable and keeps a cached copy working offline.
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){ /* fine on file:// or older browsers */ });
+    });
+  }
 </script>
 </body>
 </html>
