@@ -697,7 +697,7 @@
       <p>The shelf (Advanced &rarr; library) comes stocked with real, full texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, the Text-Critical English New Testament and the ASV Byzantine Text with Apocrypha, the Westminster Leningrad Codex Hebrew Old Testament, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
 
       <h4>Where the library texts come from</h4>
-      <p>The King James Version, American Standard Version, Scrivener Textus Receptus, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses are long-established English public-domain texts. The Robinson&ndash;Pierpont Greek New Testament is the <b>2018 edition</b> (RP2018) &mdash; specifically release v3.3.2 of the <a href="https://github.com/byztxt/byzantine-majority-text" target="_blank" rel="noopener">byztxt/byzantine-majority-text</a> project, current as of July 2023, which digitizes Dr. Maurice A. Robinson's own text and is dedicated to the public domain (Unlicense). The Strong's numbers and grammatical parsing shown when you tap a Greek word come from that same byztxt project; the English glosses in that popup come from <a href="https://github.com/biblicalhumanities/Dodson-Greek-Lexicon" target="_blank" rel="noopener">Jeffrey Dodson's Greek lexicon</a> (also public domain), compiled from the older public-domain lexicons of Abbott-Smith, Berry, Souter, and Strong. Watson's Bible Dictionary is Richard Watson's own public-domain dictionary. The <b>Text-Critical English New Testament</b> (Byzantine Text Version) is &copy; 2026 Robert Adam Boyd, made available under a <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0</a> license &mdash; used here with attribution, unmodified (unedited, so it keeps its "Text-Critical English New Testament"/"Byzantine Text Version" names, which are trademarks of Robert Adam Boyd). The <b>ASV: Byzantine Text with Apocrypha</b> adapts the public-domain American Standard Version to follow the Byzantine/majority New Testament text and adds the Apocryphal books (drawn from the English Revised Version, Brenton's Septuagint, and Gray's translation, restyled to match the ASV); Adam Boyd's changes were dedicated to the public domain in 2021. The <b>Westminster Leningrad Codex</b> (WLC) is a digital edition of the Leningrad Codex, the oldest complete Masoretic manuscript of the Hebrew Bible, and its text is in the public domain. The Strong's numbers and grammatical parsing shown when you tap a Hebrew word come from the <a href="https://github.com/openscriptures/morphhb" target="_blank" rel="noopener">Open Scriptures Hebrew Bible</a> project's markup of the WLC (CC BY 4.0, credited to the Open Scriptures Hebrew Bible Project); the English glosses in that popup come from the Strong's Hebrew Dictionary as published in the <a href="https://github.com/openscriptures/HebrewLexicon" target="_blank" rel="noopener">Open Scriptures Hebrew Lexicon</a> (public domain base text, CC BY 4.0 corrections/markup).</p>
+      <p>The King James Version, American Standard Version, Scrivener Textus Receptus, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses are long-established English public-domain texts. The Robinson&ndash;Pierpont Greek New Testament is the <b>2018 edition</b> (RP2018) &mdash; specifically release v3.3.2 of the <a href="https://github.com/byztxt/byzantine-majority-text" target="_blank" rel="noopener">byztxt/byzantine-majority-text</a> project, current as of July 2023, which digitizes Dr. Maurice A. Robinson's own text and is dedicated to the public domain (Unlicense). The Strong's numbers and grammatical parsing shown when you tap a Greek word come from that same byztxt project; the English glosses in that popup come from <a href="https://github.com/biblicalhumanities/Dodson-Greek-Lexicon" target="_blank" rel="noopener">Jeffrey Dodson's Greek lexicon</a> (also public domain), compiled from the older public-domain lexicons of Abbott-Smith, Berry, Souter, and Strong. Watson's Bible Dictionary is Richard Watson's own public-domain dictionary. The <b>Text-Critical English New Testament</b> (Byzantine Text Version) is &copy; 2026 Robert Adam Boyd, made available under a <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0</a> license &mdash; used here with attribution, including its full set of text-critical footnotes (tap the &dagger; mark after a word to read one), which are a core part of what makes this edition distinctive (unedited, so it keeps its "Text-Critical English New Testament"/"Byzantine Text Version" names, which are trademarks of Robert Adam Boyd). The <b>ASV: Byzantine Text with Apocrypha</b> adapts the public-domain American Standard Version to follow the Byzantine/majority New Testament text and adds the Apocryphal books (drawn from the English Revised Version, Brenton's Septuagint, and Gray's translation, restyled to match the ASV); Adam Boyd's changes were dedicated to the public domain in 2021. The <b>Westminster Leningrad Codex</b> (WLC) is a digital edition of the Leningrad Codex, the oldest complete Masoretic manuscript of the Hebrew Bible, and its text is in the public domain. The Strong's numbers and grammatical parsing shown when you tap a Hebrew word come from the <a href="https://github.com/openscriptures/morphhb" target="_blank" rel="noopener">Open Scriptures Hebrew Bible</a> project's markup of the WLC (CC BY 4.0, credited to the Open Scriptures Hebrew Bible Project); the English glosses in that popup come from the Strong's Hebrew Dictionary as published in the <a href="https://github.com/openscriptures/HebrewLexicon" target="_blank" rel="noopener">Open Scriptures Hebrew Lexicon</a> (public domain base text, CC BY 4.0 corrections/markup).</p>
       <p><b>A note on accuracy:</b> all of this &mdash; the Greek text itself, its Strong's numbers, its grammatical parsing, and the Dodson definitions &mdash; is reproduced as-is from those source projects and is only as accurate as they are. None of it has been independently checked against a print edition or critical apparatus by hand. Treat the tap-to-parse feature as a study aid, not a substitute for a scholarly Greek text or lexicon when precision matters.</p>
 
       <h4>Notebooks of your own</h4>
@@ -2961,6 +2961,43 @@ var watsonDict = null;
     if(hebrewLexiconDict){ setTimeout(cb, 0); return; }
     fetch('hebrew_lexicon.json?v=1').then(function(r){ return r.json(); }).then(function(d){ hebrewLexiconDict = d; cb(); }).catch(function(){ flash('Hebrew lexicon unavailable (offline?)'); });
   }
+  // Adam Boyd's TCENT text-critical footnotes (CC BY 4.0): {book: {chapter: {verse: [{ref, quote, note}, ...]}}}.
+  // Verse text stores each footnote's anchor point inline as \u2020N\u2060 (dagger + 1-based
+  // index + word-joiner), right where the original \f...\f* span sat in the USFM source.
+  var tcentNotesData = null;
+  function ensureTcentNotes(cb){
+    if(tcentNotesData){ setTimeout(cb, 0); return; }
+    fetch('tcent_notes.json?v=1').then(function(r){ return r.json(); }).then(function(d){ tcentNotesData = d; cb(); }).catch(function(){ cb(); });
+  }
+  var TCENT_FN_MARK_RE = /\u2020(\d+)\u2060/g;
+  function renderTcentVerseText(text, footnotes){
+    if(!text) return '';
+    if(text.indexOf('\u2020') === -1) return escapeHtml(text);
+    var out = '';
+    var lastIndex = 0;
+    var m;
+    TCENT_FN_MARK_RE.lastIndex = 0;
+    while((m = TCENT_FN_MARK_RE.exec(text))){
+      out += escapeHtml(text.slice(lastIndex, m.index));
+      var fnIdx = parseInt(m[1], 10) - 1;
+      out += '<sup class="tcent-fn-mark" data-fnidx="'+fnIdx+'" title="Text-critical note &mdash; click to read">&dagger;</sup>';
+      lastIndex = TCENT_FN_MARK_RE.lastIndex;
+    }
+    out += escapeHtml(text.slice(lastIndex));
+    return out;
+  }
+  function renderTcentFootnotePopup(fn){
+    if(!fn) return '';
+    var html = '<div class="word-popup-inner">';
+    html += '<div style="font-family:\'JetBrains Mono\', monospace; font-size:11px; color:var(--ink-faint); margin-bottom:4px;">'+escapeHtml(fn.ref||'')+' &mdash; text-critical note</div>';
+    if(fn.quote){
+      html += '<div style="font-weight:600; margin-bottom:4px;">&ldquo;'+escapeHtml(fn.quote)+'&rdquo;</div>';
+    }
+    html += '<div style="font-size:14px;">'+escapeHtml(fn.note||'')+'</div>';
+    html += '<div style="font-size:11px; color:var(--ink-faint); margin-top:8px;">From the Text-Critical English New Testament, &copy; Robert Adam Boyd (CC BY 4.0)</div>';
+    html += '</div>';
+    return html;
+  }
   // Strip the same leading/trailing punctuation set used to build rp_strongs.json, so word
   // boundaries here line up exactly with the word order the numbers were aligned against.
   var GRK_PUNCT_RE = /^[\u00b7,.;:!?\u2019\u2018"\u00ab\u00bb()\[\]]+|[\u00b7,.;:!?\u2019\u2018"\u00ab\u00bb()\[\]]+$/g;
@@ -3323,6 +3360,18 @@ var watsonDict = null;
       var openId = Number(target.closest('.verse-note-open').getAttribute('data-open-entry'));
       hideWordPopup();
       jumpTo(openId);
+      return;
+    }
+    var tcentFnMark = target.closest('.tcent-fn-mark');
+    if(tcentFnMark){
+      e.preventDefault();
+      var fnIdx = Number(tcentFnMark.getAttribute('data-fnidx'));
+      var rsT = readerStateFor(state.openBookId);
+      var verseRowEl = tcentFnMark.closest('.verse-row');
+      var vNum = verseRowEl ? verseRowEl.id.replace('verseRow-','') : null;
+      var fnList = tcentNotesData && rsT && tcentNotesData[rsT.book] && tcentNotesData[rsT.book][rsT.chapter] && tcentNotesData[rsT.book][rsT.chapter][vNum];
+      var fn = fnList && fnList[fnIdx];
+      showWordPopup(renderTcentFootnotePopup(fn), e.clientX, e.clientY);
       return;
     }
     if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); repositionWordPopup(); } return; }
@@ -4610,11 +4659,15 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     var isGreekNt = (src.file === 'robinson_pierpont.json' || src.file === 'scrivener_tr.json');
     var hasStrongs = (src.file === 'robinson_pierpont.json');
     var isHebrewOt = (src.file === 'hebrew_wlc.json');
+    var isTcent = (src.file === 'tcent.json');
     if(hasStrongs && !rpStrongsData){
       ensureRpStrongs(function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); });
     }
     if(isHebrewOt && !hebrewStrongsData){
       ensureHebrewStrongs(function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); });
+    }
+    if(isTcent && !tcentNotesData){
+      ensureTcentNotes(function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); });
     }
     var bookNames = isGreekNt ? ntBookOrderNames().filter(function(n){ return data[n]; }) : Object.keys(data);
     if(!rs.book || !data[rs.book]) rs.book = bookNames[0];
@@ -4693,7 +4746,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       }
       var vEntries = (hasStrongs && rpStrongsData && rpStrongsData[rs.book] && rpStrongsData[rs.book][rs.chapter]) ? rpStrongsData[rs.book][rs.chapter][v] : null;
       var hebEntries = (isHebrewOt && hebrewStrongsData && hebrewStrongsData[rs.book] && hebrewStrongsData[rs.book][rs.chapter]) ? hebrewStrongsData[rs.book][rs.chapter][v] : null;
-      var verseHtml = vEntries ? renderGreekVerseWords(chapterData[v], vEntries) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : escapeHtml(chapterData[v]));
+      var verseHtml = vEntries ? renderGreekVerseWords(chapterData[v], vEntries) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v])));
       return '<span id="verseRow-'+v+'" class="verse-row">' +
         '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+marks+verseHtml+' </span>';
     }).join('');
