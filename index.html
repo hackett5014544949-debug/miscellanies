@@ -627,7 +627,7 @@
     <div id="guideTabQuick" class="guidetab-panel">
       <p>In the spirit of Jonathan Edwards' Miscellanies: every entry gets a permanent number, and entries refer to one another as your thought develops over the years. Nothing here is ever sent to any server &mdash; your notes are yours alone. Here's the fastest way to get going:</p>
       <ol>
-        <li><b>Pick a mode.</b> "Simple," up top, is just the numbered stream &mdash; write, search, cross-reference. "Advanced" adds the library, multiple notebooks, backups, and a few power tools. Switch anytime.</li>
+        <li><b>Pick a mode.</b> "Simple," up top, is just the numbered stream &mdash; write, search, cross-reference. "Advanced" adds the library, backups, and a few power tools. Switch anytime.</li>
         <li><b>Write your first note.</b> Click <b>New entry</b> &mdash; give it a title, a scripture reference if it has one, a topic or two, and the note itself. Save it.</li>
         <li><b>In a hurry?</b> Use Quick Capture (Simple mode) or the inbox (Advanced mode) to jot a thought fast, with no fields required &mdash; promote it into a full entry whenever you're ready.</li>
         <li><b>Read scripture without leaving your notes.</b> Tap a reference badge on any entry to open that passage inline; switch translations with the buttons above it.</li>
@@ -641,7 +641,7 @@
 
     <div id="guideTabFull" class="guidetab-panel" style="display:none;">
       <h4>Simple &amp; advanced</h4>
-      <p><b>Simple</b> is just the numbered stream: write, search, cross-reference. <b>Advanced</b> adds the idea inbox, the library shelf, multiple notebooks, backups, folder storage, and a few power tools.</p>
+      <p><b>Simple</b> is just the numbered stream: write, search, cross-reference. <b>Advanced</b> adds the idea inbox, the library shelf, backups, folder storage, and a few power tools.</p>
 
       <h4>Quick capture and the inbox</h4>
       <p>Don't want to fill out the whole entry form right now? Simple mode has a <b>Quick Capture</b> box right at the top; Advanced mode has the same thing under <b>inbox</b>. Either way, jot the thought and save it &mdash; it sits there until you <b>promote</b> it into a full, numbered entry, or delete it if it didn't pan out.</p>
@@ -694,8 +694,8 @@
       <p>The King James Version, American Standard Version, Scrivener Textus Receptus, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses are long-established English public-domain texts. The Robinson&ndash;Pierpont Greek New Testament is the <b>2018 edition</b> (RP2018) &mdash; specifically release v3.3.2 of the <a href="https://github.com/byztxt/byzantine-majority-text" target="_blank" rel="noopener">byztxt/byzantine-majority-text</a> project, current as of July 2023, which digitizes Dr. Maurice A. Robinson's own text and is dedicated to the public domain (Unlicense). The Strong's numbers and grammatical parsing shown when you tap a Greek word come from that same byztxt project; the English glosses in that popup come from <a href="https://github.com/biblicalhumanities/Dodson-Greek-Lexicon" target="_blank" rel="noopener">Jeffrey Dodson's Greek lexicon</a> (also public domain), compiled from the older public-domain lexicons of Abbott-Smith, Berry, Souter, and Strong. Watson's Bible Dictionary is Richard Watson's own public-domain dictionary.</p>
       <p><b>A note on accuracy:</b> all of this &mdash; the Greek text itself, its Strong's numbers, its grammatical parsing, and the Dodson definitions &mdash; is reproduced as-is from those source projects and is only as accurate as they are. None of it has been independently checked against a print edition or critical apparatus by hand. Treat the tap-to-parse feature as a study aid, not a substitute for a scholarly Greek text or lexicon when precision matters.</p>
 
-      <h4>Multiple notebooks</h4>
-      <p>The notebook tabs near the top let you keep entirely separate notebooks &mdash; say, one for personal study and one for a class you teach. Each keeps its own entries and its own library shelf, but by default they all share <b>one running number sequence</b>: if your last entry anywhere was no. 147, the next new entry in any notebook becomes no. 148, exactly like adding a new book to your shelf never restarts your numbering.</p>
+      <h4>Notebooks of your own</h4>
+      <p>A "notebook" &mdash; say, a sermon notebook alongside your personal study &mdash; is just another item on the shelf: add one from the library with the <b>+</b> spine and set its type to "Notebook" instead of "Book." Opening it shows a stream of just its own entries, with its own "+ add note" button, exactly like opening any other book &mdash; the difference is that it&rsquo;s something you&rsquo;re writing rather than reading. There is one shared library and one shared numbering sequence for everything: if your last entry anywhere was no. 147, the next new entry &mdash; in your personal study or in a notebook &mdash; becomes no. 148, exactly like adding a new book to the shelf never restarts the numbering.</p>
 
       <h4>The index</h4>
       <p>Edwards kept a running index to find his own Miscellanies later &mdash; this notebook keeps one automatically. Advanced &rarr; <b>index</b> shows every entry grouped by topic tag, and every entry grouped by scripture book in canonical order.</p>
@@ -719,7 +719,7 @@
         <li>A complete Bible dictionary (Watson's) with tap-to-define on any scripture text, and its own searchable A&ndash;Z reader with an alphabet quick-jump.</li>
         <li>Verse-level note markers &mdash; while reading the Bible itself, see exactly which verses you've already written notes about, and read those notes without leaving the page.</li>
         <li>Two-way cross-references &mdash; link one note to another and the connection shows up automatically in both directions, no extra work.</li>
-        <li>Multiple notebooks, for keeping entirely separate projects in one app.</li>
+        <li>Notebooks of your own (sermon notes, a class, a journal) living right on the shelf alongside everything you read.</li>
         <li>A running index and full-text search across every note, reference, topic, and book you've ever written.</li>
         <li>Adjustable font size across the entire app, including popups and the Bible reader.</li>
         <li>Real file storage on your own computer, with automatic rolling backups kept quietly in the background as a safety net.</li>
@@ -1649,6 +1649,86 @@
     setNextIdEverywhere(m);
   }
 
+  // Notebook redesign (item 3): notebooks used to be a second, separate library —
+  // their own entries array AND their own shelf of books, invisible from the main
+  // Miscellanies library. This collapses that down to one shared library and one
+  // shared stream: every non-default notebook becomes a single "notebook"-type book
+  // on the shared shelf instead of a whole parallel copy of the app, and its entries
+  // move into the shared entries array (kept grouped by pointing their bookId at that
+  // new shelf entry, unless they already pointed at a real book — that link is left
+  // alone). Runs once per browser profile, guarded by a flag on state; safe to run
+  // again if that flag is ever lost, since merging is done by id rather than blindly
+  // appending. A full pre-migration snapshot of state.notebooks is written to
+  // localStorage (and, if a folder is connected, to a timestamped file in it too)
+  // before anything is touched.
+  // Not a hard "run once ever" gate — a later folder merge could in principle
+  // reintroduce a non-default notebook from an old snapshot, so this always folds
+  // in whatever non-default notebooks currently exist. The flag only controls
+  // whether a fresh backup snapshot gets taken (so normal loads with nothing left
+  // to migrate don't write one every single time).
+  var NOTEBOOK_UNIFY_FLAG = '_notebooksUnifiedV1';
+  function unifyNotebooksIntoLibrary(){
+    var ids = Object.keys(state.notebooks || {});
+    if(!state.notebooks['default']){
+      var firstId = ids[0];
+      if(firstId){
+        state.notebooks['default'] = state.notebooks[firstId];
+        if(firstId !== 'default') delete state.notebooks[firstId];
+      } else {
+        state.notebooks['default'] = { id:'default', name:'Miscellanies', nextId:1, entries:[], books:STARTER_BOOKS.slice(), inbox:[], trash:[] };
+      }
+    }
+    var nonDefaultIds = Object.keys(state.notebooks).filter(function(id){ return id !== 'default'; });
+    if(!nonDefaultIds.length){ state[NOTEBOOK_UNIFY_FLAG] = true; return; }
+
+    try{
+      localStorage.setItem('miscellanies-pre-notebook-unify-backup-'+Date.now(), JSON.stringify({ savedAt:new Date().toISOString(), notebooks: state.notebooks }));
+    }catch(e){}
+    if(typeof dirHandle !== 'undefined' && dirHandle){
+      try{
+        var stamp = new Date().toISOString().replace(/[:.]/g,'-');
+        dirHandle.getFileHandle('notebook-pre-unify-backup-'+stamp+'.json', {create:true}).then(function(fh){
+          return fh.createWritable().then(function(w){
+            return w.write(JSON.stringify({ notebooks: state.notebooks }, null, 2)).then(function(){ return w.close(); });
+          });
+        }).catch(function(){});
+      }catch(e){}
+    }
+
+    var def = state.notebooks['default'];
+    def.books = def.books || [];
+    def.entries = def.entries || [];
+    def.inbox = def.inbox || [];
+    def.trash = def.trash || [];
+
+    nonDefaultIds.forEach(function(nbId){
+      var old = state.notebooks[nbId];
+      if(!old) return;
+
+      (old.books || []).forEach(function(b){
+        if(!def.books.some(function(x){ return x.id === b.id; })) def.books.push(b);
+      });
+
+      var nbBookId = 'bk_nb_' + nbId.replace(/[^a-zA-Z0-9_]/g, '');
+      if(!def.books.some(function(b){ return b.id === nbBookId; })){
+        def.books.push({ id: nbBookId, title: old.name || 'Notebook', author:'', status:'', type:'notebook' });
+      }
+
+      (old.entries || []).forEach(function(e){
+        if(!e.bookId) e.bookId = nbBookId;
+        def.entries.push(e);
+      });
+
+      (old.inbox || []).forEach(function(i){ def.inbox.push(i); });
+      (old.trash || []).forEach(function(t){ def.trash.push(t); });
+
+      delete state.notebooks[nbId];
+    });
+
+    state.activeNotebookId = 'default';
+    state[NOTEBOOK_UNIFY_FLAG] = true;
+  }
+
   function linkify(text, entryId){
     var escaped = escapeHtml(text);
     var urlPattern = /((https?:\/\/|www\.)[^\s<]+)/gi;
@@ -1723,6 +1803,7 @@
       migratePhotos(state.notebooks[id].entries);
       fillEmptyRefs(state.notebooks[id].entries);
     });
+    unifyNotebooksIntoLibrary();
     healNextIdAcrossNotebooks();
   }
 
@@ -1960,6 +2041,9 @@
       migratePhotos(s.entries);
       fillEmptyRefs(s.entries);
     });
+    // A stale disk snapshot from before the notebook redesign could reintroduce a
+    // non-default notebook here — fold it straight back into the shared library.
+    unifyNotebooksIntoLibrary();
   }
   function resolvePhotoMarkers(){
     var jobs = [];
@@ -2139,6 +2223,7 @@
           if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
           if(!state.notebooks[id].trash) state.notebooks[id].trash = [];
         });
+        unifyNotebooksIntoLibrary();
         healNextIdAcrossNotebooks();
       });
     });
@@ -2341,17 +2426,12 @@
     var sinEl = document.getElementById('saveImportantNote');
     if(sinEl) sinEl.style.display = (state.mode==='advanced' && !IS_PHONE) ? 'block' : 'none';
 
+    // Notebooks are no longer a separate tab/library (see the notebook redesign) —
+    // a "notebook" is just a book of type "notebook" on the one shared shelf now, so
+    // this bar has nothing left to show and stays hidden. Left in place (rather than
+    // removed) since #notebookTabs is still referenced elsewhere in the DOM.
     var nbTabs = document.getElementById('notebookTabs');
-    if(state.mode==='advanced'){
-      nbTabs.style.display='flex';
-      var ids = Object.keys(state.notebooks);
-      nbTabs.innerHTML = ids.map(function(id){
-        var n = state.notebooks[id];
-        return '<div class="nbtab'+(id===state.activeNotebookId?' active':'')+'" data-nb="'+id+'">'+escapeHtml(n.name)+'</div>';
-      }).join('') + '<div class="nbtab addnb" id="addNbBtn">+ notebook</div>';
-    } else {
-      nbTabs.style.display='none';
-    }
+    if(nbTabs) nbTabs.style.display='none';
   }
 
   /* ---------- STREAM VIEW ---------- */
