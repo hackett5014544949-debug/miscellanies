@@ -2567,7 +2567,7 @@
     '</div>' +
     '<div class="field"><label>Entry <button type="button" class="btn small ghost" id="refPickerBodyBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert reference &hellip;</button></label><textarea id="f-body" placeholder="Write the reflection itself"></textarea></div>' +
     '<div class="field"><label>Photos (optional)</label><input type="file" id="f-photo" accept="image/*" multiple capture="environment"><div class="hint" id="photoHint"></div><div id="pendingPhotosPreview" class="photo-gallery" style="margin-top:6px;"></div><div class="hint">Photos stay only on this computer copy. Anything exported for your phone or the viewer leaves photos out automatically.</div></div>' +
-    '<div class="field"><label>Related entries <button type="button" class="btn small ghost" id="refPickerBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert &hellip;</button></label><input type="text" id="f-related" placeholder="entry numbers, comma separated"></div>' +
+    '<div class="field"><label>Related entries <button type="button" class="btn small ghost" id="refPickerBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert &hellip;</button></label><input type="text" id="f-related" placeholder="entry numbers, comma separated"><div id="relatedSuggestions" style="margin-top:6px;"></div></div>' +
     (state.mode==='advanced' ? (
       '<div class="advonly">' +
         '<div class="advlabel">advanced</div>' +
@@ -2708,6 +2708,9 @@
         el.addEventListener('focus', function(){ lastFocusedField = fid; });
       }
       el.addEventListener('input', scheduleDraftSave);
+      if(fid === 'f-ref' || fid === 'f-tags'){
+        el.addEventListener('input', renderRelatedSuggestions);
+      }
     });
     var focusModeBtn = document.getElementById('focusModeBtn');
     if(focusModeBtn) focusModeBtn.addEventListener('click', function(){
@@ -3390,6 +3393,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     document.getElementById('entryForm').scrollIntoView({behavior:'smooth', block:'start'});
     document.getElementById('f-title').focus();
     maybeRestoreDraft();
+    renderRelatedSuggestions();
   }
 
   function openEditEntry(id){
@@ -3419,6 +3423,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     }
     document.getElementById('entryForm').scrollIntoView({behavior:'smooth', block:'start'});
     maybeRestoreDraft();
+    renderRelatedSuggestions();
   }
 
   function closeForm(){
@@ -3428,6 +3433,75 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   }
 
   function parseList(str){ return (str||'').split(',').map(function(s){return s.trim();}).filter(Boolean); }
+
+  // Cross-reference suggestions: while composing or editing an entry, surface other
+  // existing entries that share a topic tag or point into the same scripture chapter,
+  // so linking them is a click instead of having to remember and type a "no." by hand.
+  // Purely additive to the existing manual "insert…" related-entry picker — this is a
+  // second, automatic source of candidates layered on top of it, not a replacement.
+  var RELATED_SUGGESTIONS_CAP = 8;
+  function computeRelatedSuggestions(){
+    var tagsEl = document.getElementById('f-tags');
+    var refEl = document.getElementById('f-ref');
+    var relatedEl = document.getElementById('f-related');
+    if(!tagsEl || !refEl || !relatedEl) return [];
+    var typedTags = parseList(tagsEl.value).map(function(t){ return t.toLowerCase(); });
+    var refChapterKeys = [];
+    splitRefs(refEl.value).forEach(function(part){
+      var p = parseSingleRefForVerse(part);
+      if(p) { var k = p.slug+':'+p.chapter; if(refChapterKeys.indexOf(k) === -1) refChapterKeys.push(k); }
+    });
+    if(!typedTags.length && !refChapterKeys.length) return [];
+    var alreadyRelated = parseList(relatedEl.value).map(function(s){ return parseEntryNumInput(s.replace(/[^0-9.a-zA-Z]/g,'')); });
+    var out = [];
+    (nb().entries||[]).forEach(function(e){
+      if(editingId !== null && e.id === editingId) return;
+      if(alreadyRelated.indexOf(e.id) !== -1) return;
+      var reason = null;
+      var eTags = (e.tags||[]).map(function(t){ return t.toLowerCase(); });
+      var sharedTag = typedTags.find(function(t){ return eTags.indexOf(t) !== -1; });
+      if(sharedTag){ reason = 'tag: '+sharedTag; }
+      if(!reason && e.ref){
+        var eKeys = [];
+        splitRefs(e.ref).forEach(function(part){
+          var p = parseSingleRefForVerse(part);
+          if(p) eKeys.push(p.slug+':'+p.chapter);
+        });
+        if(eKeys.some(function(k){ return refChapterKeys.indexOf(k) !== -1; })){ reason = 'same passage'; }
+      }
+      if(reason) out.push({ entry:e, reason:reason });
+    });
+    out.sort(function(a,b){ return b.entry.id - a.entry.id; });
+    return out.slice(0, RELATED_SUGGESTIONS_CAP);
+  }
+  function renderRelatedSuggestions(){
+    var box = document.getElementById('relatedSuggestions');
+    if(!box) return;
+    var suggestions = computeRelatedSuggestions();
+    if(!suggestions.length){ box.innerHTML=''; return; }
+    box.innerHTML = '<div style="font-size:11px; color:var(--ink-faint); margin-bottom:4px;">Suggested (shared topic or passage):</div>' +
+      '<div style="display:flex; flex-wrap:wrap; gap:6px;">' +
+      suggestions.map(function(s){
+        return '<button type="button" class="btn small ghost related-suggestion" data-addrelated="'+s.entry.id+'" title="'+escapeHtml(s.reason)+'" style="font-size:11.5px; padding:3px 9px;">' +
+          '+ no. '+formatEntryNum(s.entry.id)+' &mdash; '+escapeHtml((s.entry.title||'untitled').slice(0,40)) +
+        '</button>';
+      }).join('') +
+      '</div>';
+    Array.prototype.forEach.call(box.querySelectorAll('.related-suggestion'), function(btn){
+      btn.addEventListener('click', function(){
+        var id = Number(btn.getAttribute('data-addrelated'));
+        var relatedEl = document.getElementById('f-related');
+        var current = parseList(relatedEl.value);
+        var label = formatEntryNum(id);
+        if(current.map(function(s){ return s.replace(/\s+/g,''); }).indexOf(label.replace(/\s+/g,'')) === -1){
+          current.push(label);
+          relatedEl.value = current.join(', ');
+          scheduleDraftSave();
+        }
+        renderRelatedSuggestions();
+      });
+    });
+  }
 
   function saveEntry(){
     var title = document.getElementById('f-title').value.trim();
