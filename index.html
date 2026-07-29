@@ -2758,8 +2758,8 @@ var watsonDict = null;
   // Strip the same leading/trailing punctuation set used to build rp_strongs.json, so word
   // boundaries here line up exactly with the word order the numbers were aligned against.
   var GRK_PUNCT_RE = /^[\u00b7,.;:!?\u2019\u2018"\u00ab\u00bb()\[\]]+|[\u00b7,.;:!?\u2019\u2018"\u00ab\u00bb()\[\]]+$/g;
-  function renderGreekVerseWords(text, nums){
-    if(!nums || !nums.length) return escapeHtml(text);
+  function renderGreekVerseWords(text, entries){
+    if(!entries || !entries.length) return escapeHtml(text);
     var cleaned = text.replace(/\u00b6/g, ' ');
     var parts = cleaned.split(/(\s+)/);
     var wi = 0;
@@ -2770,11 +2770,116 @@ var watsonDict = null;
       var leadStr = leadEnd > 0 ? part.slice(0, leadEnd) : '';
       var trailStr = leadEnd >= 0 ? part.slice(leadEnd + core.length) : '';
       if(!core){ return escapeHtml(part); }
-      var num = nums[wi]; wi++;
-      if(!num) return escapeHtml(part);
-      return escapeHtml(leadStr) + '<span class="grk-word" data-strong="'+num+'">'+escapeHtml(core)+'</span>' + escapeHtml(trailStr);
+      var entry = entries[wi]; wi++;
+      if(!entry || !entry[0]) return escapeHtml(part);
+      var num = entry[0], morph = entry[1] || '';
+      return escapeHtml(leadStr) + '<span class="grk-word" data-strong="'+num+'" data-morph="'+escapeHtml(morph)+'">'+escapeHtml(core)+'</span>' + escapeHtml(trailStr);
     });
     return out.join('');
+  }
+
+  // Decoder for Robinson's morphological parsing codes (the same scheme used throughout
+  // rp_strongs.json's morph field), per Maurice A. Robinson's own published key:
+  // http://www.kerrishotts.com/apps/gib/13/parsings.html
+  var MORPH_UNDECLINED = {ADV:'Adverb',CONJ:'Conjunction',COND:'Conditional particle',PRT:'Particle',
+    PREP:'Preposition',INJ:'Interjection',ARAM:'Aramaic word',HEB:'Hebrew word'};
+  var MORPH_POS = {N:'Noun',A:'Adjective',R:'Relative pronoun',C:'Reciprocal pronoun',
+    D:'Demonstrative pronoun',T:'Article',K:'Correlative pronoun',I:'Interrogative pronoun',
+    X:'Indefinite pronoun',Q:'Correlative/interrogative pronoun',F:'Reflexive pronoun',
+    S:'Possessive pronoun',P:'Personal pronoun'};
+  var MORPH_CASE = {N:'nominative',V:'vocative',G:'genitive',D:'dative',A:'accusative'};
+  var MORPH_NUM  = {S:'singular',P:'plural'};
+  var MORPH_GEN  = {M:'masculine',F:'feminine',N:'neuter'};
+  var MORPH_SUFFIX = {S:'superlative',C:'comparative',ABB:'abbreviated form',I:'interrogative',
+    N:'negative',K:'crasis',ATT:'Attic form'};
+  var MORPH_SPECIAL_INDECL = {PRI:'indeclinable proper noun',NUI:'indeclinable numeral',
+    LI:'indeclinable letter',OI:'indeclinable'};
+  var MORPH_TENSE = {P:'present',I:'imperfect',F:'future',A:'aorist',R:'perfect',L:'pluperfect'};
+  var MORPH_VOICE = {A:'active',M:'middle',P:'passive',E:'middle or passive',D:'middle deponent',
+    O:'passive deponent',N:'middle or passive deponent'};
+  var MORPH_MOOD  = {I:'indicative',S:'subjunctive',O:'optative',M:'imperative',N:'infinitive',P:'participle'};
+  var MORPH_PERSON = {'1':'1st person','2':'2nd person','3':'3rd person'};
+  function morphCaseNumberGender(token){
+    if(token.length === 3 && MORPH_CASE[token[0]] && MORPH_NUM[token[1]] && MORPH_GEN[token[2]]){
+      return MORPH_CASE[token[0]]+' '+MORPH_NUM[token[1]]+' '+MORPH_GEN[token[2]];
+    }
+    if(token.length === 2 && MORPH_CASE[token[0]] && MORPH_NUM[token[1]]){
+      return MORPH_CASE[token[0]]+' '+MORPH_NUM[token[1]];
+    }
+    return null;
+  }
+  function decodeMorph(tag){
+    if(!tag) return null;
+    var parts = tag.split('-');
+    var first = parts[0];
+
+    if(MORPH_UNDECLINED[first]){
+      var pieces0 = [MORPH_UNDECLINED[first]];
+      for(var k=1;k<parts.length;k++) pieces0.push(MORPH_SUFFIX[parts[k]] || parts[k]);
+      return pieces0.join(', ');
+    }
+
+    if(first === 'V'){
+      var tvm = parts[1], rest = parts.slice(2);
+      if(!tvm) return null;
+      var second = '';
+      if(tvm.charAt(0) === '2'){ second = 'second '; tvm = tvm.slice(1); }
+      if(tvm.length !== 3) return null;
+      var tense = tvm[0], voice = tvm[1], mood = tvm[2];
+      if(!MORPH_TENSE[tense] || !MORPH_VOICE[voice] || !MORPH_MOOD[mood]) return null;
+      var pieces = ['Verb', second+MORPH_TENSE[tense], MORPH_VOICE[voice], MORPH_MOOD[mood]];
+      for(var i=0;i<rest.length;i++){
+        var token = rest[i];
+        if(MORPH_SUFFIX[token]){ pieces.push(MORPH_SUFFIX[token]); continue; }
+        if(token.length === 2 && MORPH_PERSON[token[0]] && MORPH_NUM[token[1]]){
+          pieces.push(MORPH_PERSON[token[0]]+' '+MORPH_NUM[token[1]]); continue;
+        }
+        var cng = morphCaseNumberGender(token);
+        if(cng){ pieces.push(cng); continue; }
+        return null;
+      }
+      return pieces.join(', ');
+    }
+
+    var posName = MORPH_POS[first];
+    if(!posName) return null;
+    var rest2 = parts.slice(1);
+    if(!rest2.length) return posName;
+    if(MORPH_SPECIAL_INDECL[rest2[0]]){
+      var piecesI = [posName+' ('+MORPH_SPECIAL_INDECL[rest2[0]]+')'];
+      for(var j=1;j<rest2.length;j++) piecesI.push(MORPH_SUFFIX[rest2[j]] || rest2[j]);
+      return piecesI.join(', ');
+    }
+
+    var token0 = rest2[0];
+    var piecesD = [posName];
+    if(first === 'F' || first === 'S' || first === 'P'){
+      if(!/^[0-9]/.test(token0)){
+        // 3rd-person personal pronoun has no explicit person digit (gender disambiguates it)
+        var cng3 = morphCaseNumberGender(token0);
+        if(!cng3) return null;
+        piecesD.push('3rd person'); piecesD.push(cng3);
+        for(var m=1;m<rest2.length;m++) piecesD.push(MORPH_SUFFIX[rest2[m]] || rest2[m]);
+        return piecesD.join(', ');
+      }
+      var person = MORPH_PERSON[token0[0]];
+      if(!person) return null;
+      var remainder = token0.slice(1);
+      if(remainder.length === 4 && MORPH_NUM[remainder[0]] && morphCaseNumberGender(remainder.slice(1))){
+        piecesD.push(MORPH_NUM[remainder[0]]+' '+person+' possessor');
+        piecesD.push(morphCaseNumberGender(remainder.slice(1)));
+      } else {
+        var cngP = morphCaseNumberGender(remainder);
+        if(!cngP) return null;
+        piecesD.push(person); piecesD.push(cngP);
+      }
+    } else {
+      var cng0 = morphCaseNumberGender(token0);
+      if(!cng0) return null;
+      piecesD.push(cng0);
+    }
+    for(var n=1;n<rest2.length;n++) piecesD.push(MORPH_SUFFIX[rest2[n]] || rest2[n]);
+    return piecesD.join(', ');
   }
   // Wrap words that exist in Watson's dictionary with a .dict-word span so it's visually
   // obvious they're tappable. Only touches plain text nodes inside entry/passage text,
@@ -2885,12 +2990,16 @@ var watsonDict = null;
     if(grkWord){
       e.preventDefault();
       var num = grkWord.getAttribute('data-strong');
+      var morphTag = grkWord.getAttribute('data-morph') || '';
+      var parsing = decodeMorph(morphTag);
       ensureDodson(function(){
         var entry = dodsonDict && dodsonDict[num];
         if(entry){
           var def = entry.def || entry.brief || '';
           var truncated = def.length > 500; var snippet = truncated ? def.slice(0,500)+'\u2026' : def;
-          showWordPopup('<b>'+escapeHtml(grkWord.textContent)+'</b> <span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s '+escapeHtml(num)+'</span><div class="word-body" style="margin-top:6px;">'+escapeHtml(snippet)+'</div>'+(truncated ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY);
+          var meta = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s '+escapeHtml(num)+'</span>' +
+            (parsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(parsing)+'</div>' : '');
+          showWordPopup('<b>'+escapeHtml(grkWord.textContent)+'</b> '+meta+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(snippet)+'</div>'+(truncated ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY);
           if(truncated){ var wp2 = document.getElementById('wordPopup'); if(wp2) wp2._fullDef = def; }
         } else {
           hideWordPopup();
@@ -3607,8 +3716,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
           return '<sup class="verse-note-mark" data-note-ids="'+ids+'" title="'+notesHere.length+' note'+(notesHere.length===1?'':'s')+' on this verse &mdash; click to read">*</sup>';
         }).join('');
       }
-      var vNums = (hasStrongs && rpStrongsData && rpStrongsData[rs.book] && rpStrongsData[rs.book][rs.chapter]) ? rpStrongsData[rs.book][rs.chapter][v] : null;
-      var verseHtml = vNums ? renderGreekVerseWords(chapterData[v], vNums) : escapeHtml(chapterData[v]);
+      var vEntries = (hasStrongs && rpStrongsData && rpStrongsData[rs.book] && rpStrongsData[rs.book][rs.chapter]) ? rpStrongsData[rs.book][rs.chapter][v] : null;
+      var verseHtml = vEntries ? renderGreekVerseWords(chapterData[v], vEntries) : escapeHtml(chapterData[v]);
       return '<span style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px;">'+v+'</span>'+marks+verseHtml+' ';
     }).join('');
     html += '</div>';
