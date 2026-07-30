@@ -3583,10 +3583,12 @@ var watsonDict = null;
     if(concOpenLink){
       e.preventDefault();
       var concStrong = concOpenLink.getAttribute('data-strong');
+      var concSource = concOpenLink.getAttribute('data-source') || 'rp';
+      var concCfg = GREEK_CONC_SOURCES[concSource] || GREEK_CONC_SOURCES.rp;
       var concPop = document.getElementById('wordPopup');
-      ensureRpStrongs(function(){
-        ensureReaderText('robinson_pierpont.json', function(){
-          if(concPop) showWordPopup(renderStrongsConcordancePopup(concStrong), concPop._lastX, concPop._lastY);
+      concCfg.ensureDataset(function(){
+        ensureReaderText(concCfg.textFile, function(){
+          if(concPop) showWordPopup(renderStrongsConcordancePopup(concStrong, null, concSource), concPop._lastX, concPop._lastY);
         });
       });
       return;
@@ -3595,25 +3597,30 @@ var watsonDict = null;
     if(concMoreBtn){
       e.preventDefault();
       var concMoreStrong = concMoreBtn.getAttribute('data-strong');
+      var concMoreSource = concMoreBtn.getAttribute('data-source') || 'rp';
       var concMoreReveal = Number(concMoreBtn.getAttribute('data-reveal')||0) + BIBLE_LOOKUP_PAGE;
       var concMorePop = document.getElementById('wordPopup');
-      if(concMorePop) showWordPopup(renderStrongsConcordancePopup(concMoreStrong, concMoreReveal), concMorePop._lastX, concMorePop._lastY);
+      if(concMorePop) showWordPopup(renderStrongsConcordancePopup(concMoreStrong, concMoreReveal, concMoreSource), concMorePop._lastX, concMorePop._lastY);
       return;
     }
     var concResult = target.closest('.concordance-result');
     if(concResult){
       e.preventDefault();
-      jumpToBibleVerse('bk_rp', concResult.getAttribute('data-book'), Number(concResult.getAttribute('data-chapter')), concResult.getAttribute('data-verse'));
+      var concResultSource = concResult.getAttribute('data-source') || 'rp';
+      var concResultCfg = GREEK_CONC_SOURCES[concResultSource] || GREEK_CONC_SOURCES.rp;
+      jumpToBibleVerse(concResultCfg.jumpBookId, concResult.getAttribute('data-book'), Number(concResult.getAttribute('data-chapter')), concResult.getAttribute('data-verse'));
       return;
     }
     var hebConcOpenLink = target.closest('.heb-concordance-open');
     if(hebConcOpenLink){
       e.preventDefault();
       var hebConcStrong = hebConcOpenLink.getAttribute('data-strong');
+      var hebConcSource = hebConcOpenLink.getAttribute('data-source') || 'wlc';
+      var hebConcCfg = HEB_CONC_SOURCES[hebConcSource] || HEB_CONC_SOURCES.wlc;
       var hebConcPop = document.getElementById('wordPopup');
-      ensureHebrewStrongs(function(){
-        ensureReaderText('hebrew_wlc.json', function(){
-          if(hebConcPop) showWordPopup(renderHebrewConcordancePopup(hebConcStrong), hebConcPop._lastX, hebConcPop._lastY);
+      hebConcCfg.ensureDataset(function(){
+        ensureReaderText(hebConcCfg.textFile, function(){
+          if(hebConcPop) showWordPopup(renderHebrewConcordancePopup(hebConcStrong, null, hebConcSource), hebConcPop._lastX, hebConcPop._lastY);
         });
       });
       return;
@@ -3622,15 +3629,18 @@ var watsonDict = null;
     if(hebConcMoreBtn){
       e.preventDefault();
       var hebConcMoreStrong = hebConcMoreBtn.getAttribute('data-strong');
+      var hebConcMoreSource = hebConcMoreBtn.getAttribute('data-source') || 'wlc';
       var hebConcMoreReveal = Number(hebConcMoreBtn.getAttribute('data-reveal')||0) + BIBLE_LOOKUP_PAGE;
       var hebConcMorePop = document.getElementById('wordPopup');
-      if(hebConcMorePop) showWordPopup(renderHebrewConcordancePopup(hebConcMoreStrong, hebConcMoreReveal), hebConcMorePop._lastX, hebConcMorePop._lastY);
+      if(hebConcMorePop) showWordPopup(renderHebrewConcordancePopup(hebConcMoreStrong, hebConcMoreReveal, hebConcMoreSource), hebConcMorePop._lastX, hebConcMorePop._lastY);
       return;
     }
     var hebConcResult = target.closest('.heb-concordance-result');
     if(hebConcResult){
       e.preventDefault();
-      jumpToBibleVerse('bk_wlc', hebConcResult.getAttribute('data-book'), Number(hebConcResult.getAttribute('data-chapter')), hebConcResult.getAttribute('data-verse'));
+      var hebConcResultSource = hebConcResult.getAttribute('data-source') || 'wlc';
+      var hebConcResultCfg = HEB_CONC_SOURCES[hebConcResultSource] || HEB_CONC_SOURCES.wlc;
+      jumpToBibleVerse(hebConcResultCfg.jumpBookId, hebConcResult.getAttribute('data-book'), Number(hebConcResult.getAttribute('data-chapter')), hebConcResult.getAttribute('data-verse'));
       return;
     }
           if(target.closest('.word-close')){ e.preventDefault(); hideWordPopup(); return; }
@@ -3671,6 +3681,11 @@ var watsonDict = null;
       var num = grkWord.getAttribute('data-strong');
       var morphTag = grkWord.getAttribute('data-morph') || '';
       var parsing = decodeMorph(morphTag);
+      // .grk-word is only ever used for RP2018/Scrivener-TR and SBLGNT readers (KJV+Strong's
+      // uses its own .kjvs-word class/handler) — pick the concordance source from whichever
+      // book is actually open, instead of always assuming RP.
+      var grkSource = (state.openBookId === 'bk_sblgnt') ? 'sblgnt' : 'rp';
+      var grkSourceLabel = GREEK_CONC_SOURCES[grkSource].label;
       ensureDodson(function(){
         var entry = dodsonDict && dodsonDict[num];
         if(entry){
@@ -3678,13 +3693,13 @@ var watsonDict = null;
           var truncated = def.length > 500; var snippet = truncated ? def.slice(0,500)+'\u2026' : def;
           var meta = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s '+escapeHtml(num)+'</span>' +
             (parsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(parsing)+'</div>' : '');
-          var concordanceLink = '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="concordance-open" data-strong="'+escapeHtml(num)+'">See every other place this word (Strong&rsquo;s '+escapeHtml(num)+') appears in the RP text &#8594;</a></div>';
+          var concordanceLink = '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="concordance-open" data-strong="'+escapeHtml(num)+'" data-source="'+grkSource+'">See every other place this word (Strong&rsquo;s '+escapeHtml(num)+') appears in '+grkSourceLabel+' &#8594;</a></div>';
           showWordPopup('<b>'+escapeHtml(grkWord.textContent)+'</b> '+meta+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(snippet)+'</div>'+(truncated ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : '')+concordanceLink, e.clientX, e.clientY);
           if(truncated){ var wp2 = document.getElementById('wordPopup'); if(wp2) wp2._fullDef = def; }
         } else {
           var meta2 = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s '+escapeHtml(num)+'</span>' +
             (parsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(parsing)+'</div>' : '');
-          var concordanceLink2 = '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="concordance-open" data-strong="'+escapeHtml(num)+'">See every other place this word (Strong&rsquo;s '+escapeHtml(num)+') appears in the RP text &#8594;</a></div>';
+          var concordanceLink2 = '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="concordance-open" data-strong="'+escapeHtml(num)+'" data-source="'+grkSource+'">See every other place this word (Strong&rsquo;s '+escapeHtml(num)+') appears in '+grkSourceLabel+' &#8594;</a></div>';
           showWordPopup('<b>'+escapeHtml(grkWord.textContent)+'</b> '+meta2+'<div class="word-body" style="margin-top:6px; font-style:italic; color:var(--ink-faint);">No Dodson entry found for this Strong&rsquo;s number.</div>'+concordanceLink2, e.clientX, e.clientY);
         }
       });
@@ -3701,7 +3716,7 @@ var watsonDict = null;
         var hebEntry = hebNum && hebrewLexiconDict && hebrewLexiconDict[hebNum];
         var hebMeta = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s H'+escapeHtml(hebNum||'?')+(hebEntry&&hebEntry.xlit?' &middot; '+escapeHtml(hebEntry.xlit):'')+'</span>' +
           (hebParsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(hebParsing)+'</div>' : '');
-        var hebConcLink = hebNum ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="heb-concordance-open" data-strong="'+escapeHtml(hebNum)+'">See every other place this word (Strong&rsquo;s H'+escapeHtml(hebNum)+') appears in the WLC &#8594;</a></div>' : '';
+        var hebConcLink = hebNum ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="heb-concordance-open" data-strong="'+escapeHtml(hebNum)+'" data-source="wlc">See every other place this word (Strong&rsquo;s H'+escapeHtml(hebNum)+') appears in the WLC &#8594;</a></div>' : '';
         if(hebEntry){
           var hebDef = hebEntry.def || hebEntry.brief || '';
           var hebTruncated = hebDef.length > 500; var hebSnippet = hebTruncated ? hebDef.slice(0,500)+'\u2026' : hebDef;
@@ -3726,13 +3741,14 @@ var watsonDict = null;
           var kEntry = kjvsPlainNum && hebrewLexiconDict && hebrewLexiconDict[kjvsPlainNum];
           var kMeta = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s H'+escapeHtml(kjvsPlainNum)+(kEntry&&kEntry.xlit?' &middot; '+escapeHtml(kEntry.xlit):'')+'</span>' +
             (kjvsHebParsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(kjvsHebParsing)+'</div>' : '');
+          var kHebConcLink = kjvsPlainNum ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="heb-concordance-open" data-strong="'+escapeHtml(kjvsPlainNum)+'" data-source="kjvs">See every other place this word (Strong&rsquo;s H'+escapeHtml(kjvsPlainNum)+') appears in the KJV+Strong&rsquo;s text &#8594;</a></div>' : '';
           if(kEntry){
             var kDef = kEntry.def || kEntry.brief || '';
             var kTrunc = kDef.length > 500; var kSnippet = kTrunc ? kDef.slice(0,500)+'\u2026' : kDef;
-            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(kSnippet)+'</div>'+(kTrunc ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY);
+            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(kSnippet)+'</div>'+(kTrunc ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : '')+kHebConcLink, e.clientX, e.clientY);
             if(kTrunc){ var kwp = document.getElementById('wordPopup'); if(kwp) kwp._fullDef = kDef; }
           } else {
-            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta+'<div class="word-body" style="margin-top:6px; font-style:italic; color:var(--ink-faint);">No lexicon entry found for this Strong&rsquo;s number.</div>', e.clientX, e.clientY);
+            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta+'<div class="word-body" style="margin-top:6px; font-style:italic; color:var(--ink-faint);">No lexicon entry found for this Strong&rsquo;s number.</div>'+kHebConcLink, e.clientX, e.clientY);
           }
         });
       } else {
@@ -3741,13 +3757,14 @@ var watsonDict = null;
           var kEntry2 = kjvsPlainNum && dodsonDict && dodsonDict[kjvsPlainNum];
           var kMeta2 = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s G'+escapeHtml(kjvsPlainNum)+'</span>' +
             (kjvsParsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(kjvsParsing)+'</div>' : '');
+          var kGrkConcLink = '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="concordance-open" data-strong="'+escapeHtml(kjvsNum)+'" data-source="kjvs">See every other place this word (Strong&rsquo;s G'+escapeHtml(kjvsPlainNum)+') appears in the KJV+Strong&rsquo;s text &#8594;</a></div>';
           if(kEntry2){
             var kDef2 = kEntry2.def || kEntry2.brief || '';
             var kTrunc2 = kDef2.length > 500; var kSnippet2 = kTrunc2 ? kDef2.slice(0,500)+'\u2026' : kDef2;
-            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta2+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(kSnippet2)+'</div>'+(kTrunc2 ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY);
+            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta2+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(kSnippet2)+'</div>'+(kTrunc2 ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : '')+kGrkConcLink, e.clientX, e.clientY);
             if(kTrunc2){ var kwp2 = document.getElementById('wordPopup'); if(kwp2) kwp2._fullDef = kDef2; }
           } else {
-            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta2+'<div class="word-body" style="margin-top:6px; font-style:italic; color:var(--ink-faint);">No Dodson entry found for this Strong&rsquo;s number.</div>', e.clientX, e.clientY);
+            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta2+'<div class="word-body" style="margin-top:6px; font-style:italic; color:var(--ink-faint);">No Dodson entry found for this Strong&rsquo;s number.</div>'+kGrkConcLink, e.clientX, e.clientY);
           }
         });
       }
@@ -4639,11 +4656,11 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   // hit from the already-cached robinson_pierpont.json to render as a scrollable list,
   // same show-more paging pattern as the Bible word-search popup. Clicking a result jumps
   // into the full RP reader at that verse.
-  function findStrongsOccurrences(strongNum){
+  function findStrongsOccurrences(strongNum, dataset){
     var results = [];
-    if(!rpStrongsData) return results;
-    Object.keys(rpStrongsData).forEach(function(book){
-      var chapters = rpStrongsData[book];
+    if(!dataset) return results;
+    Object.keys(dataset).forEach(function(book){
+      var chapters = dataset[book];
       Object.keys(chapters).forEach(function(ch){
         var verses = chapters[ch];
         Object.keys(verses).forEach(function(v){
@@ -4662,33 +4679,45 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     });
     return results;
   }
-  function renderStrongsConcordancePopup(strongNum, revealCount){
+  // Which dataset/text/label/book a Greek-word concordance search should use — keyed by a
+  // short "source" tag carried on the popup's data attributes, so the same concordance UI
+  // works whether the tapped word came from RP2018, SBLGNT, or the KJV+Strong's edition
+  // (previously this always hardcoded the RP text, even when tapped from SBLGNT/KJVS).
+  var GREEK_CONC_SOURCES = {
+    rp:      { label:'the RP2018 text',       textFile:'robinson_pierpont.json', jumpBookId:'bk_rp',    ensureDataset:ensureRpStrongs,     getDataset:function(){ return rpStrongsData; } },
+    sblgnt:  { label:'the SBLGNT text',        textFile:'sblgnt.json',            jumpBookId:'bk_sblgnt',ensureDataset:ensureSblgntStrongs, getDataset:function(){ return sblgntStrongsData; } },
+    kjvs:    { label:"the KJV+Strong's text",  textFile:'kjvs.json',              jumpBookId:'bk_kjvs',  ensureDataset:ensureKjvsStrongs,   getDataset:function(){ return kjvsStrongsData; } }
+  };
+  function renderStrongsConcordancePopup(strongNum, revealCount, source){
     revealCount = revealCount || BIBLE_LOOKUP_PAGE;
-    var html = '<b>Strong&rsquo;s '+escapeHtml(strongNum)+' elsewhere in the RP text</b>';
-    var rpData = readerTextCache['robinson_pierpont.json'];
-    if(!rpStrongsData || !rpData){
+    source = source || 'rp';
+    var cfg = GREEK_CONC_SOURCES[source] || GREEK_CONC_SOURCES.rp;
+    var html = '<b>Strong&rsquo;s '+escapeHtml(strongNum)+' elsewhere in '+cfg.label+'</b>';
+    var dataset = cfg.getDataset();
+    var textData = readerTextCache[cfg.textFile];
+    if(!dataset || !textData){
       html += '<div class="status">loading&hellip;</div>';
       return html;
     }
-    var results = findStrongsOccurrences(strongNum);
+    var results = findStrongsOccurrences(strongNum, dataset);
     if(!results.length){
       html += '<div class="empty" style="font-size:13px;">No other occurrences found.</div>';
       return html;
     }
-    html += '<div style="font-size:11px; color:var(--ink-faint); margin:6px 0;">'+results.length+' occurrence'+(results.length===1?'':'s')+' in the RP2018 text</div>';
+    html += '<div style="font-size:11px; color:var(--ink-faint); margin:6px 0;">'+results.length+' occurrence'+(results.length===1?'':'s')+' in '+cfg.label+'</div>';
     var capped = results.slice(0, revealCount);
     html += '<div style="max-height:280px; overflow-y:auto;">';
     html += capped.map(function(r){
-      var verseText = ((rpData[r.book]||{})[r.chapter]||{})[r.verse] || '';
+      var verseText = ((textData[r.book]||{})[r.chapter]||{})[r.verse] || '';
       var snippet = highlightGreekWordAt(verseText, r.wordIndex);
-      return '<div class="concordance-result" data-book="'+escapeHtml(r.book)+'" data-chapter="'+r.chapter+'" data-verse="'+r.verse+'" style="padding:7px 0; border-bottom:1px solid var(--line); cursor:pointer;">' +
+      return '<div class="concordance-result" data-source="'+escapeHtml(source)+'" data-book="'+escapeHtml(r.book)+'" data-chapter="'+r.chapter+'" data-verse="'+r.verse+'" style="padding:7px 0; border-bottom:1px solid var(--line); cursor:pointer;">' +
         '<div style="font-family:\'JetBrains Mono\', monospace; font-size:10.5px; color:var(--ink-faint);">'+escapeHtml(r.book)+' '+r.chapter+':'+r.verse+'</div>' +
         '<div style="font-size:13px;">'+snippet+'</div>' +
       '</div>';
     }).join('');
     html += '</div>';
     if(results.length > revealCount){
-      html += '<div style="padding-top:8px;"><button type="button" class="btn small concordance-more" data-strong="'+escapeHtml(strongNum)+'" data-reveal="'+revealCount+'">Show '+Math.min(BIBLE_LOOKUP_PAGE, results.length-revealCount)+' more (of '+results.length+')</button></div>';
+      html += '<div style="padding-top:8px;"><button type="button" class="btn small concordance-more" data-strong="'+escapeHtml(strongNum)+'" data-source="'+escapeHtml(source)+'" data-reveal="'+revealCount+'">Show '+Math.min(BIBLE_LOOKUP_PAGE, results.length-revealCount)+' more (of '+results.length+')</button></div>';
     }
     return html;
   }
@@ -4704,11 +4733,11 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     var nums = String(lemma||'').match(/\d+/g);
     return nums && nums.length ? nums[nums.length-1] : null;
   }
-  function findHebrewStrongsOccurrences(strongNum){
+  function findHebrewStrongsOccurrences(strongNum, dataset){
     var results = [];
-    if(!hebrewStrongsData) return results;
-    Object.keys(hebrewStrongsData).forEach(function(book){
-      var chapters = hebrewStrongsData[book];
+    if(!dataset) return results;
+    Object.keys(dataset).forEach(function(book){
+      var chapters = dataset[book];
       Object.keys(chapters).forEach(function(ch){
         var verses = chapters[ch];
         Object.keys(verses).forEach(function(v){
@@ -4727,33 +4756,45 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     });
     return results;
   }
-  function renderHebrewConcordancePopup(strongNum, revealCount){
+  // Which dataset/text/label/book a Hebrew-word concordance search should use. The WLC
+  // source shows actual Hebrew script (RTL, tokenized on the Hebrew word-splitter); the
+  // KJV+Strong's source shows the English KJV translation for the same Strong's number
+  // (LTR, split the same way the Greek/English word-splitter does), since kjvs.json's OT
+  // portion is English prose, not Hebrew glyphs.
+  var HEB_CONC_SOURCES = {
+    wlc:  { label:'the WLC',                    textFile:'hebrew_wlc.json', jumpBookId:'bk_wlc',   rtl:true,  highlightFn:highlightHebrewWordAt, ensureDataset:ensureHebrewStrongs, getDataset:function(){ return hebrewStrongsData; } },
+    kjvs: { label:"the KJV+Strong's text",       textFile:'kjvs.json',       jumpBookId:'bk_kjvs',  rtl:false, highlightFn:highlightGreekWordAt,  ensureDataset:ensureKjvsStrongs,   getDataset:function(){ return kjvsStrongsData; } }
+  };
+  function renderHebrewConcordancePopup(strongNum, revealCount, source){
     revealCount = revealCount || BIBLE_LOOKUP_PAGE;
-    var html = '<b>Strong&rsquo;s H'+escapeHtml(strongNum)+' elsewhere in the WLC</b>';
-    var wlcData = readerTextCache['hebrew_wlc.json'];
-    if(!hebrewStrongsData || !wlcData){
+    source = source || 'wlc';
+    var cfg = HEB_CONC_SOURCES[source] || HEB_CONC_SOURCES.wlc;
+    var html = '<b>Strong&rsquo;s H'+escapeHtml(strongNum)+' elsewhere in '+cfg.label+'</b>';
+    var dataset = cfg.getDataset();
+    var textData = readerTextCache[cfg.textFile];
+    if(!dataset || !textData){
       html += '<div class="status">loading&hellip;</div>';
       return html;
     }
-    var results = findHebrewStrongsOccurrences(strongNum);
+    var results = findHebrewStrongsOccurrences(strongNum, dataset);
     if(!results.length){
       html += '<div class="empty" style="font-size:13px;">No other occurrences found.</div>';
       return html;
     }
-    html += '<div style="font-size:11px; color:var(--ink-faint); margin:6px 0;">'+results.length+' occurrence'+(results.length===1?'':'s')+' in the WLC</div>';
+    html += '<div style="font-size:11px; color:var(--ink-faint); margin:6px 0;">'+results.length+' occurrence'+(results.length===1?'':'s')+' in '+cfg.label+'</div>';
     var capped = results.slice(0, revealCount);
-    html += '<div style="max-height:280px; overflow-y:auto;" dir="rtl">';
+    html += '<div style="max-height:280px; overflow-y:auto;"'+(cfg.rtl?' dir="rtl"':'')+'>';
     html += capped.map(function(r){
-      var verseText = ((wlcData[r.book]||{})[r.chapter]||{})[r.verse] || '';
-      var snippet = highlightHebrewWordAt(verseText, r.wordIndex);
-      return '<div class="heb-concordance-result" data-book="'+escapeHtml(r.book)+'" data-chapter="'+r.chapter+'" data-verse="'+r.verse+'" style="padding:7px 0; border-bottom:1px solid var(--line); cursor:pointer;">' +
-        '<div style="font-family:\'JetBrains Mono\', monospace; font-size:10.5px; color:var(--ink-faint); direction:ltr; text-align:right;">'+escapeHtml(r.book)+' '+r.chapter+':'+r.verse+'</div>' +
+      var verseText = ((textData[r.book]||{})[r.chapter]||{})[r.verse] || '';
+      var snippet = cfg.highlightFn(verseText, r.wordIndex);
+      return '<div class="heb-concordance-result" data-source="'+escapeHtml(source)+'" data-book="'+escapeHtml(r.book)+'" data-chapter="'+r.chapter+'" data-verse="'+r.verse+'" style="padding:7px 0; border-bottom:1px solid var(--line); cursor:pointer;">' +
+        '<div style="font-family:\'JetBrains Mono\', monospace; font-size:10.5px; color:var(--ink-faint);'+(cfg.rtl?' direction:ltr; text-align:right;':'')+'">'+escapeHtml(r.book)+' '+r.chapter+':'+r.verse+'</div>' +
         '<div style="font-size:15px;">'+snippet+'</div>' +
       '</div>';
     }).join('');
     html += '</div>';
     if(results.length > revealCount){
-      html += '<div style="padding-top:8px;"><button type="button" class="btn small heb-concordance-more" data-strong="'+escapeHtml(strongNum)+'" data-reveal="'+revealCount+'">Show '+Math.min(BIBLE_LOOKUP_PAGE, results.length-revealCount)+' more (of '+results.length+')</button></div>';
+      html += '<div style="padding-top:8px;"><button type="button" class="btn small heb-concordance-more" data-strong="'+escapeHtml(strongNum)+'" data-source="'+escapeHtml(source)+'" data-reveal="'+revealCount+'">Show '+Math.min(BIBLE_LOOKUP_PAGE, results.length-revealCount)+' more (of '+results.length+')</button></div>';
     }
     return html;
   }
