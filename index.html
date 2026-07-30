@@ -759,7 +759,23 @@
 
   // 25 classics all Protestants treasure. amzn = affiliate link; free = public-domain copy where one exists.
   function amzn(q){ return 'https://www.amazon.com/s?k='+q+'&tag=bsar07-20'; }
-  var STARTER_BOOKS = [{id:'bk_kjv',title:'King James Version',author:'',status:'',type:'reference'},{id:'bk_asv',title:'American Standard Version',author:'',status:'',type:'reference'},{id:'bk_watson',title:"Watson's Bible Dictionary",author:'Richard Watson',status:'',type:'reference'},{id:'bk_rp',title:'Robinson-Pierpont Greek NT (Byzantine)',author:'',status:'',type:'reference'},{id:'bk_tr',title:'Scrivener Textus Receptus (Greek NT)',author:'',status:'',type:'reference'},{id:'bk_sblgnt',title:'SBLGNT (Society of Biblical Literature Greek NT)',author:'',status:'',type:'reference'},{id:'bk_wlc',title:'Westminster Leningrad Codex (Hebrew OT)',author:'',status:'',type:'reference'},{id:'bk_tcent',title:'Text-Critical English New Testament (Byzantine)',author:'Robert Adam Boyd',status:'',type:'reference'},{id:'bk_asvbt',title:'ASV: Byzantine Text with Apocrypha',author:'ASV, adapted by Adam Boyd',status:'',type:'reference'},{id:'bk_pilgrim',title:"The Pilgrim's Progress",author:'John Bunyan',status:'',type:'reference'},{id:'bk_imitation',title:'The Imitation of Christ',author:'Thomas a Kempis',status:'',type:'reference'},{id:'bk_luther',title:"Luther's 95 Theses",author:'Martin Luther',status:'',type:'reference'}];
+  var STARTER_BOOKS = [{id:'bk_kjv',title:'King James Version',author:'',status:'',type:'reference'},{id:'bk_asv',title:'American Standard Version',author:'',status:'',type:'reference'},{id:'bk_watson',title:"Watson's Bible Dictionary",author:'Richard Watson',status:'',type:'reference'},{id:'bk_rp',title:'Robinson-Pierpont Greek NT (Byzantine)',author:'',status:'',type:'reference'},{id:'bk_tr',title:'Scrivener Textus Receptus (Greek NT)',author:'',status:'',type:'reference'},{id:'bk_sblgnt',title:'SBLGNT (Society of Biblical Literature Greek NT)',author:'',status:'',type:'reference'},{id:'bk_wlc',title:'Westminster Leningrad Codex (Hebrew OT)',author:'',status:'',type:'reference'},{id:'bk_tcent',title:'Text-Critical English New Testament (Byzantine)',author:'Robert Adam Boyd',status:'',type:'reference'},{id:'bk_asvbt',title:'ASV: Byzantine Text with Apocrypha',author:'ASV, adapted by Adam Boyd',status:'',type:'reference'},{id:'bk_pilgrim',title:"The Pilgrim's Progress",author:'John Bunyan',status:'',type:'reference'},{id:'bk_imitation',title:'The Imitation of Christ',author:'Thomas a Kempis',status:'',type:'reference'},{id:'bk_luther',title:"Luther's 95 Theses",author:'Martin Luther',status:'',type:'reference'},{id:'bk_kjvs',title:"King James Version (with Strong's Numbers)",author:'',status:'',type:'reference'},{id:'bk_spurgeon',title:'Morning and Evening',author:'C. H. Spurgeon',status:'',type:'reference'}];
+  var BOOK_CREDITS = {
+    bk_kjv: 'King James Version (1611/1769). Long-established English public-domain text.',
+    bk_asv: 'American Standard Version (1901). Public domain.',
+    bk_watson: "Watson's Bible Dictionary, by Richard Watson. Public domain.",
+    bk_rp: 'Robinson&ndash;Pierpont Greek New Testament, 2018 edition (RP2018), release v3.3.2 of the <a href="https://github.com/byztxt/byzantine-majority-text" target="_blank" rel="noopener">byztxt/byzantine-majority-text</a> project. Digitizes Dr. Maurice A. Robinson&rsquo;s text; dedicated to the public domain (Unlicense). Strong&rsquo;s numbers and parsing via the same byztxt project; definitions via Jeffrey Dodson&rsquo;s Greek lexicon (public domain).',
+    bk_tr: 'Scrivener Textus Receptus (Greek NT). Long-established public-domain text.',
+    bk_sblgnt: 'SBLGNT (Society of Biblical Literature Greek New Testament), &copy; Society of Biblical Literature and Logos Bible Software, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Morphological tagging via the <a href="https://github.com/morphgnt/sblgnt" target="_blank" rel="noopener">MorphGNT</a> project (James K. Tauber, CC BY-SA 3.0); Strong&rsquo;s numbers matched by lemma against Dodson&rsquo;s lexicon.',
+    bk_wlc: 'Westminster Leningrad Codex (WLC), the oldest complete Masoretic manuscript of the Hebrew Bible. Public domain. Strong&rsquo;s numbers and morphology via the <a href="https://github.com/openscriptures/morphhb" target="_blank" rel="noopener">Open Scriptures Hebrew Bible</a> project (CC BY 4.0); definitions via the Open Scriptures Hebrew Lexicon (public domain base text, CC BY 4.0 markup).',
+    bk_tcent: 'Text-Critical English New Testament (Byzantine Text Version), &copy; 2026 Robert Adam Boyd, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Used with attribution, unedited, including its full set of text-critical footnotes. &ldquo;Text-Critical English New Testament&rdquo;/&ldquo;Byzantine Text Version&rdquo; are trademarks of Robert Adam Boyd.',
+    bk_asvbt: 'ASV: Byzantine Text with Apocrypha, adapting the public-domain American Standard Version to the Byzantine/majority New Testament text, with Apocryphal books drawn from the English Revised Version, Brenton&rsquo;s Septuagint, and Gray&rsquo;s translation. Adam Boyd&rsquo;s changes were dedicated to the public domain in 2021.',
+    bk_pilgrim: "The Pilgrim's Progress, by John Bunyan. Long-established public-domain text.",
+    bk_imitation: 'The Imitation of Christ, by Thomas &agrave; Kempis. Long-established public-domain text.',
+    bk_luther: "Luther's 95 Theses, by Martin Luther. Long-established public-domain text.",
+    bk_kjvs: "King James Version text and Strong&rsquo;s numbers via CrossWire Bible Society&rsquo;s KJV+Strong&rsquo;s module (&ldquo;General public license for distribution for any purpose&rdquo;). Greek definitions via Dodson&rsquo;s lexicon (public domain); Hebrew definitions via the Strong&rsquo;s Hebrew Dictionary, OpenScriptures Hebrew Lexicon edition (public domain base text, CC BY 4.0 markup).",
+    bk_spurgeon: 'Morning and Evening: Daily Readings, by Charles Haddon Spurgeon. Public domain. Text sourced from <a href="https://ccel.org/s/spurgeon/morn_eve/morn_eve.html" target="_blank" rel="noopener">the Christian Classics Ethereal Library (CCEL)</a>.'
+  };
   var SPINE_COLORS = ['#33465C','#5f5644','#6b5a3e','#4a5240','#7a4e3a','#5a3f52','#3f5a52'];
   // Adds any STARTER_BOOKS not already present (by id) to the front of a notebook's
   // shelf — covers both a notebook missing the whole built-in library (pre-library
@@ -1454,6 +1470,15 @@
     else delete nb().highlights[key];
     persist();
   }
+  function renderVerseTapMenuPopup(book, chapter, verse){
+    var html = '<div class="word-popup-inner">';
+    html += '<div style="font-family:\'JetBrains Mono\', monospace; font-size:11px; color:var(--ink-faint); margin-bottom:8px;">'+escapeHtml(book)+' '+chapter+':'+verse+'</div>';
+    html += '<div style="display:flex; flex-direction:column; gap:4px;">';
+    html += '<button type="button" class="btn small verse-tap-highlight" data-vbook="'+escapeHtml(book)+'" data-vchapter="'+chapter+'" data-vverse="'+verse+'" style="text-align:left;">Highlight</button>';
+    html += '<button type="button" class="btn small verse-tap-addnote" data-vbook="'+escapeHtml(book)+'" data-vchapter="'+chapter+'" data-vverse="'+verse+'" style="text-align:left;">Add Note</button>';
+    html += '</div></div>';
+    return html;
+  }
   function renderHighlightPickerPopup(book, chapter, verse){
     var current = getVerseHighlight(book, chapter, verse);
     var html = '<div class="word-popup-inner">';
@@ -1536,6 +1561,20 @@
     if(!slug) return null;
     var chapter = m[2], verse = m[3] || '1';
     return 'https://biblehub.com/interlinear/'+slug+'/'+chapter+'-'+verse+'.htm';
+  }
+
+  // Task #44: general "Compare on Bible Hub" link for any Scripture reference (OT or NT),
+  // e.g. https://biblehub.com/genesis/1-1.htm or https://biblehub.com/1_corinthians/13-4.htm.
+  // Reuses the same book-slug tables (GREEK_BOOKS for NT, LXX_BOOKS[..][1] for OT) that the
+  // other link-builders on this page already maintain — those slugs are Bible Hub's own.
+  function bibleHubLink(ref){
+    var m = (ref||'').match(/^([1-3]?\s*[A-Za-z]+(?:\s+of\s+[A-Za-z]+)?)\.?\s+(\d+)(?::(\d+))?/);
+    if(!m) return null;
+    var key = normalizeBookKey(m[1]);
+    var slug = GREEK_BOOKS[key] || (LXX_BOOKS[key] && LXX_BOOKS[key][1]);
+    if(!slug) return null;
+    var chapter = m[2], verse = m[3] || '1';
+    return 'https://biblehub.com/'+slug+'/'+chapter+'-'+verse+'.htm';
   }
 
   function crossBibleLink(ref){
@@ -2558,7 +2597,7 @@
     visible.sort(function(a,b){ return b.id - a.id; });
 
     var html = '';
-    var otdEntry = (state.lastOnThisDayDismiss !== todayDateString()) ? pickOnThisDayEntry(entries) : null;
+    var otdEntry = (state.mode === 'advanced' && state.lastOnThisDayDismiss !== todayDateString()) ? pickOnThisDayEntry(entries) : null;
     if(otdEntry){
       var otdIsAnniversary = (function(){
         var d = new Date(otdEntry.created);
@@ -2693,7 +2732,7 @@
     '</div>' +
     '<div class="field"><label>Title</label><input type="text" id="f-title" placeholder="A short heading for this reflection"></div>' +
     '<div class="field-row">' +
-      '<div class="field"><label>Scripture reference</label><input type="text" id="f-ref" placeholder="e.g. 2 Peter 1:3&ndash;11"></div>' +
+      '<div class="field"><label>Scripture reference</label><input type="text" id="f-ref" placeholder="e.g. 2 Peter 1:3&ndash;11"><a href="#" id="f-ref-biblehub" target="_blank" rel="noopener" style="display:none; font-size:11.5px; margin-top:3px;">Compare on Bible Hub &#8599;</a></div>' +
       '<div class="field"><label>Topics</label><input type="text" id="f-tags" placeholder="comma separated"></div>' +
     '</div>' +
     '<div class="field"><label>Entry <button type="button" class="btn small ghost" id="refPickerBodyBtn" style="padding:2px 8px; font-size:11px; margin-left:6px;">insert reference &hellip;</button></label><textarea id="f-body" placeholder="Write the reflection itself"></textarea></div>' +
@@ -2843,6 +2882,18 @@
       });
     }
     renderPendingPhotosPreview();
+    var fRefEl = document.getElementById('f-ref');
+    var fRefBiblehubEl = document.getElementById('f-ref-biblehub');
+    if(fRefEl && fRefBiblehubEl){
+      var updateFRefBiblehub = function(){
+        var firstRef = splitRefs(fRefEl.value)[0] || fRefEl.value.trim();
+        var link = firstRef ? bibleHubLink(firstRef) : null;
+        if(link){ fRefBiblehubEl.href = link; fRefBiblehubEl.style.display = ''; }
+        else { fRefBiblehubEl.style.display = 'none'; }
+      };
+      fRefEl.addEventListener('input', updateFRefBiblehub);
+      updateFRefBiblehub();
+    }
     var refPickerBtn = document.getElementById('refPickerBtn');
     if(refPickerBtn) refPickerBtn.addEventListener('click', function(){ lastFocusedField = 'f-related'; openRefPicker(); });
     var refPickerBodyBtn = document.getElementById('refPickerBodyBtn');
@@ -3006,6 +3057,26 @@ var watsonDict = null;
     if(sblgntStrongsData){ setTimeout(cb, 0); return; }
     fetch('sblgnt_strongs.json?v=1').then(function(r){ return r.json(); }).then(function(d){ sblgntStrongsData = d; cb(); }).catch(function(){ cb(); });
   }
+  // Strong's-number data for the KJV+Strong's edition (kjvs_strongs.json: book -> chapter ->
+  // verse -> [[strongNum, morphTag], ...], one entry per word, aligned against kjvs.json's own
+  // word-splitting). Covers the WHOLE Bible (OT+NT), so strongNum carries an explicit "G" or "H"
+  // prefix (e.g. "G976", "H7225") to disambiguate Greek vs Hebrew lookups — unlike rpStrongsData/
+  // sblgntStrongsData/hebrewStrongsData, which are each single-testament and so store bare numbers.
+  // Source: CrossWire Bible Society's KJV+Strong's module ("General public license for
+  // distribution for any purpose"), via the npm package @metaxia/scriptures-source-crosswire-kjv.
+  var kjvsStrongsData = null;
+  // Split into OT/NT files purely to stay under GitHub web-upload size limits during deploy;
+  // merged into one object on load so the rest of the app never has to know it's split.
+  function ensureKjvsStrongs(cb){
+    if(kjvsStrongsData){ setTimeout(cb, 0); return; }
+    Promise.all([
+      fetch('kjvs_strongs_ot.json?v=1').then(function(r){ return r.json(); }),
+      fetch('kjvs_strongs_nt.json?v=1').then(function(r){ return r.json(); })
+    ]).then(function(parts){
+      kjvsStrongsData = Object.assign({}, parts[0], parts[1]);
+      cb();
+    }).catch(function(){ cb(); });
+  }
   // Same lazy-load pattern for the Hebrew OT (WLC/OSHB): hebrew_strongs.json is
   // book -> chapter -> verse -> [[lemma, morph], ...], one entry per word, aligned
   // against hebrew_wlc.json's own word-splitting (see renderHebrewVerseWords). Both
@@ -3078,6 +3149,31 @@ var watsonDict = null;
       if(!entry || !entry[0]) return escapeHtml(part);
       var num = entry[0], morph = entry[1] || '';
       return escapeHtml(leadStr) + '<span class="grk-word" data-strong="'+num+'" data-morph="'+escapeHtml(morph)+'">'+escapeHtml(core)+'</span>' + escapeHtml(trailStr);
+    });
+    return out.join('');
+  }
+
+  // Word-splitting/rendering for the KJV+Strong's edition (kjvs.json/kjvs_strongs.json).
+  // The underlying text is plain English (both OT and NT), so this reuses the same
+  // whitespace + GRK_PUNCT_RE splitting approach as renderGreekVerseWords rather than the
+  // Hebrew-script tokenizer (renderHebrewVerseWords is for rendering actual Hebrew glyphs,
+  // which never appears here). Strong's numbers keep their "G"/"H" prefix in the data-strong
+  // attribute so the click handler can dispatch to the right lexicon (see .kjvs-word below).
+  function renderKjvsVerseWords(text, entries){
+    if(!entries || !entries.length) return escapeHtml(text);
+    var parts = text.split(/(\s+)/);
+    var wi = 0;
+    var out = parts.map(function(part){
+      if(part === '' || /^\s+$/.test(part)) return escapeHtml(part);
+      var core = part.replace(GRK_PUNCT_RE, '');
+      var leadEnd = part.indexOf(core);
+      var leadStr = leadEnd > 0 ? part.slice(0, leadEnd) : '';
+      var trailStr = leadEnd >= 0 ? part.slice(leadEnd + core.length) : '';
+      if(!core){ return escapeHtml(part); }
+      var entry = entries[wi]; wi++;
+      if(!entry || !entry[0]) return escapeHtml(part);
+      var num = entry[0], morph = entry[1] || '';
+      return escapeHtml(leadStr) + '<span class="kjvs-word" data-strong="'+escapeHtml(num)+'" data-morph="'+escapeHtml(morph)+'">'+escapeHtml(core)+'</span>' + escapeHtml(trailStr);
     });
     return out.join('');
   }
@@ -3435,23 +3531,35 @@ var watsonDict = null;
       if(activeTabId === READER_TAB_ID) renderOpenBook();
       return;
     }
-    var vhlToggle = target.closest('.verse-hl-toggle');
-    if(vhlToggle){
-      e.preventDefault();
-      var vhtBook = vhlToggle.getAttribute('data-book');
-      var vhtChapter = vhlToggle.getAttribute('data-chapter');
-      var vhtVerse = vhlToggle.getAttribute('data-verse');
-      showWordPopup(renderHighlightPickerPopup(vhtBook, Number(vhtChapter), Number(vhtVerse)), e.clientX, e.clientY);
-      return;
-    }
+    // Task #39: tapping a verse number opens a small Highlight/Add Note menu (replacing the
+    // old always-visible highlight-toggle square + jump-straight-to-new-note behavior).
     var verseNumAdd = target.closest('.verse-num-add');
     if(verseNumAdd){
       e.preventDefault();
       var vnBook = verseNumAdd.getAttribute('data-book');
       var vnChapter = verseNumAdd.getAttribute('data-chapter');
       var vnVerse = verseNumAdd.getAttribute('data-verse');
+      showWordPopup(renderVerseTapMenuPopup(vnBook, Number(vnChapter), Number(vnVerse)), e.clientX, e.clientY);
+      return;
+    }
+    var verseTapHighlight = target.closest('.verse-tap-highlight');
+    if(verseTapHighlight){
+      e.preventDefault();
+      var vthBook = verseTapHighlight.getAttribute('data-vbook');
+      var vthChapter = Number(verseTapHighlight.getAttribute('data-vchapter'));
+      var vthVerse = Number(verseTapHighlight.getAttribute('data-vverse'));
+      var vthPop = document.getElementById('wordPopup');
+      showWordPopup(renderHighlightPickerPopup(vthBook, vthChapter, vthVerse), (vthPop&&vthPop._lastX)||e.clientX, (vthPop&&vthPop._lastY)||e.clientY);
+      return;
+    }
+    var verseTapAddNote = target.closest('.verse-tap-addnote');
+    if(verseTapAddNote){
+      e.preventDefault();
+      var vtaBook = verseTapAddNote.getAttribute('data-vbook');
+      var vtaChapter = verseTapAddNote.getAttribute('data-vchapter');
+      var vtaVerse = verseTapAddNote.getAttribute('data-vverse');
       hideWordPopup();
-      presetRef = vnBook + ' ' + vnChapter + ':' + vnVerse;
+      presetRef = vtaBook + ' ' + vtaChapter + ':' + vtaVerse;
       state.mode = 'advanced';
       state.view = 'stream';
       renderAll();
@@ -3605,6 +3713,46 @@ var watsonDict = null;
       });
       return;
     }
+    var kjvsWord = target.closest('.kjvs-word');
+    if(kjvsWord){
+      e.preventDefault();
+      var kjvsNum = kjvsWord.getAttribute('data-strong') || '';
+      var kjvsMorphTag = kjvsWord.getAttribute('data-morph') || '';
+      var kjvsPrefix = kjvsNum.charAt(0).toUpperCase();
+      var kjvsPlainNum = kjvsNum.slice(1);
+      if(kjvsPrefix === 'H'){
+        var kjvsHebParsing = decodeHebrewMorph(kjvsMorphTag);
+        ensureHebrewLexicon(function(){
+          var kEntry = kjvsPlainNum && hebrewLexiconDict && hebrewLexiconDict[kjvsPlainNum];
+          var kMeta = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s H'+escapeHtml(kjvsPlainNum)+(kEntry&&kEntry.xlit?' &middot; '+escapeHtml(kEntry.xlit):'')+'</span>' +
+            (kjvsHebParsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(kjvsHebParsing)+'</div>' : '');
+          if(kEntry){
+            var kDef = kEntry.def || kEntry.brief || '';
+            var kTrunc = kDef.length > 500; var kSnippet = kTrunc ? kDef.slice(0,500)+'\u2026' : kDef;
+            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(kSnippet)+'</div>'+(kTrunc ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY);
+            if(kTrunc){ var kwp = document.getElementById('wordPopup'); if(kwp) kwp._fullDef = kDef; }
+          } else {
+            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta+'<div class="word-body" style="margin-top:6px; font-style:italic; color:var(--ink-faint);">No lexicon entry found for this Strong&rsquo;s number.</div>', e.clientX, e.clientY);
+          }
+        });
+      } else {
+        var kjvsParsing = decodeMorph(kjvsMorphTag);
+        ensureDodson(function(){
+          var kEntry2 = kjvsPlainNum && dodsonDict && dodsonDict[kjvsPlainNum];
+          var kMeta2 = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s G'+escapeHtml(kjvsPlainNum)+'</span>' +
+            (kjvsParsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(kjvsParsing)+'</div>' : '');
+          if(kEntry2){
+            var kDef2 = kEntry2.def || kEntry2.brief || '';
+            var kTrunc2 = kDef2.length > 500; var kSnippet2 = kTrunc2 ? kDef2.slice(0,500)+'\u2026' : kDef2;
+            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta2+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(kSnippet2)+'</div>'+(kTrunc2 ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : ''), e.clientX, e.clientY);
+            if(kTrunc2){ var kwp2 = document.getElementById('wordPopup'); if(kwp2) kwp2._fullDef = kDef2; }
+          } else {
+            showWordPopup('<b>'+escapeHtml(kjvsWord.textContent)+'</b> '+kMeta2+'<div class="word-body" style="margin-top:6px; font-style:italic; color:var(--ink-faint);">No Dodson entry found for this Strong&rsquo;s number.</div>', e.clientX, e.clientY);
+          }
+        });
+      }
+      return;
+    }
     if(!target.closest('.entry-text, .passage-panel')){ hideWordPopup(); return; }
     var range;
     if(document.caretRangeFromPoint){
@@ -3712,9 +3860,11 @@ var watsonDict = null;
     var cbl = state.mode==='advanced' ? crossBibleLink(ref) : null;
     var blb = state.mode==='advanced' ? blueLetterBibleLink(ref) : null;
     var lxx = lxxLinks(ref);
+    var bhl = bibleHubLink(ref);
     var switcher = '<span class="pswitch" style="flex-wrap:wrap;">' +
       '<button class="ptbtn'+(translation==='kjv'?' active':'')+'" data-tr="kjv" data-eid="'+entryId+'" data-ref="'+escapeHtml(ref)+'">KJV</button>' +
       '<button class="ptbtn'+(translation==='asv'?' active':'')+'" data-tr="asv" data-eid="'+entryId+'" data-ref="'+escapeHtml(ref)+'">ASV</button>' +
+      (bhl ? '<a class="ptbtn" href="'+bhl+'" target="_blank" rel="noopener">Compare on Bible Hub &#8599;</a>' : '') +
       (gl ? '<a class="ptbtn" href="'+gl+'" target="_blank" rel="noopener">Greek (TR) &#8599;</a>' : '') +
       (cbl ? '<a class="ptbtn" href="'+cbl+'" target="_blank" rel="noopener">CrossBible &#8599;</a>' : '') +
       (blb ? '<a class="ptbtn" href="'+blb+'" target="_blank" rel="noopener">Blue Letter Bible &#8599;</a>' : '') +
@@ -4391,6 +4541,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     bk_pilgrim:   { file:'pilgrims_progress.json', kind:'paragraphs' },
     bk_imitation: { file:'imitation_of_christ.json', kind:'paragraphs' },
     bk_luther:    { file:'luther_95_theses.json',  kind:'paragraphs' },
+    bk_kjvs:      { file:'kjvs.json',              kind:'verses' },
+    bk_spurgeon:  { file:'spurgeon_morning_evening.json', kind:'paragraphs' },
     bk_watson:    { file:'watson.json',            kind:'dictionary' }
   };
   var READER_TAB_ID = '__read__';
@@ -4755,12 +4907,13 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
 
     // kind === 'verses'
     var isGreekNt = (src.file === 'robinson_pierpont.json' || src.file === 'scrivener_tr.json' || src.file === 'sblgnt.json');
-    var hasStrongs = (src.file === 'robinson_pierpont.json' || src.file === 'sblgnt.json');
-    var activeStrongsData = (src.file === 'sblgnt.json') ? sblgntStrongsData : rpStrongsData;
+    var isKjvs = (src.file === 'kjvs.json');
+    var hasStrongs = (src.file === 'robinson_pierpont.json' || src.file === 'sblgnt.json' || isKjvs);
+    var activeStrongsData = (src.file === 'sblgnt.json') ? sblgntStrongsData : (isKjvs ? kjvsStrongsData : rpStrongsData);
     var isHebrewOt = (src.file === 'hebrew_wlc.json');
     var isTcent = (src.file === 'tcent.json');
     if(hasStrongs && !activeStrongsData){
-      var loadStrongsFn = (src.file === 'sblgnt.json') ? ensureSblgntStrongs : ensureRpStrongs;
+      var loadStrongsFn = (src.file === 'sblgnt.json') ? ensureSblgntStrongs : (isKjvs ? ensureKjvsStrongs : ensureRpStrongs);
       loadStrongsFn(function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); });
     }
     if(isHebrewOt && !hebrewStrongsData){
@@ -4827,10 +4980,25 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
 
     html += '<h3 style="font-family:\'Cormorant Garamond\', serif; margin:0 0 12px;'+(isHebrewOt?' direction:rtl;':'')+'">'+escapeHtml(rs.book)+' '+rs.chapter+'</h3>';
     if(hasStrongs){
-      html += '<p style="font-size:11.5px; color:var(--ink-faint); margin:-8px 0 14px;">RP2018 Greek text, Strong&rsquo;s numbers, and parsing via the byztxt project (public domain) &middot; definitions via Dodson&rsquo;s lexicon (public domain) &middot; reproduced as-is, not independently verified &mdash; see guide for details</p>';
+      if(src.file === 'sblgnt.json'){
+        html += '<p style="font-size:11.5px; color:var(--ink-faint); margin:-8px 0 14px;">SBLGNT Greek text (CC BY 4.0, Society of Biblical Literature / Logos Bible Software) &middot; Strong&rsquo;s numbers matched by lemma against Dodson&rsquo;s lexicon &middot; morphological tagging via the MorphGNT project (James K. Tauber, CC BY-SA 3.0) &middot; reproduced as-is, not independently verified &mdash; see guide for details</p>';
+      } else if(isKjvs){
+        html += '<p style="font-size:11.5px; color:var(--ink-faint); margin:-8px 0 14px;">KJV text and Strong&rsquo;s numbers via CrossWire Bible Society&rsquo;s KJV+Strong&rsquo;s module (freely redistributable) &middot; Greek definitions via Dodson&rsquo;s lexicon (public domain) &middot; Hebrew definitions via the Strong&rsquo;s Hebrew Dictionary, OpenScriptures Hebrew Lexicon edition (public domain base text, CC BY 4.0 markup) &middot; reproduced as-is, not independently verified &mdash; see guide for details</p>';
+      } else {
+        html += '<p style="font-size:11.5px; color:var(--ink-faint); margin:-8px 0 14px;">RP2018 Greek text, Strong&rsquo;s numbers, and parsing via the byztxt project (public domain) &middot; definitions via Dodson&rsquo;s lexicon (public domain) &middot; reproduced as-is, not independently verified &mdash; see guide for details</p>';
+      }
     }
     if(isHebrewOt){
       html += '<p style="font-size:11.5px; color:var(--ink-faint); margin:-8px 0 14px;">Westminster Leningrad Codex text (public domain), Strong&rsquo;s numbers and morphology via the Open Scriptures Hebrew Bible project (CC BY 4.0) &middot; definitions via the Strong&rsquo;s Hebrew Dictionary, OpenScriptures Hebrew Lexicon edition (public domain base text, CC BY 4.0 markup) &middot; reproduced as-is, not independently verified &mdash; see guide for details</p>';
+    }
+    // Task #37: a persistent (scroll-following) credit bar for Adam Boyd's editions,
+    // requested as extra visibility beyond the masthead credit line + Guide mention
+    // (not a legal requirement — his CC BY 4.0 terms are already satisfied elsewhere).
+    if(src.file === 'tcent.json' || src.file === 'asvbt.json'){
+      var boydLabel = (src.file === 'tcent.json')
+        ? 'Text-Critical English New Testament (Byzantine Text Version), &copy; Robert Adam Boyd, CC BY 4.0'
+        : 'ASV: Byzantine Text with Apocrypha, adapted by Robert Adam Boyd, dedicated to the public domain';
+      html += '<div style="position:sticky; top:0; z-index:5; background:var(--paper); border-bottom:1px solid var(--line); padding:6px 2px; margin:0 0 14px; font-size:11.5px; color:var(--ink-faint); text-align:center;">'+boydLabel+'</div>';
     }
     html += '<div class="reader-text" style="font-size:calc(16.5px * var(--fsz, 1)); line-height:1.75;'+(isHebrewOt?' direction:rtl; text-align:right;':'')+'">';
     var noteSlug = slugForDisplayBook(rs.book);
@@ -4846,13 +5014,14 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       }
       var vEntries = (hasStrongs && activeStrongsData && activeStrongsData[rs.book] && activeStrongsData[rs.book][rs.chapter]) ? activeStrongsData[rs.book][rs.chapter][v] : null;
       var hebEntries = (isHebrewOt && hebrewStrongsData && hebrewStrongsData[rs.book] && hebrewStrongsData[rs.book][rs.chapter]) ? hebrewStrongsData[rs.book][rs.chapter][v] : null;
-      var verseHtml = vEntries ? renderGreekVerseWords(chapterData[v], vEntries) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v])));
+      var verseHtml = (isKjvs && vEntries) ? renderKjvsVerseWords(chapterData[v], vEntries) : (vEntries ? renderGreekVerseWords(chapterData[v], vEntries) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v]))));
       var vhlColor = getVerseHighlight(rs.book, rs.chapter, v);
       var vhlClass = vhlColor ? (' vhl-'+vhlColor) : '';
-      var vhlToggleHtml = '<span class="verse-hl-toggle'+(vhlColor?' vhl-active':'')+'" data-book="'+escapeHtml(rs.book)+'" data-chapter="'+rs.chapter+'" data-verse="'+v+'" title="Highlight this verse">&#9635;</span>';
+      // Task #39: tapping the verse number opens a small Highlight/Add Note menu instead of
+      // jumping straight to a new note, and the always-visible highlight-toggle square is gone
+      // (a highlighted verse still shows via vhlClass background tint on the whole verse-row).
       return '<span id="verseRow-'+v+'" class="verse-row'+vhlClass+'">' +
-        vhlToggleHtml +
-        '<span class="verse-num-add" data-book="'+escapeHtml(rs.book)+'" data-chapter="'+rs.chapter+'" data-verse="'+v+'" title="Click to start a new note on '+escapeHtml(rs.book)+' '+rs.chapter+':'+v+'" style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px; cursor:pointer;">'+v+'</span>'+marks+verseHtml+' </span>';
+        '<span class="verse-num-add" data-book="'+escapeHtml(rs.book)+'" data-chapter="'+rs.chapter+'" data-verse="'+v+'" title="Highlight or add a note on '+escapeHtml(rs.book)+' '+rs.chapter+':'+v+'" style="font-family:\'JetBrains Mono\', monospace; font-size:calc(11px * var(--fsz, 1)); color:var(--ink-faint); margin-right:6px; cursor:pointer;">'+v+'</span>'+marks+verseHtml+' </span>';
     }).join('');
     html += '</div>';
     return html;
@@ -5010,6 +5179,10 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       '<button class="btn small" id="closeBookBtn">&larr; back to shelf</button>' +
     '</div>';
     html += '</div>';
+
+    if(BOOK_CREDITS[book.id]){
+      html += '<details style="margin:2px 0 14px; font-size:12.5px; color:var(--ink-faint);"><summary style="cursor:pointer; user-select:none;">Title page &amp; credits</summary><div style="margin-top:6px; line-height:1.5;">'+BOOK_CREDITS[book.id]+'</div></details>';
+    }
 
     if(textSrc){
       html += '<div class="pillgroup" style="margin:4px 0 16px;">' +
