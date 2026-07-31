@@ -524,6 +524,7 @@
         <button class="btn small" id="printBtn" title="A clean, printable copy of the whole numbered notebook — opens your browser's print dialog (choose Save as PDF)">Print / PDF</button>
         <div class="ie-menu-heading">Phone</div>
         <button class="btn small" id="exportPhoneBtn" title="A text-only backup — small enough for a phone's browser storage, no photos included">Export for phone (text only, no photos)</button>
+        <button class="btn small" id="githubSyncBtn" title="Optional, advanced: keep your notes in step across devices via your own private GitHub repository">GitHub sync (advanced)</button>
       </div>
     </div>
     <button class="btn primary" id="folderBtn">Save to folder&hellip;</button>
@@ -629,6 +630,49 @@
     </ul>
     <div class="form-actions">
       <button class="btn primary" id="phoneModeOk">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="githubSyncModal">
+  <div class="modal" style="max-width:560px;">
+    <h3>GitHub sync <span style="font-weight:normal; font-size:13px; color:var(--ink-soft);">&mdash; advanced, optional</span></h3>
+    <div id="githubSyncStatus" style="font-size:13.5px; margin-bottom:12px; padding:8px 12px; border-radius:6px; background:#f0ead9;"></div>
+    <div style="font-size:14.5px; color:var(--ink-soft); max-height:46vh; overflow-y:auto; padding-right:6px;">
+      <p><b>What this does:</b> keeps your written entries (title, reference, tags, body &mdash; text only, no photos) in step across your devices by saving them to a private GitHub repository that belongs to <b>you</b>, not to anyone else. It's completely optional, it's built mainly for using this notebook on a phone where "Save to folder" isn't available, and turning it off any time leaves every note exactly where it already is &mdash; nothing is deleted.</p>
+      <p><b>Before you turn this on, please read:</b></p>
+      <ul style="padding-left:20px;">
+        <li>The <b>token</b> you'll paste in below is like a password. Anyone who has it can read and write to whatever repository you point it at. Don't share it and don't paste it anywhere else.</li>
+        <li>It's stored only on this device, in this browser &mdash; never inside your notebook file itself, so it can never accidentally end up in your regular exports, backups, or the sync file itself.</li>
+        <li><b>Photos are not synced</b> this way &mdash; only text. Photos stay local to whichever device you added them on, the same limitation phones already have today.</li>
+        <li>This is a manual-ish sync, not instant or silent: the app quietly checks for updates when you open it, and you tap <b>"Sync now"</b> to push your latest notes out to your other devices.</li>
+        <li>You can disable this at any time from this same screen &mdash; your local notes are never touched, on this device or any other, whether sync is on or off.</li>
+      </ul>
+      <p><b>One-time setup (about 5 minutes, do this once per device):</b></p>
+      <ol style="padding-left:20px;">
+        <li>On <a href="https://github.com" target="_blank" rel="noopener">github.com</a>, sign in (or create a free account &mdash; it costs nothing).</li>
+        <li>Create a new <b>private</b> repository just for this &mdash; any name works, e.g. <code>my-notebook-sync</code>. Leave it empty, no README needed.</li>
+        <li>Go to <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens?type=beta</a> and click <b>Generate new token</b>.</li>
+        <li>Under <b>Repository access</b>, choose <b>Only select repositories</b> and pick the one you just created.</li>
+        <li>Under <b>Permissions &rarr; Repository permissions</b>, find <b>Contents</b> and set it to <b>Read and write</b>. Leave everything else as "No access."</li>
+        <li>Click <b>Generate token</b>, then copy it &mdash; GitHub only shows it to you once.</li>
+        <li>Paste the repository (as <code>yourname/my-notebook-sync</code>) and the token into the two fields below, then click <b>Save &amp; enable</b>.</li>
+      </ol>
+      <p>Repeat step 7 on each other device you want synced &mdash; a separate token per device is fine, and actually a little safer than reusing one everywhere.</p>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label for="githubSyncRepo">Repository (owner/repo)</label>
+      <input type="text" id="githubSyncRepo" placeholder="yourname/my-notebook-sync">
+    </div>
+    <div class="field">
+      <label for="githubSyncToken">Personal access token</label>
+      <input type="password" id="githubSyncToken" placeholder="github_pat_...">
+    </div>
+    <div class="form-actions" style="flex-wrap:wrap;">
+      <button class="btn primary" id="githubSyncEnableBtn">Save &amp; enable</button>
+      <button class="btn" id="githubSyncNowBtn" style="display:none;">Sync now</button>
+      <button class="btn ghost" id="githubSyncDisableBtn" style="display:none;">Disable (keep local notes)</button>
+      <button class="btn ghost" id="githubSyncCloseBtn">Close</button>
     </div>
   </div>
 </div>
@@ -6018,6 +6062,176 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     reader.readAsText(file);
     e.target.value = '';
   });
+
+  /* ---------- GITHUB SYNC (optional, advanced, phone-friendly) ----------
+     Deliberately stored OUTSIDE `state`, in its own localStorage key, so the token
+     can never accidentally end up inside an exported backup, a printed volume, or
+     the sync payload it authenticates with — secrets and notebook data are kept
+     structurally apart on purpose, not just by convention. */
+  var GITHUB_SYNC_KEY = 'miscellanies-github-sync-v1';
+  function loadGithubSyncConfig(){
+    try{
+      var raw = localStorage.getItem(GITHUB_SYNC_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && typeof parsed === 'object') return parsed;
+      }
+    }catch(e){}
+    return { enabled:false, repo:'', token:'', path:'notebook-sync.json', lastSyncedAt:null };
+  }
+  function saveGithubSyncConfig(cfg){
+    try{ localStorage.setItem(GITHUB_SYNC_KEY, JSON.stringify(cfg)); }catch(e){}
+  }
+  // atob/btoa only handle Latin-1; this pair round-trips arbitrary UTF-8 text (needed
+  // since entries routinely contain curly quotes, em dashes, Greek/Hebrew, etc.)
+  function utf8ToBase64(str){ return btoa(unescape(encodeURIComponent(str))); }
+  function base64ToUtf8(b64){ return decodeURIComponent(escape(atob((b64||'').replace(/\n/g, '')))); }
+  // The payload actually written to GitHub — same "no photos" rule as the existing
+  // "Export for phone" button, so a sync never balloons past GitHub's per-file size
+  // limit and never re-uploads binary image data on every single sync.
+  function githubSyncPayload(){
+    var copy = JSON.parse(JSON.stringify(state));
+    Object.keys(copy.notebooks || {}).forEach(function(k){
+      (copy.notebooks[k].entries || []).forEach(function(e){
+        e.photos = [];
+        delete e.photo;
+      });
+    });
+    return copy;
+  }
+  function githubApiHeaders(cfg){
+    return { 'Authorization': 'token ' + cfg.token, 'Accept': 'application/vnd.github+json' };
+  }
+  function githubSyncFetchRemote(cfg){
+    var url = 'https://api.github.com/repos/' + cfg.repo + '/contents/' + encodeURIComponent(cfg.path);
+    return fetch(url, { headers: githubApiHeaders(cfg) }).then(function(resp){
+      if(resp.status === 404) return { exists:false, sha:null, data:null };
+      if(!resp.ok) return resp.json().catch(function(){ return {}; }).then(function(body){
+        throw new Error('GitHub error ' + resp.status + (body && body.message ? ': ' + body.message : ''));
+      });
+      return resp.json().then(function(body){
+        var text = base64ToUtf8(body.content || '');
+        var data;
+        try{ data = JSON.parse(text); }
+        catch(e){ throw new Error('The file in that repository isn\'t a Digging Deep sync file'); }
+        return { exists:true, sha: body.sha, data: data };
+      });
+    });
+  }
+  function githubSyncPushRemote(cfg, sha){
+    var payload = githubSyncPayload();
+    var url = 'https://api.github.com/repos/' + cfg.repo + '/contents/' + encodeURIComponent(cfg.path);
+    var body = {
+      message: 'Sync notebook — ' + new Date().toISOString(),
+      content: utf8ToBase64(JSON.stringify(payload, null, 2))
+    };
+    if(sha) body.sha = sha;
+    return fetch(url, {
+      method: 'PUT',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, githubApiHeaders(cfg)),
+      body: JSON.stringify(body)
+    }).then(function(resp){
+      if(!resp.ok) return resp.json().catch(function(){ return {}; }).then(function(errBody){
+        throw new Error('GitHub error ' + resp.status + (errBody && errBody.message ? ': ' + errBody.message : ''));
+      });
+      return resp.json();
+    });
+  }
+  function renderGithubSyncStatus(msg, isError){
+    var el = document.getElementById('githubSyncStatus');
+    if(!el) return;
+    var cfg = loadGithubSyncConfig();
+    var base = cfg.enabled
+      ? ('Sync is <b>on</b> for <code>' + escapeHtml(cfg.repo) + '</code>. ' + (cfg.lastSyncedAt ? 'Last synced ' + new Date(cfg.lastSyncedAt).toLocaleString() + '.' : 'Not synced yet — click Sync now.'))
+      : 'Sync is currently <b>off</b>. Your notes stay exactly where they are, local to this device.';
+    el.innerHTML = (msg ? '<div style="' + (isError ? 'color:#7a2e2a; font-weight:600;' : '') + ' margin-bottom:6px;">' + escapeHtml(msg) + '</div>' : '') + base;
+    var nowBtn = document.getElementById('githubSyncNowBtn');
+    var disBtn = document.getElementById('githubSyncDisableBtn');
+    var enBtn = document.getElementById('githubSyncEnableBtn');
+    var repoInput = document.getElementById('githubSyncRepo');
+    if(nowBtn) nowBtn.style.display = cfg.enabled ? '' : 'none';
+    if(disBtn) disBtn.style.display = cfg.enabled ? '' : 'none';
+    if(enBtn) enBtn.textContent = cfg.enabled ? 'Update & re-enable' : 'Save & enable';
+    if(repoInput && !repoInput.value) repoInput.value = cfg.repo || '';
+  }
+  function githubSyncNow(silent){
+    var cfg = loadGithubSyncConfig();
+    if(!cfg.enabled || !cfg.repo || !cfg.token){ if(!silent) renderGithubSyncStatus('Enable sync first.', true); return Promise.resolve(); }
+    if(!silent) renderGithubSyncStatus('Syncing…');
+    return githubSyncFetchRemote(cfg).then(function(remote){
+      if(remote.exists && remote.data){
+        mergeIntoState(remote.data);
+        if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
+        normalizeAllNotebooks();
+        resetBackupCounter();
+        persist();
+        renderAll();
+      }
+      return githubSyncPushRemote(cfg, remote.sha).then(function(){
+        cfg.lastSyncedAt = new Date().toISOString();
+        saveGithubSyncConfig(cfg);
+        if(!silent){ renderGithubSyncStatus('Synced just now.'); flash('Synced with GitHub'); }
+      });
+    }).catch(function(err){
+      if(!silent) renderGithubSyncStatus(err.message || 'Sync failed — check your repository name and token.', true);
+    });
+  }
+  var githubSyncBtnEl = document.getElementById('githubSyncBtn');
+  if(githubSyncBtnEl) githubSyncBtnEl.addEventListener('click', function(){
+    document.getElementById('githubSyncModal').classList.add('open');
+    renderGithubSyncStatus();
+  });
+  var githubSyncCloseBtnEl = document.getElementById('githubSyncCloseBtn');
+  if(githubSyncCloseBtnEl) githubSyncCloseBtnEl.addEventListener('click', function(){
+    document.getElementById('githubSyncModal').classList.remove('open');
+  });
+  var githubSyncEnableBtnEl = document.getElementById('githubSyncEnableBtn');
+  if(githubSyncEnableBtnEl) githubSyncEnableBtnEl.addEventListener('click', function(){
+    var repo = document.getElementById('githubSyncRepo').value.trim();
+    var tokenInput = document.getElementById('githubSyncToken');
+    var token = tokenInput.value.trim();
+    var cfg = loadGithubSyncConfig();
+    if(!repo || !/^[^\/\s]+\/[^\/\s]+$/.test(repo)){ renderGithubSyncStatus('Enter the repository as owner/repo.', true); return; }
+    if(!token) token = cfg.token; // allow re-saving the repo without re-pasting an already-stored token
+    if(!token){ renderGithubSyncStatus('Paste your personal access token.', true); return; }
+    cfg.repo = repo;
+    cfg.token = token;
+    cfg.enabled = true;
+    saveGithubSyncConfig(cfg);
+    tokenInput.value = '';
+    renderGithubSyncStatus('Enabling…');
+    githubSyncNow();
+  });
+  var githubSyncNowBtnEl = document.getElementById('githubSyncNowBtn');
+  if(githubSyncNowBtnEl) githubSyncNowBtnEl.addEventListener('click', function(){ githubSyncNow(); });
+  var githubSyncDisableBtnEl = document.getElementById('githubSyncDisableBtn');
+  if(githubSyncDisableBtnEl) githubSyncDisableBtnEl.addEventListener('click', function(){
+    var cfg = loadGithubSyncConfig();
+    cfg.enabled = false;
+    saveGithubSyncConfig(cfg);
+    renderGithubSyncStatus('Sync turned off. Every note stays exactly as it is on this device.');
+  });
+  // Best-effort silent catch-up on load, if sync was already enabled on this device —
+  // pulls in anything newer from other devices without waiting for the modal to be
+  // opened. Never pushes on its own, and any failure (offline, revoked token, etc.)
+  // is silent by design: this must never interrupt ordinary use of the app.
+  (function(){
+    var cfg = loadGithubSyncConfig();
+    if(cfg.enabled && cfg.repo && cfg.token){
+      githubSyncFetchRemote(cfg).then(function(remote){
+        if(remote.exists && remote.data){
+          mergeIntoState(remote.data);
+          if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
+          normalizeAllNotebooks();
+          resetBackupCounter();
+          persist();
+          renderAll();
+          cfg.lastSyncedAt = new Date().toISOString();
+          saveGithubSyncConfig(cfg);
+        }
+      }).catch(function(){ /* silent on purpose */ });
+    }
+  })();
 
   document.getElementById('folderBtn').addEventListener('click', function(){
     if(dirHandle){
