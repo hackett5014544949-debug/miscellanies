@@ -3190,7 +3190,12 @@ var watsonDict = null;
   // as plain text without consuming a word-index slot.
   var HEB_TOKEN_RE = /[^\s־]+־?|\s+/g;
   var HEB_PUNCT_TRIM_RE = /^[׃׀]+|[׃׀]+$/g;
-  var HEB_SECTION_MARKERS = {'פ':true, 'ס':true};
+  // Includes the inverted nun (nun hafukha, U+05C6) — a text-critical marker bracketing
+  // a handful of passages (e.g. Numbers 10:35-36, Psalm 107 stanza breaks) in the WLC.
+  // It's not a real word, so it must be skipped like the open/closed-portion markers
+  // above, or it silently consumes a word-index slot that hebrew_strongs.json never
+  // populated for it.
+  var HEB_SECTION_MARKERS = {'פ':true, 'ס':true, '׆':true};
   function renderHebrewVerseWords(text, entries){
     if(!entries || !entries.length) return escapeHtml(text||'');
     var tokens = (text||'').match(HEB_TOKEN_RE) || [];
