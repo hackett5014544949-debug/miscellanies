@@ -6171,6 +6171,30 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       githubSyncNow(true);
     }, 4000);
   }
+  // A background sync (silent auto-pull on load, or the debounced auto-push after
+  // saving) can land mid-keystroke while someone's still typing in Quick Capture.
+  // Its renderAll() rebuilds that box from scratch, which would otherwise wipe out
+  // whatever they'd typed but not yet saved. Snapshot it first, put it back after.
+  function captureQuickDraft(){
+    var el = document.getElementById('quickInboxInput');
+    if(!el) return null;
+    var active = document.activeElement === el;
+    var chk = document.getElementById('quickOrganizeLater');
+    return { value: el.value, checked: chk ? chk.checked : false, focused: active,
+      selStart: active && el.selectionStart, selEnd: active && el.selectionEnd };
+  }
+  function restoreQuickDraft(draft){
+    if(!draft || !draft.value) return;
+    var el = document.getElementById('quickInboxInput');
+    if(!el) return;
+    el.value = draft.value;
+    var chk = document.getElementById('quickOrganizeLater');
+    if(chk) chk.checked = draft.checked;
+    if(draft.focused){
+      el.focus();
+      try{ el.setSelectionRange(draft.selStart, draft.selEnd); }catch(e){}
+    }
+  }
   function githubSyncNow(silent){
     var cfg = loadGithubSyncConfig();
     if(!cfg.enabled || !cfg.repo || !cfg.token){ if(!silent) renderGithubSyncStatus('Enable sync first.', true); return Promise.resolve(); }
@@ -6178,12 +6202,14 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     githubSyncInFlight = true;
     return githubSyncFetchRemote(cfg).then(function(remote){
       if(remote.exists && remote.data){
+        var __quickDraft = captureQuickDraft();
         mergeIntoState(remote.data);
         if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
         normalizeAllNotebooks();
         resetBackupCounter();
         persist();
         renderAll();
+        restoreQuickDraft(__quickDraft);
       }
       return githubSyncPushRemote(cfg, remote.sha).then(function(){
         cfg.lastSyncedAt = new Date().toISOString();
@@ -6240,12 +6266,14 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     if(cfg.enabled && cfg.repo && cfg.token){
       githubSyncFetchRemote(cfg).then(function(remote){
         if(remote.exists && remote.data){
+          var __quickDraft = captureQuickDraft();
           mergeIntoState(remote.data);
           if(!state.notebooks[state.activeNotebookId]) state.activeNotebookId = Object.keys(state.notebooks)[0];
           normalizeAllNotebooks();
           resetBackupCounter();
           persist();
           renderAll();
+          restoreQuickDraft(__quickDraft);
           cfg.lastSyncedAt = new Date().toISOString();
           saveGithubSyncConfig(cfg);
         }
