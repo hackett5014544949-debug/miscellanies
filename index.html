@@ -645,7 +645,7 @@
         <li>The <b>token</b> you'll paste in below is like a password. Anyone who has it can read and write to whatever repository you point it at. Don't share it and don't paste it anywhere else.</li>
         <li>It's stored only on this device, in this browser &mdash; never inside your notebook file itself, so it can never accidentally end up in your regular exports, backups, or the sync file itself.</li>
         <li><b>Photos are not synced</b> this way &mdash; only text. Photos stay local to whichever device you added them on, the same limitation phones already have today.</li>
-        <li>This is a manual-ish sync, not instant or silent: the app quietly checks for updates when you open it, and you tap <b>"Sync now"</b> to push your latest notes out to your other devices.</li>
+        <li>Once this is on, the app pushes your changes up automatically a few seconds after you save any entry &mdash; you don't need to tap anything. It also quietly checks for updates from your other devices each time you open it. The <b>"Sync now"</b> button is still there if you want to force a sync right away.</li>
         <li>You can disable this at any time from this same screen &mdash; your local notes are never touched, on this device or any other, whether sync is on or off.</li>
       </ul>
       <p><b>One-time setup (about 5 minutes, do this once per device):</b></p>
@@ -1950,6 +1950,7 @@
   }
 
   function persist(){
+    scheduleGithubAutoPush();
     if(dirHandle){ persistToFolder(); return; }
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     catch(e){ flash('Could not save — storage may be full'); }
@@ -6154,10 +6155,27 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     if(enBtn) enBtn.textContent = cfg.enabled ? 'Update & re-enable' : 'Save & enable';
     if(repoInput && !repoInput.value) repoInput.value = cfg.repo || '';
   }
+  var githubAutoPushTimer = null;
+  var githubSyncInFlight = false;
+  // Debounced auto-push: called from persist() on every save. Waits for a lull in
+  // editing (so rapid saves collapse into one sync, not one per keystroke) before
+  // quietly pushing to GitHub. Never shows an error to the user if it fails — the
+  // failure surfaces the next time they open the sync screen or tap Sync now, same
+  // as the existing silent auto-pull on load.
+  function scheduleGithubAutoPush(){
+    var cfg = loadGithubSyncConfig();
+    if(!cfg.enabled || !cfg.repo || !cfg.token) return;
+    clearTimeout(githubAutoPushTimer);
+    githubAutoPushTimer = setTimeout(function(){
+      if(githubSyncInFlight) return; // let the in-progress sync finish; next save will reschedule
+      githubSyncNow(true);
+    }, 4000);
+  }
   function githubSyncNow(silent){
     var cfg = loadGithubSyncConfig();
     if(!cfg.enabled || !cfg.repo || !cfg.token){ if(!silent) renderGithubSyncStatus('Enable sync first.', true); return Promise.resolve(); }
     if(!silent) renderGithubSyncStatus('Syncing…');
+    githubSyncInFlight = true;
     return githubSyncFetchRemote(cfg).then(function(remote){
       if(remote.exists && remote.data){
         mergeIntoState(remote.data);
@@ -6174,6 +6192,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       });
     }).catch(function(err){
       if(!silent) renderGithubSyncStatus(err.message || 'Sync failed — check your repository name and token.', true);
+    }).then(function(){
+      githubSyncInFlight = false;
     });
   }
   var githubSyncBtnEl = document.getElementById('githubSyncBtn');
