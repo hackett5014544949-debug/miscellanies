@@ -2243,6 +2243,16 @@
       s.books = s.books || [];
       (d.books||[]).forEach(function(db){ if(!s.books.some(function(sb){ return sb.id === db.id; })) s.books.push(db); });
       (d.trash||[]).forEach(function(dt){ if(!s.trash.some(function(st){ return st.entry.id === dt.entry.id; })) s.trash.push(dt); });
+      // Any id now sitting in this notebook's (freshly merged) trash is a
+      // deletion that should win over a live copy of the same entry that
+      // arrived from disk, or that was already sitting in this device's own
+      // entries list before the deletion reached it. Without this, a delete
+      // made on one device would never actually remove the entry on another
+      // device -- the trash record would merge in, but the live entry beside
+      // it never would get cleaned up.
+      var mergedTrashIds = {};
+      s.trash.forEach(function(t){ mergedTrashIds[t.entry.id] = true; });
+      s.entries = s.entries.filter(function(se){ return !mergedTrashIds[se.id]; });
       s.nextId = Math.max(s.nextId||1, d.nextId||1);
       migratePhotos(s.entries);
       fillEmptyRefs(s.entries);
