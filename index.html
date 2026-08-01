@@ -1323,6 +1323,8 @@
   };
   var editingId = null;
   var openEntryId = null;
+  var bulkSelectMode = false;
+  var bulkSelected = {}; // id -> nb id it lives in, so bulk-delete can switch context per entry
   var passageCache = {};
   var openPassageId = null;
   var openPassageRef = null;
@@ -2221,7 +2223,17 @@
       var d = disk.notebooks[nid];
       if(!state.notebooks[nid]){ state.notebooks[nid] = d; return; }
       var s = state.notebooks[nid];
+      s.trash = s.trash || [];
+      // Trash acts as a tombstone: if this device already deleted an entry (it's
+      // sitting in local trash), an incoming copy that still has it in *entries*
+      // just means the other device/remote hasn't caught up on the deletion yet.
+      // Without this check, every pull would silently resurrect anything deleted
+      // locally but not yet pushed — the entry "pops back in" right after deleting
+      // it. Skip re-adding/updating any id that's already a local tombstone.
+      var trashedIds = {};
+      s.trash.forEach(function(t){ trashedIds[t.entry.id] = true; });
       (d.entries||[]).forEach(function(de){
+        if(trashedIds[de.id]) return;
         var idx = s.entries.findIndex(function(se){ return se.id === de.id; });
         if(idx === -1) s.entries.push(de);
         else s.entries[idx] = newerOf(s.entries[idx], de);
@@ -2230,7 +2242,6 @@
       (d.inbox||[]).forEach(function(di){ if(!s.inbox.some(function(si){ return si.id === di.id; })) s.inbox.push(di); });
       s.books = s.books || [];
       (d.books||[]).forEach(function(db){ if(!s.books.some(function(sb){ return sb.id === db.id; })) s.books.push(db); });
-      s.trash = s.trash || [];
       (d.trash||[]).forEach(function(dt){ if(!s.trash.some(function(st){ return st.entry.id === dt.entry.id; })) s.trash.push(dt); });
       s.nextId = Math.max(s.nextId||1, d.nextId||1);
       migratePhotos(s.entries);
@@ -2686,9 +2697,20 @@
     }).join('') + '</select>';
     if(state.mode === 'advanced'){
       html += '<button type="button" class="btn small ghost" id="manageTagsBtn" title="Rename or merge topics">manage topics</button>';
+      html += '<button type="button" class="btn small ghost" id="bulkSelectBtn">'+(bulkSelectMode?'cancel select':'select multiple')+'</button>';
     }
     html += '<button class="btn primary" id="newEntryBtn">New entry</button>';
     html += '</div>';
+
+    if(bulkSelectMode){
+      var bulkCount = Object.keys(bulkSelected).length;
+      html += '<div style="display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 16px; margin-bottom:14px;">' +
+        '<span style="font-size:14px;">'+bulkCount+' selected</span>' +
+        '<button type="button" class="btn small rubric" id="bulkDeleteBtn"'+(bulkCount?'':' disabled')+'>Delete selected</button>' +
+        '<button type="button" class="btn small ghost" id="bulkSelectAllBtn">select all visible</button>' +
+        '<button type="button" class="btn small ghost" id="bulkSelectNoneBtn">clear</button>' +
+      '</div>';
+    }
 
     html += '<div class="form" id="entryForm">' + entryFormHtml() + '</div>';
 
@@ -2745,8 +2767,12 @@
       badges += '<span class="badge" style="background:var(--blue-bg); color:var(--blue);" title="This entry lives in the '+escapeHtml(state.notebooks[srcNbId].name)+' notebook">'+escapeHtml(state.notebooks[srcNbId].name)+'</span>';
     }
 
+    var bulkCheckboxHtml = bulkSelectMode
+      ? '<input type="checkbox" class="bulk-check" data-bulkcheck="'+e.id+'" data-nb="'+srcNbId+'" style="width:16px; height:16px; margin-top:6px; flex-shrink:0;"'+(bulkSelected[e.id]!==undefined?' checked':'')+'>'
+      : '';
     return '' +
     '<div class="entry" id="entry-'+e.id+'">' +
+      (bulkCheckboxHtml) +
       '<div class="entry-num'+(state.mode==='advanced'?' editable':'')+'" data-editnum="'+e.id+'" data-nb="'+srcNbId+'" title="'+(state.mode==='advanced'?'Click to change this entry\'s number':'')+'">no. '+formatEntryNum(e.id)+'</div>' +
       '<div class="entry-body">' +
         '<div class="entry-head" data-toggle="'+e.id+'">' +
@@ -2901,6 +2927,74 @@
       manageTagsBtn.addEventListener('click', function(){
         renderTagManager();
         document.getElementById('tagManagerModal').classList.add('open');
+      });
+    }
+    var bulkSelectBtn = document.getElementById('bulkSelectBtn');
+    if(bulkSelectBtn){
+      bulkSelectBtn.addEventListener('click', function(){
+        bulkSelectMode = !bulkSelectMode;
+        bulkSelected = {};
+        renderStream();
+      });
+    }
+    function updateBulkBar(){
+      var bar = document.getElementById('bulkDeleteBtn');
+      var count = Object.keys(bulkSelected).length;
+      var countEl = bar && bar.parentElement && bar.parentElement.querySelector('span');
+      if(countEl) countEl.textContent = count+' selected';
+      if(bar) bar.disabled = !count;
+    }
+    Array.prototype.forEach.call(document.querySelectorAll('[data-bulkcheck]'), function(el){
+      el.addEventListener('change', function(){
+        var id = Number(el.getAttribute('data-bulkcheck'));
+        var nbid = el.getAttribute('data-nb');
+        if(el.checked) bulkSelected[id] = nbid;
+        else delete bulkSelected[id];
+        updateBulkBar();
+      });
+    });
+    var bulkSelectAllBtn = document.getElementById('bulkSelectAllBtn');
+    if(bulkSelectAllBtn){
+      bulkSelectAllBtn.addEventListener('click', function(){
+        Array.prototype.forEach.call(document.querySelectorAll('[data-bulkcheck]'), function(el){
+          el.checked = true;
+          bulkSelected[Number(el.getAttribute('data-bulkcheck'))] = el.getAttribute('data-nb');
+        });
+        updateBulkBar();
+      });
+    }
+    var bulkSelectNoneBtn = document.getElementById('bulkSelectNoneBtn');
+    if(bulkSelectNoneBtn){
+      bulkSelectNoneBtn.addEventListener('click', function(){
+        bulkSelected = {};
+        Array.prototype.forEach.call(document.querySelectorAll('[data-bulkcheck]'), function(el){ el.checked = false; });
+        updateBulkBar();
+      });
+    }
+    var bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    if(bulkDeleteBtn){
+      bulkDeleteBtn.addEventListener('click', function(){
+        var ids = Object.keys(bulkSelected).map(Number);
+        if(!ids.length) return;
+        if(!confirm('Move '+ids.length+' entr'+(ids.length===1?'y':'ies')+' to trash? You can restore them individually afterward from the trash at the bottom of the list.')) return;
+        var movedCount = 0;
+        ids.forEach(function(id){
+          var nbid = bulkSelected[id];
+          var targetNb = state.notebooks[nbid] || nb();
+          var idx = targetNb.entries.findIndex(function(x){ return x.id === id; });
+          if(idx === -1) return;
+          var e = targetNb.entries[idx];
+          targetNb.entries.splice(idx, 1);
+          targetNb.trash = targetNb.trash || [];
+          targetNb.trash.push({ entry:e, deletedAt:new Date().toISOString() });
+          movedCount++;
+        });
+        noteEdit();
+        bulkSelectMode = false;
+        bulkSelected = {};
+        persist();
+        renderStream();
+        flash(movedCount+' entr'+(movedCount===1?'y':'ies')+' moved to trash');
       });
     }
     document.getElementById('newEntryBtn').addEventListener('click', openNewEntry);
