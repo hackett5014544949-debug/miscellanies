@@ -6248,7 +6248,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       body: JSON.stringify(body)
     }).then(function(resp){
       if(!resp.ok) return resp.json().catch(function(){ return {}; }).then(function(errBody){
-        throw new Error('GitHub error ' + resp.status + (errBody && errBody.message ? ': ' + errBody.message : ''));
+        var e = new Error('GitHub error ' + resp.status + (errBody && errBody.message ? ': ' + errBody.message : ''));
+        e.status = resp.status;
+        throw e;
       });
       return resp.json();
     });
@@ -6310,7 +6312,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       try{ el.setSelectionRange(draft.selStart, draft.selEnd); }catch(e){}
     }
   }
-  function githubSyncNow(silent){
+  function githubSyncNow(silent, __retryAttempt){
+    var attempt = __retryAttempt || 1;
     var cfg = loadGithubSyncConfig();
     if(!cfg.enabled || !cfg.repo || !cfg.token){ if(!silent) renderGithubSyncStatus('Enable sync first.', true); return Promise.resolve(); }
     if(!silent) renderGithubSyncStatus('Syncing…');
@@ -6332,7 +6335,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
         if(!silent){ renderGithubSyncStatus('Synced just now.'); flash('Synced with GitHub'); }
       });
     }).catch(function(err){
-      if(!silent) renderGithubSyncStatus(err.message || 'Sync failed — check your repository name and token.', true);
+      if(err && err.status === 409 && attempt < 5){
+        return new Promise(function(resolve){ setTimeout(resolve, 300 * attempt); }).then(function(){
+          return githubSyncNow(silent, attempt + 1);
+        });
+      }
+      if(!silent) renderGithubSyncStatus((err && err.message) || 'Sync failed — check your repository name and token.', true);
     }).then(function(){
       githubSyncInFlight = false;
     });
