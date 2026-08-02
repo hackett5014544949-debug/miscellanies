@@ -6450,6 +6450,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
   renderAll();
   renderFolderBtn();
   if(IS_PHONE){ initPhoneMode(); } else { restoreFolder(); }
+  if(typeof loadGithubSyncConfig === 'function' && typeof githubSyncNow === 'function'){
+    try{ var __ghAutoPullCfg = loadGithubSyncConfig(); if(__ghAutoPullCfg && __ghAutoPullCfg.enabled){ githubSyncNow(true); } }catch(__ghAutoPullErr){}
+  }
 })();
 </script>
 <script>
