@@ -3616,6 +3616,31 @@ var watsonDict = null;
     var pop = document.getElementById('wordPopup');
     if(pop) pop.classList.remove('open');
   }
+  function betaCodeToGreek(s){
+    if(!s) return '';
+    var letterMap = {a:'α',b:'β',g:'γ',d:'δ',e:'ε',z:'ζ',h:'η',q:'θ',i:'ι',k:'κ',l:'λ',m:'μ',n:'ν',c:'ξ',o:'ο',p:'π',r:'ρ',s:'σ',t:'τ',u:'υ',f:'φ',x:'χ',y:'ψ',w:'ω'};
+    var upperMap = {a:'Α',b:'Β',g:'Γ',d:'Δ',e:'Ε',z:'Ζ',h:'Η',q:'Θ',i:'Ι',k:'Κ',l:'Λ',m:'Μ',n:'Ν',c:'Ξ',o:'Ο',p:'Π',r:'Ρ',s:'Σ',t:'Τ',u:'Υ',f:'Φ',x:'Χ',y:'Ψ',w:'Ω'};
+    var diacritics = {')':'̓','(':'̔','/':'́','\\':'̀','=':'͂','+':'̈','|':'ͅ'};
+    var out = '', capNext = false, pending = '', i = 0;
+    while(i < s.length){
+      var ch = s[i];
+      if(ch === '*'){ capNext = true; i++; continue; }
+      if(diacritics[ch]){ pending += diacritics[ch]; i++; continue; }
+      if(letterMap[ch.toLowerCase()]){
+        var base = capNext ? (upperMap[ch.toLowerCase()] || ch) : letterMap[ch.toLowerCase()];
+        capNext = false; i++;
+        var marks = pending; pending = '';
+        while(i < s.length && diacritics[s[i]]){ marks += diacritics[s[i]]; i++; }
+        out += base + marks;
+      } else {
+        if(pending){ out += pending; pending = ''; }
+        out += ch; i++;
+      }
+    }
+    out = out.normalize('NFC');
+    out = out.replace(/σ(?=[\s,;.]|$)/g, 'ς');
+    return out;
+  }
   function handleWordTap(e){
     var target = e.target;
     if(!target.closest) return;
@@ -3815,8 +3840,10 @@ var watsonDict = null;
         if(entry){
           var def = entry.def || entry.brief || '';
           var truncated = def.length > 500; var snippet = truncated ? def.slice(0,500)+'\u2026' : def;
+          var lexForm = entry.greek ? betaCodeToGreek(entry.greek) : '';
           var meta = '<span style="color:var(--ink-faint); font-family:\'JetBrains Mono\', monospace; font-size:11px;">Strong&rsquo;s '+escapeHtml(num)+'</span>' +
-            (parsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(parsing)+'</div>' : '');
+            (parsing ? '<div style="color:var(--ink-faint); font-size:12px; margin-top:2px;">'+escapeHtml(parsing)+'</div>' : '') +
+            (lexForm ? '<div style="color:var(--ink-soft); font-style:italic; font-size:13px; margin-top:2px;">'+escapeHtml(lexForm)+'</div>' : '');
           var concordanceLink = '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="concordance-open" data-strong="'+escapeHtml(num)+'" data-source="'+grkSource+'">See every other place this word (Strong&rsquo;s '+escapeHtml(num)+') appears in '+grkSourceLabel+' &#8594;</a></div>';
           showWordPopup('<b>'+escapeHtml(grkWord.textContent)+'</b> '+meta+'<div class="word-body" style="margin-top:6px;">'+escapeHtml(snippet)+'</div>'+(truncated ? '<div class="word-more-wrap" style="margin-top:8px;"><a href="#" class="word-more">Read full entry &#8594;</a></div>' : '')+concordanceLink, e.clientX, e.clientY);
           if(truncated){ var wp2 = document.getElementById('wordPopup'); if(wp2) wp2._fullDef = def; }
