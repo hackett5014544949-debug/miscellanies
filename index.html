@@ -3176,6 +3176,12 @@ var watsonDict = null;
     if(sblgntStrongsData){ setTimeout(cb, 0); return; }
     fetch('sblgnt_strongs.json?v=1').then(function(r){ return r.json(); }).then(function(d){ sblgntStrongsData = d; cb(); }).catch(function(){ cb(); });
   }
+  var sblgntApparatusData = null;
+  function ensureSblgntApparatus(cb){
+    if(sblgntApparatusData){ setTimeout(cb, 0); return; }
+    fetch('sblgnt_apparatus.json?v=1').then(function(r){ return r.json(); }).then(function(d){ sblgntApparatusData = d; cb(); }).catch(function(){ cb(); });
+  }
+
   // Strong's-number data for the KJV+Strong's edition (kjvs_strongs.json: book -> chapter ->
   // verse -> [[strongNum, morphTag], ...], one entry per word, aligned against kjvs.json's own
   // word-splitting). Covers the WHOLE Bible (OT+NT), so strongNum carries an explicit "G" or "H"
@@ -3252,22 +3258,42 @@ var watsonDict = null;
   // Strip the same leading/trailing punctuation set used to build rp_strongs.json, so word
   // boundaries here line up exactly with the word order the numbers were aligned against.
   var GRK_PUNCT_RE = /^[\u00b7,.;:!?\u2019\u2018"\u00ab\u00bb()\[\]]+|[\u00b7,.;:!?\u2019\u2018"\u00ab\u00bb()\[\]]+$/g;
-  function renderGreekVerseWords(text, entries){
+  function renderGreekVerseWords(text, entries, appNotes){
     if(!entries || !entries.length) return escapeHtml(text);
     var cleaned = text.replace(/\u00b6/g, ' ');
     var parts = cleaned.split(/(\s+)/);
     var wi = 0;
+    var ai = 0;
+    var CRIT_MARKS = '⸀⸁⸂⸃⸄⸅⟦⟧';
+    function isCrit(c){ return CRIT_MARKS.indexOf(c) !== -1; }
+    function wrapCritStr(str){
+      if(!str) return '';
+      var out = '';
+      for (var k=0;k<str.length;k++){
+        var c = str[k];
+        var note = (appNotes && appNotes[ai] !== undefined) ? appNotes[ai] : null;
+        ai++;
+        if (note) out += '<span class="crit-mark" data-appnote="'+escapeHtml(note)+'">'+escapeHtml(c)+'</span>';
+        else out += escapeHtml(c);
+      }
+      return out;
+    }
     var out = parts.map(function(part){
       if(part === '' || /^\s+$/.test(part)) return escapeHtml(part);
-      var core = part.replace(GRK_PUNCT_RE, '');
-      var leadEnd = part.indexOf(core);
-      var leadStr = leadEnd > 0 ? part.slice(0, leadEnd) : '';
-      var trailStr = leadEnd >= 0 ? part.slice(leadEnd + core.length) : '';
-      if(!core){ return escapeHtml(part); }
+      var critLead = '', critTrail = '', mid = part;
+      while (mid.length && isCrit(mid[0])) { critLead += mid[0]; mid = mid.slice(1); }
+      while (mid.length && isCrit(mid[mid.length-1])) { critTrail = mid[mid.length-1] + critTrail; mid = mid.slice(0, -1); }
+      var core = mid.replace(GRK_PUNCT_RE, '');
+      var leadEnd = mid.indexOf(core);
+      var leadStr = leadEnd > 0 ? mid.slice(0, leadEnd) : '';
+      var trailStr = leadEnd >= 0 ? mid.slice(leadEnd + core.length) : '';
+      var leadHtml = wrapCritStr(critLead) + escapeHtml(leadStr);
+      var trailHtml = escapeHtml(trailStr) + wrapCritStr(critTrail);
+      if(!core){ return leadHtml + trailHtml; }
       var entry = entries[wi]; wi++;
-      if(!entry || !entry[0]) return escapeHtml(part);
+      if(!entry || !entry[0]) return leadHtml + escapeHtml(core) + trailHtml;
       var num = entry[0], morph = entry[1] || '';
-      return escapeHtml(leadStr) + '<span class="grk-word" data-strong="'+num+'" data-morph="'+escapeHtml(morph)+'">'+escapeHtml(core)+'</span>' + escapeHtml(trailStr);
+      return leadHtml + '<span class="grk-word" data-strong="'+num+'" data-morph="'+escapeHtml(morph)+'">'+escapeHtml(core)+'</span>' + trailHtml;
     });
     return out.join('');
   }
@@ -3644,6 +3670,13 @@ var watsonDict = null;
   function handleWordTap(e){
     var target = e.target;
     if(!target.closest) return;
+    if(target.closest('.crit-mark')){
+      e.preventDefault();
+      var critEl = target.closest('.crit-mark');
+      var note = critEl.getAttribute('data-appnote') || '';
+      showWordPopup('<b>Textual note</b><div class="word-body" style="margin-top:6px;">'+escapeHtml(note)+'</div>', e.clientX, e.clientY);
+      return;
+    }
     if(target.closest('.verse-note-mark')){
       e.preventDefault();
       var vnm = target.closest('.verse-note-mark');
@@ -5020,6 +5053,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
 
   function renderReaderPane(book, src){
     var rs = readerStateFor(book.id);
+    if(src.file === 'sblgnt.json' && !sblgntApparatusData){
+      ensureSblgntApparatus(function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); });
+    }
     var data = readerTextCache[src.file];
     if(!data){
       ensureReaderText(src.file, function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); });
@@ -5206,7 +5242,8 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       }
       var vEntries = (hasStrongs && activeStrongsData && activeStrongsData[rs.book] && activeStrongsData[rs.book][rs.chapter]) ? activeStrongsData[rs.book][rs.chapter][v] : null;
       var hebEntries = (isHebrewOt && hebrewStrongsData && hebrewStrongsData[rs.book] && hebrewStrongsData[rs.book][rs.chapter]) ? hebrewStrongsData[rs.book][rs.chapter][v] : null;
-      var verseHtml = (isKjvs && vEntries) ? renderKjvsVerseWords(chapterData[v], vEntries) : (vEntries ? renderGreekVerseWords(chapterData[v], vEntries) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v]))));
+var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sblgntApparatusData[rs.book] && sblgntApparatusData[rs.book][rs.chapter]) ? sblgntApparatusData[rs.book][rs.chapter][v] : null;
+            var verseHtml = (isKjvs && vEntries) ? renderKjvsVerseWords(chapterData[v], vEntries) : (vEntries ? renderGreekVerseWords(chapterData[v], vEntries, appNotesForVerse) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v]))));
       var vhlColor = getVerseHighlight(rs.book, rs.chapter, v);
       var vhlClass = vhlColor ? (' vhl-'+vhlColor) : '';
       // Task #39: tapping the verse number opens a small Highlight/Add Note menu instead of
