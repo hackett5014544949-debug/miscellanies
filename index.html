@@ -529,6 +529,7 @@
     </div>
     <button class="btn primary" id="folderBtn">Save to folder&hellip;</button>
     <button class="btn small ghost" id="helpBtn">About &amp; links</button>
+        <button class="btn small" id="downloadOfflineBtn" title="Save a fresh, offline copy of this app as a file">Download offline copy</button>
   </div>
   <div class="save-important-note" id="saveImportantNote">Important — your notes live in this browser unless you click <b>&ldquo;Save to folder&hellip;&rdquo;</b> above to keep them as real files on your computer.</div>
 
@@ -5999,7 +6000,30 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     }
   });
 
-  document.getElementById('helpBtn').addEventListener('click', function(){
+  document.getElementById('downloadOfflineBtn').addEventListener('click', function(){
+      if (location.protocol === 'file:') {
+        flash('You already have a downloaded copy open — use Ctrl/Cmd+S to save changes here, or visit the live site for a fresh copy.');
+        return;
+      }
+      fetch('index.html', {cache:'no-store'}).then(function(r){
+        if(!r.ok) throw new Error('status ' + r.status);
+        return r.text();
+      }).then(function(html){
+        var blob = new Blob([html], {type:'text/html'});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'digging-deep-offline.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+        flash('Downloaded a fresh copy — check your Downloads folder.');
+      }).catch(function(){
+        flash('Could not download automatically — try Ctrl/Cmd+S instead.');
+      });
+    });
+    document.getElementById('helpBtn').addEventListener('click', function(){
     document.getElementById('help-tutorial').value = state.settings.tutorialUrl || '';
     document.getElementById('help-channel').value = state.settings.channelUrl || '';
     document.getElementById('help-studybible').value = state.settings.studyBibleUrl || '';
