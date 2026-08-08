@@ -6018,8 +6018,15 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     ensureReaderText('kjv.json', cb);
   }
   function searchConcordance(query, cb){
-    var q = (query||'').trim().toLowerCase();
-    if(!q){ cb([]); return; }
+    var raw = (query||'').trim();
+    if(!raw){ cb([]); return; }
+    var exactPhrase = null;
+    if(raw.length > 1 && raw.charAt(0) === '"' && raw.charAt(raw.length-1) === '"'){
+      exactPhrase = raw.slice(1, -1).trim().toLowerCase();
+    }
+    var words = exactPhrase === null ? raw.toLowerCase().split(/\s+/).filter(function(w){ return w.length; }) : null;
+    if(exactPhrase !== null && !exactPhrase){ cb([]); return; }
+    if(words && !words.length){ cb([]); return; }
     ensureKJVLoaded(function(data){
       if(!data){ cb([]); return; }
       var results = [];
@@ -6035,7 +6042,9 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
           for(var vi=0; vi<vNums.length; vi++){
             var v = vNums[vi];
             var text = verses[v];
-            if(text.toLowerCase().indexOf(q) !== -1){
+            var lower = text.toLowerCase();
+            var isMatch = exactPhrase !== null ? (lower.indexOf(exactPhrase) !== -1) : words.every(function(w){ return lower.indexOf(w) !== -1; });
+            if(isMatch){
               results.push({ ref: book + ' ' + ch + ':' + v, text: text });
               if(results.length >= 300){ cb(results); return; }
             }
@@ -6095,7 +6104,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     var html = '<div class="indexbox">';
     html += '<div class="shelf-head"><div class="t">Concordance</div><div class="s">search the King James Version for a word or phrase</div></div>';
     html += '<div class="board-toolbar">';
-    html += '<input type="text" class="concordance-input" placeholder="Search the KJV…" style="flex:1;min-width:220px;font-family:inherit;font-size:16px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);" value="'+escapeHtml(boardConcordanceQuery)+'">';
+    html += '<input type="text" class="concordance-input" placeholder="Search the KJV… (put a phrase in quotes for an exact match)" style="flex:1;min-width:220px;font-family:inherit;font-size:16px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);" value="'+escapeHtml(boardConcordanceQuery)+'">';
     html += '<button class="btn small concordance-search-btn">Search</button>';
     html += '</div>';
     html += '<div class="concordance-results">' + renderConcordanceResultsHtml(boardConcordanceResults, boardConcordanceQuery, false) + '</div>';
@@ -6129,7 +6138,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     if(b && boardConcordanceOpen){
       html += '<div class="board-concordance" style="margin-bottom:16px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card);">';
       html += '<div class="board-toolbar" style="margin-bottom:10px;">';
-      html += '<input type="text" class="concordance-input" placeholder="Search the KJV…" style="flex:1;min-width:180px;font-family:inherit;font-size:15px;padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);" value="'+escapeHtml(boardConcordanceQuery)+'">';
+      html += '<input type="text" class="concordance-input" placeholder="Search the KJV… (put a phrase in quotes for an exact match)" style="flex:1;min-width:180px;font-family:inherit;font-size:15px;padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);" value="'+escapeHtml(boardConcordanceQuery)+'">';
       html += '<button class="btn small concordance-search-btn">Search</button>';
       html += '</div>';
       html += '<div class="concordance-results">' + renderConcordanceResultsHtml(boardConcordanceResults, boardConcordanceQuery, true) + '</div>';
