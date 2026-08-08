@@ -470,6 +470,18 @@
   .index-group h3{font-family:'Cormorant Garamond', serif; font-size:19px; margin:0 0 8px; border-bottom:1px solid var(--line); padding-bottom:5px;}
   .index-group .idxlist a{color:var(--rubric); cursor:pointer; text-decoration:underline; margin-right:12px; font-size:14px; display:inline-block; margin-bottom:4px;}
   .index-tabs{display:flex; gap:8px; margin-bottom:18px;}
+
+  .board-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .board-toolbar select{font-family:inherit;font-size:15px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);}
+  .board-canvas{position:relative;min-height:560px;border:1px dashed var(--line);border-radius:10px;background:var(--paper-2);overflow:auto;padding:20px;}
+  .board-card{position:absolute;width:220px;min-height:140px;border-radius:8px;box-shadow:var(--shadow);padding:10px;display:flex;flex-direction:column;cursor:grab;border:1px solid rgba(0,0,0,0.12);touch-action:none;}
+  .board-card.dragging{cursor:grabbing;z-index:50;box-shadow:0 6px 18px rgba(42,36,28,0.28);}
+  .board-card textarea{flex:1;resize:none;border:none;background:transparent;font-family:inherit;font-size:15px;color:var(--ink);width:100%;min-height:90px;}
+  .board-card textarea:focus{outline:none;}
+  .board-card-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .board-swatches{display:flex;gap:4px;}
+  .board-swatch{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,0.25);cursor:pointer;}
+  .board-card-del{background:none;border:none;cursor:pointer;font-size:15px;line-height:1;color:var(--ink-soft);padding:0 2px;}
 </style>
 </head>
 <body>
@@ -2598,6 +2610,7 @@
         {v:'inbox', label:'inbox' + (inboxCount ? ' ('+inboxCount+')' : '')},
         {v:'library', label:'library'},
         {v:'index', label:'index'},
+        {v:'board', label:'board'},
         {v:'stats', label:'stats'}
       ];
       vt.innerHTML = buttons.map(function(b){
@@ -5899,6 +5912,191 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
   });
 
   /* ---------- MASTER RENDER ---------- */
+  
+  // ---------- Index-card boards (advanced mode) ----------
+  var BOARD_COLORS = ['#fff6b7','#c9f2c7','#c7e6f2','#f2c7d8','#e6d6f2','#f3eddd'];
+
+  function boardsArr(){
+    var n = nb();
+    if(!n.boards) n.boards = [];
+    return n.boards;
+  }
+  function activeBoard(){
+    var boards = boardsArr();
+    var n = nb();
+    var b = boards.filter(function(x){ return x.id === n.activeBoardId; })[0];
+    if(!b && boards.length){ b = boards[0]; n.activeBoardId = b.id; }
+    return b;
+  }
+  function newBoardId(){ return 'brd_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+  function newCardId(){ return 'crd_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function createBoard(){
+    var name = prompt('Name this board:', 'New board');
+    if(name === null) return;
+    var b = { id:newBoardId(), name: (name.trim() || 'Untitled board'), cards: [] };
+    boardsArr().push(b);
+    nb().activeBoardId = b.id;
+    persist(); renderAll();
+  }
+  function renameBoard(){
+    var b = activeBoard(); if(!b) return;
+    var name = prompt('Rename board:', b.name);
+    if(name === null) return;
+    b.name = name.trim() || b.name;
+    persist(); renderAll();
+  }
+  function deleteBoard(){
+    var boards = boardsArr();
+    var b = activeBoard(); if(!b) return;
+    if(!confirm('Delete board "'+b.name+'" and all its cards? This cannot be undone.')) return;
+    boards.splice(boards.indexOf(b), 1);
+    nb().activeBoardId = boards.length ? boards[0].id : null;
+    persist(); renderAll();
+  }
+  function addCard(){
+    var b = activeBoard(); if(!b) return;
+    var n = b.cards.length;
+    var x = 20 + (n % 6) * 34;
+    var y = 20 + (n % 6) * 30;
+    var card = { id:newCardId(), x:x, y:y, text:'', color: BOARD_COLORS[0] };
+    b.cards.push(card);
+    persist(); renderAll();
+    setTimeout(function(){
+      var ta = document.querySelector('.board-card[data-id="'+card.id+'"] textarea');
+      if(ta) ta.focus();
+    }, 0);
+  }
+  function deleteCard(cardId){
+    var b = activeBoard(); if(!b) return;
+    b.cards = b.cards.filter(function(c){ return c.id !== cardId; });
+    persist(); renderAll();
+  }
+  function setCardColor(cardId, color){
+    var b = activeBoard(); if(!b) return;
+    var c = b.cards.filter(function(x){ return x.id===cardId; })[0];
+    if(c){ c.color = color; persist(); renderAll(); }
+  }
+  function setCardText(cardId, text){
+    var b = activeBoard(); if(!b) return;
+    var c = b.cards.filter(function(x){ return x.id===cardId; })[0];
+    if(c){ c.text = text; persist(); }
+  }
+  function makeOutlineFromBoard(){
+    var b = activeBoard();
+    if(!b || !b.cards.length){ flash('Add some cards to this board first.'); return; }
+    var ordered = b.cards.slice().sort(function(a,c){
+      if(Math.abs(a.y - c.y) > 40) return a.y - c.y;
+      return a.x - c.x;
+    });
+    var lines = ordered.map(function(c, i){
+      var text = (c.text || '').trim() || '(empty card)';
+      return (i+1) + '. ' + text;
+    });
+    openNewEntry();
+    document.getElementById('f-title').value = b.name + ' — outline';
+    document.getElementById('f-body').value = lines.join('\n');
+    flash('Outline drafted from "'+b.name+'" — review it and click Save to add it as a note.');
+  }
+
+  function renderBoard(){
+    var boards = boardsArr();
+    var b = activeBoard();
+    var html = '<div class="indexbox">';
+    html += '<div class="shelf-head"><div class="t">Board</div><div class="s">jot ideas on cards, drag them into order, then turn them into a note</div></div>';
+    html += '<div class="board-toolbar">';
+    if(boards.length){
+      html += '<select id="boardSwitcher">' + boards.map(function(x){
+        return '<option value="'+x.id+'"'+(b && x.id===b.id ? ' selected' : '')+'>'+ escapeHtml(x.name) +'</option>';
+      }).join('') + '</select>';
+    }
+    html += '<button class="btn small" id="newBoardBtn">+ New board</button>';
+    if(b){
+      html += '<button class="btn small ghost" id="renameBoardBtn">Rename</button>';
+      html += '<button class="btn small ghost" id="deleteBoardBtn">Delete board</button>';
+      html += '<button class="btn small" id="addCardBtn">+ New card</button>';
+      html += '<button class="btn small" id="makeOutlineBtn">Make outline &rarr;</button>';
+    }
+    html += '</div>';
+    if(!boards.length){
+      html += '<p style="color:var(--ink-soft);">No boards yet. Click &ldquo;+ New board&rdquo; to start jotting ideas on cards.</p>';
+    } else if(b) {
+      html += '<div class="board-canvas" id="boardCanvas">';
+      b.cards.forEach(function(c){
+        html += '<div class="board-card" data-id="'+c.id+'" style="left:'+c.x+'px; top:'+c.y+'px; background:'+c.color+';">';
+        html += '<div class="board-card-bar">';
+        html += '<div class="board-swatches">' + BOARD_COLORS.map(function(col){
+          return '<span class="board-swatch" data-color="'+col+'" style="background:'+col+';"></span>';
+        }).join('') + '</div>';
+        html += '<button class="board-card-del" data-id="'+c.id+'" title="Delete card">&times;</button>';
+        html += '</div>';
+        html += '<textarea data-id="'+c.id+'" placeholder="Write an idea…">' + escapeHtml(c.text||'') + '</textarea>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+    document.getElementById('app').innerHTML = html;
+
+    var switcher = document.getElementById('boardSwitcher');
+    if(switcher) switcher.addEventListener('change', function(){ nb().activeBoardId = switcher.value; persist(); renderAll(); });
+    var nbb = document.getElementById('newBoardBtn'); if(nbb) nbb.addEventListener('click', createBoard);
+    var rbb = document.getElementById('renameBoardBtn'); if(rbb) rbb.addEventListener('click', renameBoard);
+    var dbb = document.getElementById('deleteBoardBtn'); if(dbb) dbb.addEventListener('click', deleteBoard);
+    var acb = document.getElementById('addCardBtn'); if(acb) acb.addEventListener('click', addCard);
+    var mob = document.getElementById('makeOutlineBtn'); if(mob) mob.addEventListener('click', makeOutlineFromBoard);
+
+    Array.prototype.forEach.call(document.querySelectorAll('.board-card textarea'), function(ta){
+      ta.addEventListener('input', function(){ setCardText(ta.getAttribute('data-id'), ta.value); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.board-card-del'), function(btn){
+      btn.addEventListener('click', function(){ deleteCard(btn.getAttribute('data-id')); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.board-swatch'), function(sw){
+      sw.addEventListener('click', function(){
+        var card = sw.closest('.board-card');
+        setCardColor(card.getAttribute('data-id'), sw.getAttribute('data-color'));
+      });
+    });
+
+    var canvas = document.getElementById('boardCanvas');
+    if(canvas){
+      var dragEl = null, offX = 0, offY = 0;
+      Array.prototype.forEach.call(document.querySelectorAll('.board-card'), function(card){
+        card.addEventListener('pointerdown', function(e){
+          if(e.target.tagName === 'TEXTAREA' || e.target.classList.contains('board-swatch') || e.target.classList.contains('board-card-del')) return;
+          dragEl = card;
+          card.classList.add('dragging');
+          var rect = card.getBoundingClientRect();
+          offX = e.clientX - rect.left;
+          offY = e.clientY - rect.top;
+          try{ card.setPointerCapture(e.pointerId); }catch(err){}
+        });
+        card.addEventListener('pointermove', function(e){
+          if(dragEl !== card) return;
+          var canvasRect = canvas.getBoundingClientRect();
+          var x = e.clientX - canvasRect.left + canvas.scrollLeft - offX;
+          var y = e.clientY - canvasRect.top + canvas.scrollTop - offY;
+          x = Math.max(0, x); y = Math.max(0, y);
+          card.style.left = x + 'px';
+          card.style.top = y + 'px';
+        });
+        card.addEventListener('pointerup', function(e){
+          if(dragEl !== card) return;
+          dragEl = null;
+          card.classList.remove('dragging');
+          var b2 = activeBoard();
+          var c2 = b2.cards.filter(function(x){ return x.id === card.getAttribute('data-id'); })[0];
+          if(c2){
+            c2.x = parseInt(card.style.left, 10) || 0;
+            c2.y = parseInt(card.style.top, 10) || 0;
+            persist();
+          }
+        });
+      });
+    }
+  }
+
   function renderAll(){
     renderChrome();
     if(state.mode==='simple'){ state.view='stream'; }
@@ -5908,6 +6106,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     else if(state.view==='book') renderOpenBook();
     else if(state.view==='index') renderIndex();
     else if(state.view==='stats') renderStats();
+    else if(state.view==='board') renderBoard();
     wireModals();
     ensureWatsonDict(function(){ highlightDictWords(); });
     applyFontScale();
