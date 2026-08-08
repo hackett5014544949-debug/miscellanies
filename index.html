@@ -2611,6 +2611,7 @@
         {v:'library', label:'library'},
         {v:'index', label:'index'},
         {v:'board', label:'board'},
+        {v:'concordance', label:'concordance'},
         {v:'stats', label:'stats'}
       ];
       vt.innerHTML = buttons.map(function(b){
@@ -5915,6 +5916,9 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
   
   // ---------- Index-card boards (advanced mode) ----------
   var BOARD_COLORS = ['#fff6b7','#c9f2c7','#c7e6f2','#f2c7d8','#e6d6f2','#f3eddd'];
+  var boardConcordanceOpen = false;
+  var boardConcordanceQuery = '';
+  var boardConcordanceResults = null;
 
   function boardsArr(){
     var n = nb();
@@ -5934,7 +5938,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
   function createBoard(){
     var name = prompt('Name this board:', 'New board');
     if(name === null) return;
-    var b = { id:newBoardId(), name: (name.trim() || 'Untitled board'), cards: [] };
+    var b = { id:newBoardId(), name: (name.trim() || 'Untitled board'), cards: [], canvasHeight: 900 };
     boardsArr().push(b);
     nb().activeBoardId = b.id;
     persist(); renderAll();
@@ -5954,13 +5958,19 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     nb().activeBoardId = boards.length ? boards[0].id : null;
     persist(); renderAll();
   }
-  function addCard(){
+  function growBoard(){
+    var b = activeBoard(); if(!b) return;
+    b.canvasHeight = (b.canvasHeight || 900) + 500;
+    persist(); renderAll();
+  }
+  function addCard(initialText){
     var b = activeBoard(); if(!b) return;
     var n = b.cards.length;
     var x = 20 + (n % 6) * 34;
     var y = 20 + (n % 6) * 30;
-    var card = { id:newCardId(), x:x, y:y, text:'', color: BOARD_COLORS[0] };
+    var card = { id:newCardId(), x:x, y:y, text: initialText || '', color: BOARD_COLORS[0] };
     b.cards.push(card);
+    if(initialText && b.canvasHeight && y + 200 > b.canvasHeight){ b.canvasHeight = y + 400; }
     persist(); renderAll();
     setTimeout(function(){
       var ta = document.querySelector('.board-card[data-id="'+card.id+'"] textarea');
@@ -5993,10 +6003,107 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
       var text = (c.text || '').trim() || '(empty card)';
       return (i+1) + '. ' + text;
     });
+    var title = b.name + ' — outline';
+    var body = lines.join('\n');
+    state.view = 'stream';
+    renderAll();
     openNewEntry();
-    document.getElementById('f-title').value = b.name + ' — outline';
-    document.getElementById('f-body').value = lines.join('\n');
+    document.getElementById('f-title').value = title;
+    document.getElementById('f-body').value = body;
     flash('Outline drafted from "'+b.name+'" — review it and click Save to add it as a note.');
+  }
+
+  // ---------- Simple KJV concordance ----------
+  function ensureKJVLoaded(cb){
+    ensureReaderText('kjv.json', cb);
+  }
+  function searchConcordance(query, cb){
+    var q = (query||'').trim().toLowerCase();
+    if(!q){ cb([]); return; }
+    ensureKJVLoaded(function(data){
+      if(!data){ cb([]); return; }
+      var results = [];
+      var books = Object.keys(data);
+      for(var bi=0; bi<books.length; bi++){
+        var book = books[bi];
+        var chapters = data[book];
+        var chNums = Object.keys(chapters);
+        for(var ci=0; ci<chNums.length; ci++){
+          var ch = chNums[ci];
+          var verses = chapters[ch];
+          var vNums = Object.keys(verses);
+          for(var vi=0; vi<vNums.length; vi++){
+            var v = vNums[vi];
+            var text = verses[v];
+            if(text.toLowerCase().indexOf(q) !== -1){
+              results.push({ ref: book + ' ' + ch + ':' + v, text: text });
+              if(results.length >= 300){ cb(results); return; }
+            }
+          }
+        }
+      }
+      cb(results);
+    });
+  }
+  function renderConcordanceResultsHtml(results, query, showAddCard){
+    if(results === null){
+      return '<p style="color:var(--ink-soft);">Type a word or phrase and press Search.</p>';
+    }
+    if(!results.length){
+      return '<p style="color:var(--ink-soft);">No verses found for &ldquo;'+escapeHtml(query)+'&rdquo;.</p>';
+    }
+    var shown = results.slice(0, 200);
+    var out = '<p style="color:var(--ink-soft);font-size:14px;margin:0 0 10px;">' + results.length + (results.length>=300?'+':'') + ' match'+(results.length===1?'':'es') + (results.length>200 ? ' — showing first 200' : '') + '</p>';
+    out += shown.map(function(r){
+      var addBtn = showAddCard ? '<div style="margin-top:4px;"><button class="btn small ghost concordance-add-card" data-ref="'+escapeHtml(r.ref)+'" data-text="'+escapeHtml(r.text)+'">+ add as card</button></div>' : '';
+      return '<div class="concordance-hit" style="margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line);">' +
+        '<strong>'+escapeHtml(r.ref)+'</strong> — '+escapeHtml(r.text) + addBtn +
+        '</div>';
+    }).join('');
+    return out;
+  }
+  function wireConcordanceResultButtons(resultsEl, onAddCard){
+    if(!onAddCard) return;
+    Array.prototype.forEach.call(resultsEl.querySelectorAll('.concordance-add-card'), function(btn){
+      btn.addEventListener('click', function(){
+        onAddCard(btn.getAttribute('data-ref') + ' — ' + btn.getAttribute('data-text'));
+      });
+    });
+  }
+  function wireConcordancePanel(root, onAddCard){
+    var input = root.querySelector('.concordance-input');
+    var btn = root.querySelector('.concordance-search-btn');
+    var resultsEl = root.querySelector('.concordance-results');
+    if(!input || !btn || !resultsEl) return;
+    function doSearch(){
+      var q = input.value;
+      boardConcordanceQuery = q;
+      if(!q.trim()){ boardConcordanceResults = null; resultsEl.innerHTML = renderConcordanceResultsHtml(null, q, !!onAddCard); return; }
+      resultsEl.innerHTML = 'Searching…';
+      searchConcordance(q, function(results){
+        boardConcordanceResults = results;
+        resultsEl.innerHTML = renderConcordanceResultsHtml(results, q, !!onAddCard);
+        wireConcordanceResultButtons(resultsEl, onAddCard);
+      });
+    }
+    btn.addEventListener('click', doSearch);
+    input.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); doSearch(); } });
+    wireConcordanceResultButtons(resultsEl, onAddCard);
+  }
+
+  function renderConcordance(){
+    var html = '<div class="indexbox">';
+    html += '<div class="shelf-head"><div class="t">Concordance</div><div class="s">search the King James Version for a word or phrase</div></div>';
+    html += '<div class="board-toolbar">';
+    html += '<input type="text" class="concordance-input" placeholder="Search the KJV…" style="flex:1;min-width:220px;font-family:inherit;font-size:16px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);" value="'+escapeHtml(boardConcordanceQuery)+'">';
+    html += '<button class="btn small concordance-search-btn">Search</button>';
+    html += '</div>';
+    html += '<div class="concordance-results">' + renderConcordanceResultsHtml(boardConcordanceResults, boardConcordanceQuery, false) + '</div>';
+    html += '</div>';
+    document.getElementById('app').innerHTML = html;
+    wireConcordancePanel(document.getElementById('app'), null);
+    var input = document.querySelector('.concordance-input');
+    if(input) input.focus();
   }
 
   function renderBoard(){
@@ -6015,13 +6122,24 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
       html += '<button class="btn small ghost" id="renameBoardBtn">Rename</button>';
       html += '<button class="btn small ghost" id="deleteBoardBtn">Delete board</button>';
       html += '<button class="btn small" id="addCardBtn">+ New card</button>';
+      html += '<button class="btn small ghost" id="toggleConcordanceBtn">'+(boardConcordanceOpen ? 'Hide KJV lookup' : 'Look up a verse')+'</button>';
       html += '<button class="btn small" id="makeOutlineBtn">Make outline &rarr;</button>';
     }
     html += '</div>';
+    if(b && boardConcordanceOpen){
+      html += '<div class="board-concordance" style="margin-bottom:16px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--card);">';
+      html += '<div class="board-toolbar" style="margin-bottom:10px;">';
+      html += '<input type="text" class="concordance-input" placeholder="Search the KJV…" style="flex:1;min-width:180px;font-family:inherit;font-size:15px;padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:var(--paper);color:var(--ink);" value="'+escapeHtml(boardConcordanceQuery)+'">';
+      html += '<button class="btn small concordance-search-btn">Search</button>';
+      html += '</div>';
+      html += '<div class="concordance-results">' + renderConcordanceResultsHtml(boardConcordanceResults, boardConcordanceQuery, true) + '</div>';
+      html += '</div>';
+    }
     if(!boards.length){
       html += '<p style="color:var(--ink-soft);">No boards yet. Click &ldquo;+ New board&rdquo; to start jotting ideas on cards.</p>';
     } else if(b) {
-      html += '<div class="board-canvas" id="boardCanvas">';
+      var canvasHeight = b.canvasHeight || 900;
+      html += '<div class="board-canvas" id="boardCanvas" style="min-height:'+canvasHeight+'px;">';
       b.cards.forEach(function(c){
         html += '<div class="board-card" data-id="'+c.id+'" style="left:'+c.x+'px; top:'+c.y+'px; background:'+c.color+';">';
         html += '<div class="board-card-bar">';
@@ -6034,6 +6152,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
         html += '</div>';
       });
       html += '</div>';
+      html += '<div style="margin-top:10px;"><button class="btn small ghost" id="growBoardBtn">+ More room &darr;</button></div>';
     }
     html += '</div>';
     document.getElementById('app').innerHTML = html;
@@ -6043,8 +6162,14 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     var nbb = document.getElementById('newBoardBtn'); if(nbb) nbb.addEventListener('click', createBoard);
     var rbb = document.getElementById('renameBoardBtn'); if(rbb) rbb.addEventListener('click', renameBoard);
     var dbb = document.getElementById('deleteBoardBtn'); if(dbb) dbb.addEventListener('click', deleteBoard);
-    var acb = document.getElementById('addCardBtn'); if(acb) acb.addEventListener('click', addCard);
+    var acb = document.getElementById('addCardBtn'); if(acb) acb.addEventListener('click', function(){ addCard(); });
+    var gbb = document.getElementById('growBoardBtn'); if(gbb) gbb.addEventListener('click', growBoard);
+    var tcb = document.getElementById('toggleConcordanceBtn'); if(tcb) tcb.addEventListener('click', function(){ boardConcordanceOpen = !boardConcordanceOpen; renderAll(); });
     var mob = document.getElementById('makeOutlineBtn'); if(mob) mob.addEventListener('click', makeOutlineFromBoard);
+
+    if(boardConcordanceOpen){
+      wireConcordancePanel(document.getElementById('app'), function(text){ addCard(text); });
+    }
 
     Array.prototype.forEach.call(document.querySelectorAll('.board-card textarea'), function(ta){
       ta.addEventListener('input', function(){ setCardText(ta.getAttribute('data-id'), ta.value); });
@@ -6107,6 +6232,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     else if(state.view==='index') renderIndex();
     else if(state.view==='stats') renderStats();
     else if(state.view==='board') renderBoard();
+    else if(state.view==='concordance') renderConcordance();
     wireModals();
     ensureWatsonDict(function(){ highlightDictWords(); });
     applyFontScale();
