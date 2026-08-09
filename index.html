@@ -488,6 +488,8 @@
   .board-level-menu-item:hover{background:var(--paper-2);}
   .board-level-menu-clear{color:var(--rubric);border-top:1px solid var(--line);margin-top:4px;padding-top:9px;}
   .board-card-del{background:none;border:none;cursor:pointer;font-size:15px;line-height:1;color:var(--ink-soft);padding:0 2px;}
+.board-grid-col{position:absolute;top:0;left:0;width:0;border-left:1px dashed var(--line);pointer-events:none;}
+.board-grid-label{position:absolute;top:8px;left:6px;font-family:'JetBrains Mono', monospace;font-size:11px;letter-spacing:0.05em;text-transform:uppercase;color:var(--ink-faint);background:var(--paper-2);padding:2px 6px;border-radius:4px;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -5956,6 +5958,30 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
   var boardConcordanceOpen = false;
   var boardConcordanceQuery = '';
   var boardConcordanceResults = null;
+  var boardGridView = false;
+
+  function computeGridPositions(b){
+    var colWidth = 260, startX = 20, startY = 60, rowH = 160;
+    var columns = [0,1,2,3].map(function(lvl, idx){ return { x: startX + idx*colWidth, label: LEVELS[lvl].label }; });
+    var unassignedX = startX + 4*colWidth + 60;
+    columns.push({ x: unassignedX, label: 'Unsorted' });
+    var buckets = {0:[],1:[],2:[],3:[],u:[]};
+    var ordered = b.cards.slice().sort(function(a,c){
+      if(Math.abs(a.y - c.y) > 40) return a.y - c.y;
+      return a.x - c.x;
+    });
+    ordered.forEach(function(c){
+      if(typeof c.level === 'number' && LEVELS[c.level]) buckets[c.level].push(c);
+      else buckets.u.push(c);
+    });
+    var positions = {};
+    [0,1,2,3].forEach(function(lvl){
+      buckets[lvl].forEach(function(c, i){ positions[c.id] = { x: startX + lvl*colWidth, y: startY + i*rowH }; });
+    });
+    buckets.u.forEach(function(c, i){ positions[c.id] = { x: unassignedX, y: startY + i*rowH }; });
+    var maxRows = Math.max(buckets[0].length, buckets[1].length, buckets[2].length, buckets[3].length, buckets.u.length, 1);
+    return { positions: positions, columns: columns, height: startY + maxRows*rowH + 60 };
+  }
 
   function boardsArr(){
     var n = nb();
@@ -6220,7 +6246,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     var boards = boardsArr();
     var b = activeBoard();
     var html = '<div class="indexbox">';
-    html += '<div class="shelf-head"><div class="t">Board</div><div class="s">jot ideas on cards, drag them anywhere, right-click a card to set its outline position (I, A, 1, a), then turn them into a note</div></div>';
+    html += '<div class="shelf-head"><div class="t">Board</div><div class="s">jot ideas on cards, drag them anywhere, right-click a card to set its outline position (I, A, 1, a), then switch to Grid view to line them up in columns before you turn them into a note</div></div>';
     html += '<div class="board-toolbar">';
     if(boards.length){
       html += '<select id="boardSwitcher">' + boards.map(function(x){
@@ -6233,6 +6259,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
       html += '<button class="btn small ghost" id="deleteBoardBtn">Delete board</button>';
       html += '<button class="btn small" id="addCardBtn">+ New card</button>';
       html += '<button class="btn small ghost" id="toggleConcordanceBtn">'+(boardConcordanceOpen ? 'Hide KJV lookup' : 'Look up a verse')+'</button>';
+      html += '<button class="btn small ghost" id="toggleGridViewBtn">'+(boardGridView ? 'Free-form view' : 'Grid view')+'</button>';
       html += '<button class="btn small" id="makeOutlineBtn">Make outline &rarr;</button>';
     }
     html += '</div>';
@@ -6248,10 +6275,18 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     if(!boards.length){
       html += '<p style="color:var(--ink-soft);">No boards yet. Click &ldquo;+ New board&rdquo; to start jotting ideas on cards.</p>';
     } else if(b) {
-      var canvasHeight = b.canvasHeight || 900;
-      html += '<div class="board-canvas" id="boardCanvas" style="min-height:'+canvasHeight+'px;">';
+      var gridInfo = boardGridView ? computeGridPositions(b) : null;
+      var canvasHeight = gridInfo ? gridInfo.height : (b.canvasHeight || 900);
+      var canvasWidth = gridInfo ? (gridInfo.columns[gridInfo.columns.length-1].x + 260) : 0;
+      html += '<div class="board-canvas" id="boardCanvas" style="min-height:'+canvasHeight+'px;'+(gridInfo ? ' min-width:'+canvasWidth+'px;' : '')+'">';
+      if(gridInfo){
+        html += gridInfo.columns.map(function(col){
+          return '<div class="board-grid-col" style="left:'+col.x+'px; height:'+canvasHeight+'px;"><div class="board-grid-label">'+col.label+'</div></div>';
+        }).join('');
+      }
       b.cards.forEach(function(c){
-        html += '<div class="board-card" data-id="'+c.id+'" style="left:'+c.x+'px; top:'+c.y+'px; background:'+(c.color||BOARD_COLORS[0])+';">';
+        var pos = gridInfo ? gridInfo.positions[c.id] : { x: c.x, y: c.y };
+        html += '<div class="board-card" data-id="'+c.id+'" style="left:'+pos.x+'px; top:'+pos.y+'px; background:'+(c.color||BOARD_COLORS[0])+';">';
         html += '<div class="board-card-bar">';
         html += '<div class="board-swatches">' + BOARD_COLORS.map(function(col){
           var active = (c.color||BOARD_COLORS[0]) === col;
@@ -6266,7 +6301,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
         html += '</div>';
       });
       html += '</div>';
-      html += '<div style="margin-top:10px;"><button class="btn small ghost" id="growBoardBtn">+ More room &darr;</button></div>';
+      if(!gridInfo){ html += '<div style="margin-top:10px;"><button class="btn small ghost" id="growBoardBtn">+ More room &darr;</button></div>'; }
     }
     html += '</div>';
     document.getElementById('app').innerHTML = html;
@@ -6280,6 +6315,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     var gbb = document.getElementById('growBoardBtn'); if(gbb) gbb.addEventListener('click', growBoard);
     var tcb = document.getElementById('toggleConcordanceBtn'); if(tcb) tcb.addEventListener('click', function(){ boardConcordanceOpen = !boardConcordanceOpen; renderAll(); });
     var mob = document.getElementById('makeOutlineBtn'); if(mob) mob.addEventListener('click', makeOutlineFromBoard);
+    var tgv = document.getElementById('toggleGridViewBtn'); if(tgv) tgv.addEventListener('click', function(){ boardGridView = !boardGridView; renderAll(); });
 
     if(boardConcordanceOpen){
       wireConcordancePanel(document.getElementById('app'), function(text){ addCard(text); });
@@ -6306,7 +6342,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     });
 
     var canvas = document.getElementById('boardCanvas');
-    if(canvas){
+    if(canvas && !boardGridView){
       var dragEl = null, offX = 0, offY = 0;
       Array.prototype.forEach.call(document.querySelectorAll('.board-card'), function(card){
         card.addEventListener('pointerdown', function(e){
