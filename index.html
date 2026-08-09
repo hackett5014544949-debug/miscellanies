@@ -480,8 +480,13 @@
   .board-card textarea:focus{outline:none;}
   .board-card-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
   .board-swatches{display:flex;gap:4px;}
-  .board-level-swatch{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;border:1px solid rgba(0,0,0,0.25);cursor:pointer;font-size:11px;font-weight:600;color:var(--ink);}
-  .board-level-swatch.active{border:2px solid var(--ink);}
+  .board-color-swatch{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,0.25);cursor:pointer;}
+  .board-color-swatch.active{border:2px solid var(--ink);}
+  .board-level-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:4px;border:1px solid rgba(0,0,0,0.25);font-size:11px;font-weight:600;color:var(--ink);}
+  .board-level-menu{position:fixed;z-index:200;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;gap:2px;min-width:220px;}
+  .board-level-menu-item{background:none;border:none;text-align:left;padding:7px 10px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink);}
+  .board-level-menu-item:hover{background:var(--paper-2);}
+  .board-level-menu-clear{color:var(--rubric);border-top:1px solid var(--line);margin-top:4px;padding-top:9px;}
   .board-card-del{background:none;border:none;cursor:pointer;font-size:15px;line-height:1;color:var(--ink-soft);padding:0 2px;}
 </style>
 </head>
@@ -5916,11 +5921,12 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
   /* ---------- MASTER RENDER ---------- */
   
   // ---------- Index-card boards (advanced mode) ----------
+  var BOARD_COLORS = ['#fff6b7','#c9f2c7','#c7e6f2','#f2c7d8','#e6d6f2','#f3eddd'];
   var LEVELS = [
-    { label: 'I', color: '#fff6b7' },
-    { label: 'A', color: '#c9f2c7' },
-    { label: '1', color: '#c7e6f2' },
-    { label: 'a', color: '#f2c7d8' }
+    { label: 'I', name: 'Level 1 — I, II, III…', color: '#ffe08a' },
+    { label: 'A', name: 'Level 2 — A, B, C…', color: '#a8e6a1' },
+    { label: '1', name: 'Level 3 — 1, 2, 3…', color: '#9fd3ea' },
+    { label: 'a', name: 'Level 4 — a, b, c…', color: '#f2a8c8' }
   ];
   function toRoman(num){
     var map = [['M',1000],['CM',900],['D',500],['CD',400],['C',100],['XC',90],['L',50],['XL',40],['X',10],['IX',9],['V',5],['IV',4],['I',1]];
@@ -5997,7 +6003,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     var n = b.cards.length;
     var x = 20 + (n % 6) * 34;
     var y = 20 + (n % 6) * 30;
-    var card = { id:newCardId(), x:x, y:y, text: initialText || '', level: 0 };
+    var card = { id:newCardId(), x:x, y:y, text: initialText || '', color: BOARD_COLORS[0], level: null };
     b.cards.push(card);
     if(initialText && b.canvasHeight && y + 200 > b.canvasHeight){ b.canvasHeight = y + 400; }
     persist(); renderAll();
@@ -6014,7 +6020,63 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
   function setCardLevel(cardId, level){
     var b = activeBoard(); if(!b) return;
     var c = b.cards.filter(function(x){ return x.id===cardId; })[0];
-    if(c){ c.level = level; persist(); renderAll(); }
+    if(c){ c.level = level; snapLeveledCards(b); persist(); renderAll(); }
+  }
+  function clearCardLevel(cardId){
+    var b = activeBoard(); if(!b) return;
+    var c = b.cards.filter(function(x){ return x.id===cardId; })[0];
+    if(c){ c.level = null; persist(); renderAll(); }
+  }
+  function setCardColor(cardId, color){
+    var b = activeBoard(); if(!b) return;
+    var c = b.cards.filter(function(x){ return x.id===cardId; })[0];
+    if(c){ c.color = color; persist(); renderAll(); }
+  }
+  function snapLeveledCards(b){
+    var rowH = 150, indentPx = 40, startX = 20, startY = 20;
+    var leveled = b.cards.filter(function(c){ return typeof c.level === 'number'; });
+    leveled.sort(function(a,c){
+      if(Math.abs(a.y - c.y) > 40) return a.y - c.y;
+      return a.x - c.x;
+    });
+    leveled.forEach(function(c, i){
+      c.x = startX + (c.level * indentPx);
+      c.y = startY + i * rowH;
+    });
+    var needed = startY + leveled.length * rowH + 100;
+    if(!b.canvasHeight || b.canvasHeight < needed){ b.canvasHeight = needed; }
+  }
+  function closeLevelMenu(){
+    var existing = document.querySelector('.board-level-menu');
+    if(existing && existing.parentNode) existing.parentNode.removeChild(existing);
+  }
+  function closeLevelMenuOnce(ev){
+    var menu = document.querySelector('.board-level-menu');
+    if(menu && ev && menu.contains(ev.target)) return;
+    closeLevelMenu();
+    document.removeEventListener('click', closeLevelMenuOnce);
+  }
+  function openLevelMenu(cardId, x, y){
+    closeLevelMenu();
+    var menu = document.createElement('div');
+    menu.className = 'board-level-menu';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    var html = '';
+    LEVELS.forEach(function(lv, idx){
+      html += '<button type="button" class="board-level-menu-item" data-level="'+idx+'">'+lv.label+' — '+lv.name+'</button>';
+    });
+    html += '<button type="button" class="board-level-menu-item board-level-menu-clear" data-level="clear">Remove from outline</button>';
+    menu.innerHTML = html;
+    document.body.appendChild(menu);
+    Array.prototype.forEach.call(menu.querySelectorAll('.board-level-menu-item'), function(btn){
+      btn.addEventListener('click', function(){
+        var lv = btn.getAttribute('data-level');
+        if(lv === 'clear'){ clearCardLevel(cardId); } else { setCardLevel(cardId, parseInt(lv, 10)); }
+        closeLevelMenu();
+      });
+    });
+    setTimeout(function(){ document.addEventListener('click', closeLevelMenuOnce); }, 0);
   }
   function setCardText(cardId, text){
     var b = activeBoard(); if(!b) return;
@@ -6156,7 +6218,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     var boards = boardsArr();
     var b = activeBoard();
     var html = '<div class="indexbox">';
-    html += '<div class="shelf-head"><div class="t">Board</div><div class="s">jot ideas on cards, drag them into order, then turn them into a note</div></div>';
+    html += '<div class="shelf-head"><div class="t">Board</div><div class="s">jot ideas on cards, drag them anywhere, right-click a card to set its outline position (I, A, 1, a), then turn them into a note</div></div>';
     html += '<div class="board-toolbar">';
     if(boards.length){
       html += '<select id="boardSwitcher">' + boards.map(function(x){
@@ -6187,12 +6249,15 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
       var canvasHeight = b.canvasHeight || 900;
       html += '<div class="board-canvas" id="boardCanvas" style="min-height:'+canvasHeight+'px;">';
       b.cards.forEach(function(c){
-        html += '<div class="board-card" data-id="'+c.id+'" style="left:'+c.x+'px; top:'+c.y+'px; background:'+(LEVELS[c.level||0]||LEVELS[0]).color+';">';
+        html += '<div class="board-card" data-id="'+c.id+'" style="left:'+c.x+'px; top:'+c.y+'px; background:'+(c.color||BOARD_COLORS[0])+';">';
         html += '<div class="board-card-bar">';
-        html += '<div class="board-swatches">' + LEVELS.map(function(lv, idx){
-          var active = (c.level||0) === idx;
-          return '<span class="board-level-swatch'+(active?' active':'')+'" data-level="'+idx+'" style="background:'+lv.color+';" title="Outline level: '+lv.label+'">'+lv.label+'</span>';
+        html += '<div class="board-swatches">' + BOARD_COLORS.map(function(col){
+          var active = (c.color||BOARD_COLORS[0]) === col;
+          return '<span class="board-color-swatch'+(active?' active':'')+'" data-color="'+col+'" style="background:'+col+';"></span>';
         }).join('') + '</div>';
+        if(typeof c.level === 'number' && LEVELS[c.level]){
+          html += '<span class="board-level-badge" style="background:'+LEVELS[c.level].color+';" title="'+LEVELS[c.level].name+' — right-click card to change">'+LEVELS[c.level].label+'</span>';
+        }
         html += '<button class="board-card-del" data-id="'+c.id+'" title="Delete card">&times;</button>';
         html += '</div>';
         html += '<textarea data-id="'+c.id+'" placeholder="Write an idea…">' + escapeHtml(c.text||'') + '</textarea>';
@@ -6224,10 +6289,17 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     Array.prototype.forEach.call(document.querySelectorAll('.board-card-del'), function(btn){
       btn.addEventListener('click', function(){ deleteCard(btn.getAttribute('data-id')); });
     });
-    Array.prototype.forEach.call(document.querySelectorAll('.board-level-swatch'), function(sw){
+    Array.prototype.forEach.call(document.querySelectorAll('.board-color-swatch'), function(sw){
       sw.addEventListener('click', function(){
         var card = sw.closest('.board-card');
-        setCardLevel(card.getAttribute('data-id'), parseInt(sw.getAttribute('data-level'), 10));
+        setCardColor(card.getAttribute('data-id'), sw.getAttribute('data-color'));
+      });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.board-card'), function(card){
+      card.addEventListener('contextmenu', function(e){
+        if(e.target.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        openLevelMenu(card.getAttribute('data-id'), e.clientX, e.clientY);
       });
     });
 
@@ -6236,7 +6308,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
       var dragEl = null, offX = 0, offY = 0;
       Array.prototype.forEach.call(document.querySelectorAll('.board-card'), function(card){
         card.addEventListener('pointerdown', function(e){
-          if(e.target.tagName === 'TEXTAREA' || e.target.classList.contains('board-level-swatch') || e.target.classList.contains('board-card-del')) return;
+          if(e.target.tagName === 'TEXTAREA' || e.target.classList.contains('board-color-swatch') || e.target.classList.contains('board-level-badge') || e.target.classList.contains('board-card-del')) return;
           dragEl = card;
           card.classList.add('dragging');
           var rect = card.getBoundingClientRect();
