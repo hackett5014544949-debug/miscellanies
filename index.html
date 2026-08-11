@@ -4088,7 +4088,6 @@ var watsonDict = null;
     var switcher = '<span class="pswitch" style="flex-wrap:wrap;">' +
       '<button class="ptbtn'+(translation==='kjv'?' active':'')+'" data-tr="kjv" data-eid="'+entryId+'" data-ref="'+escapeHtml(ref)+'">KJV</button>' +
       '<button class="ptbtn'+(translation==='asv'?' active':'')+'" data-tr="asv" data-eid="'+entryId+'" data-ref="'+escapeHtml(ref)+'">ASV</button>' +
-      (bhl ? '<a class="ptbtn" href="'+bhl+'" target="_blank" rel="noopener">Compare on Bible Hub &#8599;</a>' : '') +
       (gl ? '<a class="ptbtn" href="'+gl+'" target="_blank" rel="noopener">Greek (TR) &#8599;</a>' : '') +
       (cbl ? '<a class="ptbtn" href="'+cbl+'" target="_blank" rel="noopener">CrossBible &#8599;</a>' : '') +
       (blb ? '<a class="ptbtn" href="'+blb+'" target="_blank" rel="noopener">Blue Letter Bible &#8599;</a>' : '') +
@@ -4097,6 +4096,7 @@ var watsonDict = null;
             '<a class="ptbtn" href="'+bibleGatewayLink(ref,'LSB')+'" target="_blank" rel="noopener">LSB &#8599;</a>' +
             '<a class="ptbtn" href="'+bibleGatewayLink(ref,'NKJV')+'" target="_blank" rel="noopener">NKJV &#8599;</a>' +
             '<a class="ptbtn" href="'+bibleGatewayLink(ref,'NET')+'" target="_blank" rel="noopener">NET &#8599;</a>' +
+      (bhl ? '<a class="ptbtn" href="'+bhl+'" target="_blank" rel="noopener">Compare on Bible Hub &#8599;</a>' : '') +
     '</span>';
     var fallback = '<span class="pfallback"><a href="https://www.biblegateway.com/passage/?search='+encodeURIComponent(ref)+'&version='+translation.toUpperCase()+'" target="_blank" rel="noopener">read online instead &rarr;</a></span>';
     var cacheKey = ref + '|' + translation;
