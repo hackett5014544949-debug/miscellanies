@@ -1627,6 +1627,10 @@
       return 'https://crossbible.com/KJV,NASB/'+encodeURIComponent(ntName)+'/'+chapter+':'+verse+'?showPivotView=true';
     }
     var otName = CROSSBIBLE_OT_NAMES[key];
+    if(!otName){
+      var lxxPair = LXX_BOOKS[key];
+      if(lxxPair) otName = CROSSBIBLE_OT_NAMES[lxxPair[1]];
+    }
     if(otName){
       return 'https://crossbible.com/RAHLFS,BRENT-eng/'+encodeURIComponent(otName)+'/'+chapter+':'+verse+'?showPivotView=true';
     }
@@ -4101,9 +4105,10 @@ var watsonDict = null;
     if(!panel) return;
     openPassageTranslation = translation;
     var gl = greekLink(ref);
-    var cbl = state.mode==='advanced' ? crossBibleLink(ref) : null;
-    var blb = state.mode==='advanced' ? blueLetterBibleLink(ref) : null;
     var lxx = lxxLinks(ref);
+    var lxxCb = lxx ? crossBibleLink(ref) : null;
+    var cbl = (state.mode==='advanced' && !lxx) ? crossBibleLink(ref) : null;
+    var blb = state.mode==='advanced' ? blueLetterBibleLink(ref) : null;
     var bhl = bibleHubLink(ref);
     var switcher = '<span class="pswitch" style="flex-wrap:wrap;">' +
       '<button class="ptbtn'+(translation==='kjv'?' active':'')+'" data-tr="kjv" data-eid="'+entryId+'" data-ref="'+escapeHtml(ref)+'">KJV</button>' +
@@ -4111,8 +4116,7 @@ var watsonDict = null;
       (gl ? '<a class="ptbtn" href="'+gl+'" target="_blank" rel="noopener">Greek (TR) &#8599;</a>' : '') +
       (cbl ? '<a class="ptbtn" href="'+cbl+'" target="_blank" rel="noopener">CrossBible &#8599;</a>' : '') +
       (blb ? '<a class="ptbtn" href="'+blb+'" target="_blank" rel="noopener">Blue Letter Bible &#8599;</a>' : '') +
-      (lxx ? '<a class="ptbtn" href="'+lxx.blb+'" target="_blank" rel="noopener">Septuagint (Greek) &#8599;</a>' : '') +
-      (lxx ? '<a class="ptbtn" href="'+lxx.brenton+'" target="_blank" rel="noopener">LXX in English &#8599;</a>' : '') +
+      (lxxCb ? '<a class="ptbtn" href="'+lxxCb+'" target="_blank" rel="noopener">LXX (CrossBible) &#8599;</a>' : '') +
             '<a class="ptbtn" href="'+bibleGatewayLink(ref,'LSB')+'" target="_blank" rel="noopener">LSB &#8599;</a>' +
             '<a class="ptbtn" href="'+bibleGatewayLink(ref,'NKJV')+'" target="_blank" rel="noopener">NKJV &#8599;</a>' +
             '<a class="ptbtn" href="'+bibleGatewayLink(ref,'NET')+'" target="_blank" rel="noopener">NET &#8599;</a>' +
