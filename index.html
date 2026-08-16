@@ -813,8 +813,16 @@
   // shelf — covers both a notebook missing the whole built-in library (pre-library
   // notebook.json) and one that already has some starter books but is simply missing
   // ones added in a later version of the app (e.g. a newly bundled translation).
+  // Ids that used to be in STARTER_BOOKS (and so got backfilled into everyone's
+  // library already) but have since been retired from the shelf entirely — e.g.
+  // bk_gntbyz2026 became its own dedicated "greek nt" tab instead of a library
+  // book. Purge these on every load so existing notebooks catch up.
+  var RETIRED_BOOK_IDS = ['bk_gntbyz2026'];
   function backfillStarterBooks(nbk){
     if(!nbk || !nbk.books) return;
+    if(RETIRED_BOOK_IDS.length){
+      nbk.books = nbk.books.filter(function(b){ return RETIRED_BOOK_IDS.indexOf(b.id) === -1; });
+    }
     var existingIds = {};
     nbk.books.forEach(function(b){ existingIds[b.id] = true; });
     var missing = STARTER_BOOKS.filter(function(b){ return !existingIds[b.id]; });
