@@ -544,7 +544,10 @@
         <button class="btn small" id="printBtn" title="A clean, printable copy of the whole numbered notebook — opens your browser's print dialog (choose Save as PDF)">Print / PDF</button>
         <div class="ie-menu-heading">Phone</div>
         <button class="btn small" id="exportPhoneBtn" title="A text-only backup — small enough for a phone's browser storage, no photos included">Export for phone (text only, no photos)</button>
-        
+        <div id="starterMenuSection" style="display:none;">
+          <div class="ie-menu-heading">Starter examples</div>
+          <button class="btn small" id="clearStarterBtn">Clear starter examples</button>
+        </div>
       </div>
     </div>
     <button class="btn primary" id="folderBtn">Save to folder&hellip;</button>
@@ -668,6 +671,7 @@
 
     <div id="guideTabQuick" class="guidetab-panel">
       <p>In the spirit of Jonathan Edwards' Miscellanies: every entry gets a permanent number, and entries refer to one another as your thought develops over the years. Nothing here is ever sent to any server &mdash; your notes are yours alone. Here's the fastest way to get going:</p>
+      <p style="color:var(--ink-soft); font-style:italic;">A quick honest note: I'm not a professional software engineer &mdash; I built this for my own Bible study and I'm sharing it because I think you'll find it useful too. If something ever breaks or feels rough around the edges, that's me still learning, not you doing something wrong.</p>
       <ol>
         <li><b>Pick a mode.</b> "Simple," up top, is just the numbered stream &mdash; write, search, cross-reference. "Advanced" adds the library, backups, and a few power tools. Switch anytime.</li>
         <li><b>Write your first note.</b> Click <b>New entry</b> &mdash; give it a title, a scripture reference if it has one, a topic or two, and the note itself. Save it.</li>
@@ -1971,10 +1975,27 @@
     }
   }
   function resetBackupCounter(){ state.editsSinceBackup = 0; }
+
+  // Removes the 47 built-in example entries (ids 1–47) from the default Miscellanies
+  // notebook only — never touches user-created notebooks or anything the user has written.
+  function removeStarterEntries(){
+    var d = state.notebooks['default'];
+    if(!d) return;
+    d.entries = (d.entries||[]).filter(function(e){ return !(e && e.id>=1 && e.id<=47); });
+    state.starterEntriesRemoved = true;
+  }
+  // The "Clear starter examples" fallback in Advanced → Import/Export only makes sense
+  // (and only appears) while at least one starter entry is still around to clear.
+  function updateStarterSectionVisibility(){
+    var sec = document.getElementById('starterMenuSection');
+    if(sec) sec.style.display = state.starterEntriesRemoved ? 'none' : '';
+  }
   function load(){
+    var hadExistingSave = false;
     try{
       var raw = localStorage.getItem(STORAGE_KEY);
       if(raw){
+        hadExistingSave = true;
         var parsed = JSON.parse(raw);
         if(parsed && parsed.notebooks) state = parsed;
       }
@@ -1997,6 +2018,22 @@
     if(state.settings.dataLink === undefined) state.settings.dataLink = '';
     if(state.settings.hostedViewerBase === undefined) state.settings.hostedViewerBase = 'https://hackett5014544949-debug.github.io/miscellanies/viewer.html';
     if(typeof state.editsSinceBackup !== 'number') state.editsSinceBackup = 0;
+    // One-time "clear the built-in starter examples?" prompt — only for genuinely fresh
+    // installs. Existing installs from before this feature shipped are backfilled quietly:
+    // if they'd already deleted the starter entries themselves, we don't show anything;
+    // if any are still there, the prompt stays skipped but the Advanced fallback button
+    // (see updateStarterSectionVisibility) remains available whenever they want it.
+    if(typeof state.starterNotesPromptSeen !== 'boolean'){
+      if(hadExistingSave){
+        state.starterNotesPromptSeen = true;
+        var defEntriesForBackfill = (state.notebooks['default']||{}).entries || [];
+        state.starterEntriesRemoved = !defEntriesForBackfill.some(function(e){ return e && e.id>=1 && e.id<=47; });
+      } else {
+        state.starterNotesPromptSeen = false;
+        state.starterEntriesRemoved = false;
+      }
+    }
+    if(typeof state.starterEntriesRemoved !== 'boolean') state.starterEntriesRemoved = false;
     if(!Array.isArray(state.collections)) state.collections = [];
     Object.keys(state.notebooks).forEach(function(id){
       if(!state.notebooks[id].inbox) state.notebooks[id].inbox = [];
@@ -2680,6 +2717,17 @@
     visible.sort(function(a,b){ return b.id - a.id; });
 
     var html = '';
+    var showStarterPrompt = !state.starterNotesPromptSeen && (isMasterNotebook() || state.activeNotebookId === 'default');
+    if(showStarterPrompt){
+      html += '<div style="background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; margin-bottom:18px; box-shadow:var(--shadow);">' +
+        '<div style="font-family:\'JetBrains Mono\', monospace; font-size:11px; letter-spacing:.03em; color:var(--ink-faint); text-transform:uppercase;">Starter examples</div>' +
+        '<div style="margin-top:6px; font-size:14px; color:var(--ink);">This notebook comes with 47 example entries built in, to show you the format. Clear them out to start with a blank notebook, or keep them as reference &mdash; either way, you\'ll only see this once.</div>' +
+        '<div class="form-actions" style="margin-top:10px;">' +
+          '<button class="btn small rubric" data-clearstarter-confirm="1">Clear examples</button>' +
+          '<a data-starter-dismiss="1" style="cursor:pointer; font-size:12px; color:var(--ink-faint); text-decoration:underline; align-self:center; margin-left:4px;">keep them</a>' +
+        '</div>' +
+      '</div>';
+    }
     var otdEntry = (state.mode === 'advanced' && state.lastOnThisDayDismiss !== todayDateString()) ? pickOnThisDayEntry(entries) : null;
     if(otdEntry){
       var otdIsAnniversary = (function(){
@@ -2884,6 +2932,24 @@
   var lastFocusedField = 'f-related';
 
   function wireStream(){
+        var clearStarterConfirmBtn = document.querySelector('[data-clearstarter-confirm]');
+        if(clearStarterConfirmBtn){
+              clearStarterConfirmBtn.addEventListener('click', function(){
+                    if(!confirm('Remove the 47 example entries that came with this notebook? Your own notes won\'t be touched, and this can\'t be undone — export a backup first (Advanced → Import/Export) if you\'d like a copy.')) return;
+                    removeStarterEntries();
+                    state.starterNotesPromptSeen = true;
+                    persist(); renderStream(); updateStarterSectionVisibility();
+                    flash('Example entries cleared');
+              });
+        }
+        var starterDismissBtn = document.querySelector('[data-starter-dismiss]');
+        if(starterDismissBtn){
+              starterDismissBtn.addEventListener('click', function(e){
+                    e.stopPropagation();
+                    state.starterNotesPromptSeen = true;
+                    persist(); renderStream();
+              });
+        }
         var otdDismissBtn = document.querySelector('[data-otd-dismiss]');
         if(otdDismissBtn){
               otdDismissBtn.addEventListener('click', function(e){
@@ -6657,6 +6723,16 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     resetBackupCounter(); persist();
     flash('Backup downloaded');
   });
+  var clearStarterBtnEl = document.getElementById('clearStarterBtn');
+  if(clearStarterBtnEl) clearStarterBtnEl.addEventListener('click', function(){
+    if(!window.confirm('Remove the built-in starter example entries? Your own notes will not be touched.')) return;
+    removeStarterEntries();
+    state.starterNotesPromptSeen = true;
+    persist();
+    renderAll();
+    updateStarterSectionVisibility();
+    flash('Example entries cleared');
+  });
   document.getElementById('exportPhoneBtn').addEventListener('click', function(){
     var copy = JSON.parse(JSON.stringify(state));
     Object.keys(copy.notebooks || {}).forEach(function(k){
@@ -6982,6 +7058,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
   wireStaticModals();
   initPhotoLightbox();
   renderAll();
+  updateStarterSectionVisibility();
   renderFolderBtn();
   if(IS_PHONE){ initPhoneMode(); } else { restoreFolder(); }
   if(typeof loadGithubSyncConfig === 'function' && typeof githubSyncNow === 'function'){
