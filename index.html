@@ -524,6 +524,7 @@
       <button class="btn small ghost" id="fontDownBtn" title="Smaller text" aria-label="Decrease text size" style="font-family:'JetBrains Mono',monospace;">A&#8722;</button>
       <button class="btn small ghost" id="fontUpBtn" title="Larger text" aria-label="Increase text size" style="font-family:'JetBrains Mono',monospace;">A+</button>
     </div>
+    <button class="btn small ghost" id="greekNtTabBtn" title="Read the Greek New Testament (Byzantine Text, 2026) &mdash; a hyperlinked PDF, not a library book" aria-label="Open the Greek New Testament resource">greek nt</button>
     <button class="btn small ghost" id="guideBtn" title="How to use this notebook" aria-label="Open the guide">guide</button>
     <button class="btn small ghost" id="themeBtn" title="Toggle dark mode" aria-label="Toggle dark mode">&#9789;</button>
   </div>
@@ -735,7 +736,10 @@
       <p>Deleted entries move to a Trash at the bottom of the stream, where you can restore them or delete them forever. An Undo button also appears for a few seconds after each delete.</p>
 
       <h4>The library</h4>
-      <p>The shelf (Advanced &rarr; library) comes stocked with real, full texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, the Text-Critical English New Testament and the ASV Byzantine Text with Apocrypha, the Westminster Leningrad Codex Hebrew Old Testament, the SBLGNT Greek New Testament, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. It also includes <i>The Greek New Testament According to the Byzantine Text</i> (2026 ed.), which opens as a fully hyperlinked PDF instead of an in-app reader &mdash; use its bookmarks panel, or the linked Table of Contents and Manuscript Apparatus Variant Unit Index inside it, to jump straight to any book, chapter, or one of its 50 highlighted textual variants without scrolling. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
+      <p>The shelf (Advanced &rarr; library) comes stocked with real, full texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, the Text-Critical English New Testament and the ASV Byzantine Text with Apocrypha, the Westminster Leningrad Codex Hebrew Old Testament, the SBLGNT Greek New Testament, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
+
+      <h4>Greek NT: Byzantine Text (2026)</h4>
+      <p>The <b>greek nt</b> button up top (works in either Simple or Advanced mode) opens a separate resource, not a library book: a fully hyperlinked edition of the Robinson&ndash;Pierpont 2026 Byzantine Greek New Testament, published by Guardian Press. It's a PDF, not an in-app reader, but it comes with real navigation built in &mdash; a bookmarks panel (book &amp; chapter), a clickable Table of Contents, and a clickable Manuscript Apparatus Variant Unit Index covering 50 significant textual variants with early manuscript evidence &mdash; so you can jump straight to any passage without scrolling through its 748 pages.</p>
 
       <h4>Where the library texts come from</h4>
       <p>The King James Version, American Standard Version, Scrivener Textus Receptus, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses are long-established English public-domain texts. The Robinson&ndash;Pierpont Greek New Testament is the <b>2018 edition</b> (RP2018) &mdash; specifically release v3.3.2 of the <a href="https://github.com/byztxt/byzantine-majority-text" target="_blank" rel="noopener">byztxt/byzantine-majority-text</a> project, current as of July 2023, which digitizes Dr. Maurice A. Robinson's own text and is dedicated to the public domain (Unlicense). The Strong's numbers and grammatical parsing shown when you tap a Greek word come from that same byztxt project; the English glosses in that popup come from <a href="https://github.com/biblicalhumanities/Dodson-Greek-Lexicon" target="_blank" rel="noopener">Jeffrey Dodson's Greek lexicon</a> (also public domain), compiled from the older public-domain lexicons of Abbott-Smith, Berry, Souter, and Strong. Watson's Bible Dictionary is Richard Watson's own public-domain dictionary. The <b>Text-Critical English New Testament</b> (Byzantine Text Version) is &copy; 2026 Robert Adam Boyd, made available under a <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0</a> license &mdash; used here with attribution, including its full set of text-critical footnotes (tap the &dagger; mark after a word to read one), which are a core part of what makes this edition distinctive (unedited, so it keeps its "Text-Critical English New Testament"/"Byzantine Text Version" names, which are trademarks of Robert Adam Boyd). The <b>ASV: Byzantine Text with Apocrypha</b> adapts the public-domain American Standard Version to follow the Byzantine/majority New Testament text and adds the Apocryphal books (drawn from the English Revised Version, Brenton's Septuagint, and Gray's translation, restyled to match the ASV); Adam Boyd's changes were dedicated to the public domain in 2021. The <b>Westminster Leningrad Codex</b> (WLC) is a digital edition of the Leningrad Codex, the oldest complete Masoretic manuscript of the Hebrew Bible, and its text is in the public domain. The Strong's numbers and grammatical parsing shown when you tap a Hebrew word come from the <a href="https://github.com/openscriptures/morphhb" target="_blank" rel="noopener">Open Scriptures Hebrew Bible</a> project's markup of the WLC (CC BY 4.0, credited to the Open Scriptures Hebrew Bible Project); the English glosses in that popup come from the Strong's Hebrew Dictionary as published in the <a href="https://github.com/openscriptures/HebrewLexicon" target="_blank" rel="noopener">Open Scriptures Hebrew Lexicon</a> (public domain base text, CC BY 4.0 corrections/markup). The <b>SBLGNT</b> (Society of Biblical Literature Greek New Testament) is &copy; Society of Biblical Literature and Logos Bible Software, made available under a <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0</a> license. Its word-by-word morphological tagging comes from the <a href="https://github.com/morphgnt/sblgnt" target="_blank" rel="noopener">MorphGNT</a> project (James K. Tauber), under a <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0</a> license; the Strong's numbers shown alongside that tagging were matched here by lemma against Dodson's lexicon (see above).</p>
@@ -787,7 +791,7 @@
 
   // 25 classics all Protestants treasure. amzn = affiliate link; free = public-domain copy where one exists.
   function amzn(q){ return 'https://www.amazon.com/s?k='+q+'&tag=bsar07-20'; }
-  var STARTER_BOOKS = [{id:'bk_kjv',title:'King James Version',author:'',status:'',type:'reference'},{id:'bk_asv',title:'American Standard Version',author:'',status:'',type:'reference'},{id:'bk_watson',title:"Watson's Bible Dictionary",author:'Richard Watson',status:'',type:'reference'},{id:'bk_rp',title:'Robinson-Pierpont Greek NT (Byzantine)',author:'',status:'',type:'reference'},{id:'bk_tr',title:'Scrivener Textus Receptus (Greek NT)',author:'',status:'',type:'reference'},{id:'bk_sblgnt',title:'SBLGNT (Society of Biblical Literature Greek NT)',author:'',status:'',type:'reference'},{id:'bk_wlc',title:'Westminster Leningrad Codex (Hebrew OT)',author:'',status:'',type:'reference'},{id:'bk_tcent',title:'Text-Critical English New Testament (Byzantine)',author:'Robert Adam Boyd',status:'',type:'reference'},{id:'bk_asvbt',title:'ASV: Byzantine Text with Apocrypha',author:'ASV, adapted by Adam Boyd',status:'',type:'reference'},{id:'bk_pilgrim',title:"The Pilgrim's Progress",author:'John Bunyan',status:'',type:'reference'},{id:'bk_imitation',title:'The Imitation of Christ',author:'Thomas a Kempis',status:'',type:'reference'},{id:'bk_luther',title:"Luther's 95 Theses",author:'Martin Luther',status:'',type:'reference'},{id:'bk_kjvs',title:"King James Version (with Strong's Numbers)",author:'',status:'',type:'reference'},{id:'bk_spurgeon',title:'Morning and Evening',author:'C. H. Spurgeon',status:'',type:'reference'},{id:'bk_gntbyz2026',title:'Greek NT: Byzantine Text (2026 ed., with apparatus)',author:'Robinson-Pierpont / Guardian Press',status:'',type:'reference',freeUrl:'resources/greek-nt-byzantine-text-2026.pdf'}];
+  var STARTER_BOOKS = [{id:'bk_kjv',title:'King James Version',author:'',status:'',type:'reference'},{id:'bk_asv',title:'American Standard Version',author:'',status:'',type:'reference'},{id:'bk_watson',title:"Watson's Bible Dictionary",author:'Richard Watson',status:'',type:'reference'},{id:'bk_rp',title:'Robinson-Pierpont Greek NT (Byzantine)',author:'',status:'',type:'reference'},{id:'bk_tr',title:'Scrivener Textus Receptus (Greek NT)',author:'',status:'',type:'reference'},{id:'bk_sblgnt',title:'SBLGNT (Society of Biblical Literature Greek NT)',author:'',status:'',type:'reference'},{id:'bk_wlc',title:'Westminster Leningrad Codex (Hebrew OT)',author:'',status:'',type:'reference'},{id:'bk_tcent',title:'Text-Critical English New Testament (Byzantine)',author:'Robert Adam Boyd',status:'',type:'reference'},{id:'bk_asvbt',title:'ASV: Byzantine Text with Apocrypha',author:'ASV, adapted by Adam Boyd',status:'',type:'reference'},{id:'bk_pilgrim',title:"The Pilgrim's Progress",author:'John Bunyan',status:'',type:'reference'},{id:'bk_imitation',title:'The Imitation of Christ',author:'Thomas a Kempis',status:'',type:'reference'},{id:'bk_luther',title:"Luther's 95 Theses",author:'Martin Luther',status:'',type:'reference'},{id:'bk_kjvs',title:"King James Version (with Strong's Numbers)",author:'',status:'',type:'reference'},{id:'bk_spurgeon',title:'Morning and Evening',author:'C. H. Spurgeon',status:'',type:'reference'}];
   var BOOK_CREDITS = {
     bk_kjv: 'King James Version (1611/1769). Long-established English public-domain text.',
     bk_asv: 'American Standard Version (1901). Public domain.',
@@ -802,8 +806,7 @@
     bk_imitation: 'The Imitation of Christ, by Thomas &agrave; Kempis. Long-established public-domain text.',
     bk_luther: "Luther's 95 Theses, by Martin Luther. Long-established public-domain text.",
     bk_kjvs: "King James Version text and Strong&rsquo;s numbers via CrossWire Bible Society&rsquo;s KJV+Strong&rsquo;s module (&ldquo;General public license for distribution for any purpose&rdquo;). Greek definitions via Dodson&rsquo;s lexicon (public domain); Hebrew definitions via the Strong&rsquo;s Hebrew Dictionary, OpenScriptures Hebrew Lexicon edition (public domain base text, CC BY 4.0 markup).",
-    bk_spurgeon: 'Morning and Evening: Daily Readings, by Charles Haddon Spurgeon. Public domain. Text sourced from <a href="https://ccel.org/s/spurgeon/morn_eve/morn_eve.html" target="_blank" rel="noopener">the Christian Classics Ethereal Library (CCEL)</a>.',
-    bk_gntbyz2026: 'The Greek New Testament According to the Byzantine Text, aligned with the Robinson&ndash;Pierpont 2026 text, published by Guardian Press. Public domain. Opens as a hyperlinked PDF &mdash; use the bookmarks panel in your PDF viewer, or the linked Table of Contents and Manuscript Apparatus Variant Unit Index inside it, to jump straight to any book, chapter, or one of the 50 highlighted textual variants without scrolling.'
+    bk_spurgeon: 'Morning and Evening: Daily Readings, by Charles Haddon Spurgeon. Public domain. Text sourced from <a href="https://ccel.org/s/spurgeon/morn_eve/morn_eve.html" target="_blank" rel="noopener">the Christian Classics Ethereal Library (CCEL)</a>.'
   };
   var SPINE_COLORS = ['#33465C','#5f5644','#6b5a3e','#4a5240','#7a4e3a','#5a3f52','#3f5a52'];
   // Adds any STARTER_BOOKS not already present (by id) to the front of a notebook's
@@ -2670,6 +2673,8 @@
     Array.prototype.forEach.call(document.querySelectorAll('#modeToggle button'), function(b){
       b.classList.toggle('active', b.getAttribute('data-mode')===state.mode);
     });
+    var greekNtBtn = document.getElementById('greekNtTabBtn');
+    if(greekNtBtn) greekNtBtn.classList.toggle('active', state.view==='greeknt');
 
     var vt = document.getElementById('viewToggle');
     if(state.mode==='advanced'){
@@ -4842,6 +4847,36 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     });
   }
 
+  /* ---------- GREEK NT: BYZANTINE TEXT (2026) — standalone resource, not a library book ---------- */
+  // This is a fully hyperlinked PDF (bookmarks panel + a clickable Table of Contents and
+  // Manuscript Apparatus Variant Unit Index built into the file itself), not an in-app
+  // text reader like the library books below — so it gets its own persistent nav button
+  // and its own view, reachable from either Simple or Advanced mode, rather than a spine
+  // on the library shelf.
+  var GREEK_NT_PDF_URL = 'resources/greek-nt-byzantine-text-2026.pdf';
+  function renderGreekNtResource(){
+    var html = '<div class="greeknt-resource" style="max-width:640px; margin:0 auto;">';
+    html += '<div class="shelf-head"><div class="t">The Greek New Testament</div><div class="s">According to the Byzantine Text &mdash; Robinson&ndash;Pierpont 2026 edition</div></div>';
+    html += '<div style="background:var(--card); border:1px solid var(--line); border-radius:8px; padding:26px 28px; box-shadow:var(--shadow); margin-top:16px;">';
+    html += '<p style="margin:0 0 16px; color:var(--ink-soft);">Published by Guardian Press, aligned with the newly released Robinson&ndash;Pierpont 2026 Byzantine Textform. Public domain &mdash; free to read, copy, or redistribute. This isn\'t an in-app reader like the books on your shelf; it opens as a PDF with real navigation built directly into the file.</p>';
+    html += '<h4 style="margin:18px 0 8px; font-size:16px;">How to jump around without scrolling</h4>';
+    html += '<ol style="margin:0 0 20px; padding-left:20px; color:var(--ink-soft); line-height:1.6;">' +
+      '<li><b>Bookmarks panel</b> &mdash; open your PDF viewer\'s sidebar (in Chrome, click the document-outline icon next to the thumbnails) for a full book&nbsp;&rarr;&nbsp;chapter tree. Click any chapter to jump straight there.</li>' +
+      '<li><b>Table of Contents</b> (page iv) &mdash; every book name is a live link to its first page.</li>' +
+      '<li><b>Manuscript Apparatus Variant Unit Index</b> (page v) &mdash; all 50 highlighted textual variants (Matthew 1:25, Mark 16:9&ndash;20, John 7:53&ndash;8:11, 1 John 5:7&ndash;8, and more) are linked straight to their manuscript evidence.</li>' +
+    '</ol>';
+    html += '<a href="'+GREEK_NT_PDF_URL+'" target="_blank" rel="noopener" style="display:inline-block; font-family:\'EB Garamond\', serif; font-size:19px; text-decoration:none; cursor:pointer; border-radius:6px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); padding:13px 32px; transition:background .12s ease;" onmouseover="this.style.background=\'#463d2e\';" onmouseout="this.style.background=\'var(--ink)\';">Read online &rarr;</a>';
+    html += '</div>';
+    html += '<div style="margin-top:14px;"><button type="button" class="btn small ghost" id="greekNtBackBtn">&larr; back</button></div>';
+    html += '</div>';
+    document.getElementById('app').innerHTML = html;
+    var backBtn = document.getElementById('greekNtBackBtn');
+    if(backBtn) backBtn.addEventListener('click', function(){
+      state.view = 'stream';
+      persist(); renderAll();
+    });
+  }
+
   /* ---------- BOOK READER (read the actual text of library books) ---------- */
   // Maps a starter-library book id to the bundled JSON file that holds its full text,
   // and to the shape that file is in: 'paragraphs' (a flat array of paragraph strings)
@@ -6472,7 +6507,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
 
   function renderAll(){
     renderChrome();
-    if(state.mode==='simple'){ state.view='stream'; }
+    if(state.mode==='simple' && state.view!=='greeknt'){ state.view='stream'; }
     if(state.view==='stream') renderStream();
     else if(state.view==='inbox') renderInbox();
     else if(state.view==='library') renderLibrary();
@@ -6481,6 +6516,7 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
     else if(state.view==='stats') renderStats();
     else if(state.view==='board') renderBoard();
     else if(state.view==='concordance') renderConcordance();
+    else if(state.view==='greeknt') renderGreekNtResource();
     wireModals();
     ensureWatsonDict(function(){ highlightDictWords(); });
     applyFontScale();
@@ -6495,6 +6531,10 @@ var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sbl
 
   document.getElementById('guideBtn').addEventListener('click', function(){
     document.getElementById('guideModal').classList.add('open');
+  });
+  document.getElementById('greekNtTabBtn').addEventListener('click', function(){
+    state.view = 'greeknt';
+    persist(); renderAll();
   });
   var creditLineEl = document.getElementById('creditLine');
   if(creditLineEl){
