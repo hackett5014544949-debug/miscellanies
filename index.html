@@ -739,7 +739,7 @@
       <p>The shelf (Advanced &rarr; library) comes stocked with real, full texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, the Text-Critical English New Testament and the ASV Byzantine Text with Apocrypha, the Westminster Leningrad Codex Hebrew Old Testament, the SBLGNT Greek New Testament, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
 
       <h4>Greek NT: Byzantine Text (2026)</h4>
-      <p>The full Guardian Press edition is also a book on your library shelf (<b>Greek NT: Byzantine Text (Guardian Press 2026)</b>) with a real in-app reader: pick a book and chapter, and tap any &dagger; mark to read the edition and manuscript apparatus for that spot. Its Preface, Introduction, and Appendices A&ndash;D are the second Guardian Press book beside it.</p>
+      <p>The full Guardian Press edition is also a book on your library shelf (<b>Greek NT: Byzantine Text (Guardian Press 2026)</b>) with a real in-app reader: pick a book and chapter, and tap any &dagger; mark to read the edition and manuscript apparatus for that spot, and tap any Greek word for its parsing, Strong&rsquo;s number and Dodson definition. Tap any Greek word for its parsing and definition. Its Preface, Introduction, and Appendices A&ndash;D are the second Guardian Press book beside it.</p>
       <p>The <b>greek nt</b> button up top (works in either Simple or Advanced mode) opens a separate resource, not a library book: a fully hyperlinked edition of the Robinson&ndash;Pierpont 2026 Byzantine Greek New Testament, published by Guardian Press. It's a PDF, not an in-app reader, but it comes with real navigation built in &mdash; a bookmarks panel (book &amp; chapter), a clickable Table of Contents, and a clickable Manuscript Apparatus Variant Unit Index covering 50 significant textual variants with early manuscript evidence &mdash; so you can jump straight to any passage without scrolling through its 748 pages.</p>
 
       <h4>Where the library texts come from</h4>
@@ -800,7 +800,7 @@
     bk_rp: 'Robinson&ndash;Pierpont Greek New Testament, 2018 edition (RP2018), release v3.3.2 of the <a href="https://github.com/byztxt/byzantine-majority-text" target="_blank" rel="noopener">byztxt/byzantine-majority-text</a> project. Digitizes Dr. Maurice A. Robinson&rsquo;s text; dedicated to the public domain (Unlicense). Strong&rsquo;s numbers and parsing via the same byztxt project; definitions via Jeffrey Dodson&rsquo;s Greek lexicon (public domain).',
     bk_tr: 'Scrivener Textus Receptus (Greek NT). Long-established public-domain text.',
     bk_sblgnt: 'SBLGNT (Society of Biblical Literature Greek New Testament), &copy; Society of Biblical Literature and Logos Bible Software, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Morphological tagging via the <a href="https://github.com/morphgnt/sblgnt" target="_blank" rel="noopener">MorphGNT</a> project (James K. Tauber, CC BY-SA 3.0); Strong&rsquo;s numbers matched by lemma against Dodson&rsquo;s lexicon.',
-    bk_gpgnt: 'The Greek New Testament According to the Byzantine Text, Guardian Press 2026 (Robinson&ndash;Pierpont 2026 base text), edited and prepared by J. Jeffrey Dodson &amp; Dwayne Green for the Guardian Press Editorial Committee. Dedicated to the public domain on its release date. Tap a &dagger; mark to read the edition and manuscript apparatus for that word. The apparatus is reproduced as published.',
+    bk_gpgnt: 'The Greek New Testament According to the Byzantine Text, Guardian Press 2026 (Robinson&ndash;Pierpont 2026 base text), edited and prepared by J. Jeffrey Dodson &amp; Dwayne Green for the Guardian Press Editorial Committee. Dedicated to the public domain on its release date. Tap a &dagger; mark to read the edition and manuscript apparatus for that word. The apparatus is reproduced as published. Parsing and Strong&rsquo;s numbers come from the Robinson&ndash;Pierpont Byzantine Textform (byztxt project, public domain), matched word for word to this edition; definitions via Dodson&rsquo;s Greek lexicon (public domain).',
     bk_gpgnt_front: 'Front matter, Preface, Introduction, and Appendices A&ndash;D from The Greek New Testament According to the Byzantine Text, Guardian Press 2026. Dedicated to the public domain.',
     bk_wlc: 'Westminster Leningrad Codex (WLC), the oldest complete Masoretic manuscript of the Hebrew Bible. Public domain. Strong&rsquo;s numbers and morphology via the <a href="https://github.com/openscriptures/morphhb" target="_blank" rel="noopener">Open Scriptures Hebrew Bible</a> project (CC BY 4.0); definitions via the Open Scriptures Hebrew Lexicon (public domain base text, CC BY 4.0 markup).',
     bk_tcent: 'Text-Critical English New Testament (Byzantine Text Version), &copy; 2026 Robert Adam Boyd, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Used with attribution, unedited, including its full set of text-critical footnotes. &ldquo;Text-Critical English New Testament&rdquo;/&ldquo;Byzantine Text Version&rdquo; are trademarks of Robert Adam Boyd.',
@@ -3362,6 +3362,36 @@ var watsonDict = null;
     if(gpgntNotesData){ setTimeout(cb, 0); return; }
     fetch('gpgnt_notes.json?v=1').then(function(r){ return r.json(); }).then(function(d){ gpgntNotesData = d; cb(); }).catch(function(){ cb(); });
   }
+  // Guardian Press GNT parsing (gpgnt_parse.json): {book:{chapter:{verse:"strong morph;strong morph;..."}}}, one entry per Greek
+  // word of the verse in reading order (Robinson-Pierpont parsing matched word for word to the Guardian Press text).
+  var gpgntParseData = null;
+  function ensureGpgntParse(cb){
+    if(gpgntParseData){ setTimeout(cb, 0); return; }
+    fetch('gpgnt_parse.json?v=1').then(function(r){ return r.json(); }).then(function(d){ gpgntParseData = d; cb(); }).catch(function(){ cb(); });
+  }
+  var GPGNT_GREEK_RE = /[\u0370-\u03ff\u1f00-\u1fff]/;
+  var GPGNT_TOKEN_RE = /(\u2020(\d+)\u2060)|(\s+)|(\u2014)|([^\s\u2020\u2014]+)/g;
+  function renderGpgntVerse(text, parseStr){
+    if(!text) return '';
+    var ents = parseStr ? parseStr.split(';') : null;
+    var out = '', wi = 0, m;
+    GPGNT_TOKEN_RE.lastIndex = 0;
+    while((m = GPGNT_TOKEN_RE.exec(text))){
+      if(m[1]){ out += '<sup class="tcent-fn-mark" data-fnidx="'+(parseInt(m[2],10)-1)+'" title="Apparatus note &mdash; click to read">&dagger;</sup>'; }
+      else if(m[3] || m[4]){ out += escapeHtml(m[0]); }
+      else {
+        var tok = m[5];
+        if(ents && GPGNT_GREEK_RE.test(tok)){
+          var ent = ents[wi++] || '';
+          var sp = ent.split(' ');
+          var pm = /^([^\u0370-\u03ff\u1f00-\u1fff]*)(.*?)([^\u0370-\u03ff\u1f00-\u1fff]*)$/.exec(tok);
+          if(sp[0]) out += escapeHtml(pm[1]) + '<span class="grk-word" data-strong="'+escapeHtml(sp[0])+'" data-morph="'+escapeHtml(sp.slice(1).join(' '))+'">'+escapeHtml(pm[2])+'</span>' + escapeHtml(pm[3]);
+          else out += escapeHtml(tok);
+        } else out += escapeHtml(tok);
+      }
+    }
+    return out;
+  }
   var TCENT_FN_MARK_RE = /\u2020(\d+)\u2060/g;
   function renderTcentVerseText(text, footnotes){
     if(!text) return '';
@@ -5341,6 +5371,9 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     if(isGpgnt && !gpgntNotesData){
       ensureGpgntNotes(function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); });
     }
+    if(isGpgnt && !gpgntParseData){
+      ensureGpgntParse(function(){ if(gpgntParseData && activeTabId === READER_TAB_ID) renderOpenBook(); });
+    }
     var bookNames = isGreekNt ? ntBookOrderNames().filter(function(n){ return data[n]; }) : Object.keys(data);
     if(!rs.book || !data[rs.book]) rs.book = bookNames[0];
     var chapters = Object.keys(data[rs.book]||{}).map(Number).sort(function(a,b){ return a-b; });
@@ -5437,7 +5470,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       var vEntries = (hasStrongs && activeStrongsData && activeStrongsData[rs.book] && activeStrongsData[rs.book][rs.chapter]) ? activeStrongsData[rs.book][rs.chapter][v] : null;
       var hebEntries = (isHebrewOt && hebrewStrongsData && hebrewStrongsData[rs.book] && hebrewStrongsData[rs.book][rs.chapter]) ? hebrewStrongsData[rs.book][rs.chapter][v] : null;
 var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sblgntApparatusData[rs.book] && sblgntApparatusData[rs.book][rs.chapter]) ? sblgntApparatusData[rs.book][rs.chapter][v] : null;
-            var verseHtml = (isKjvs && vEntries) ? renderKjvsVerseWords(chapterData[v], vEntries) : (vEntries ? renderGreekVerseWords(chapterData[v], vEntries, appNotesForVerse) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : ((isTcent || isGpgnt) ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v]))));
+            var verseHtml = (isKjvs && vEntries) ? renderKjvsVerseWords(chapterData[v], vEntries) : (vEntries ? renderGreekVerseWords(chapterData[v], vEntries, appNotesForVerse) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isGpgnt ? renderGpgntVerse(chapterData[v], gpgntParseData && gpgntParseData[rs.book] && gpgntParseData[rs.book][rs.chapter] ? gpgntParseData[rs.book][rs.chapter][v] : '') : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v])))));
       var vhlColor = getVerseHighlight(rs.book, rs.chapter, v);
       var vhlClass = vhlColor ? (' vhl-'+vhlColor) : '';
       // Task #39: tapping the verse number opens a small Highlight/Add Note menu instead of
