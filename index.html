@@ -3367,7 +3367,7 @@ var watsonDict = null;
   var gpgntParseData = null;
   function ensureGpgntParse(cb){
     if(gpgntParseData){ setTimeout(cb, 0); return; }
-    fetch('gpgnt_parse.json?v=1').then(function(r){ return r.json(); }).then(function(d){ gpgntParseData = d; cb(); }).catch(function(){ cb(); });
+    fetch('gpgnt_parse.json?v=2').then(function(r){ return r.json(); }).then(function(d){ gpgntParseData = d; cb(); }).catch(function(){ cb(); });
   }
   var GPGNT_GREEK_RE = /[\u0370-\u03ff\u1f00-\u1fff]/;
   var GPGNT_TOKEN_RE = /(\u2020(\d+)\u2060)|(\s+)|(\u2014)|([^\s\u2020\u2014]+)/g;
