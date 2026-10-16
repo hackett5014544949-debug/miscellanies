@@ -739,7 +739,7 @@
       <p>The shelf (Advanced &rarr; library) comes stocked with real, full texts: the King James and American Standard Bibles, the Robinson&ndash;Pierpont and Scrivener Greek New Testaments, the Text-Critical English New Testament and the ASV Byzantine Text with Apocrypha, the Westminster Leningrad Codex Hebrew Old Testament, the SBLGNT Greek New Testament, Watson's Bible Dictionary, Pilgrim's Progress, The Imitation of Christ, and Luther's 95 Theses. Click a spine to open it &mdash; books with real text behind them have a <b>Read text</b> tab for an actual in-app reader (Watson's Dictionary gets its own searchable A&ndash;Z reader), plus a scrollable list of your own notes underneath. While reading any Bible translation, a small asterisk appears next to any verse you've written a note about &mdash; tap it to read the note in place, or jump to it in your notebook. Add your own books or notebooks with the <b>+</b> spine; a shelf that fills up automatically splits into a second shelf underneath rather than scrolling forever.</p>
 
       <h4>Greek NT: Byzantine Text (2026)</h4>
-      <p>The full Guardian Press edition is also a book on your library shelf (<b>Greek NT: Byzantine Text (Guardian Press 2026)</b>) with a real in-app reader: pick a book and chapter, and tap any &dagger; mark to read the edition and manuscript apparatus for that spot, and tap any Greek word for its parsing, Strong&rsquo;s number and Dodson definition. Tap any Greek word for its parsing and definition. Its Preface, Introduction, and Appendices A&ndash;D are the second Guardian Press book beside it.</p>
+      <p>The full Guardian Press edition is also a book on your library shelf (<b>Greek NT: Byzantine Text (Guardian Press 2026)</b>) with a real in-app reader: pick a book and chapter, and tap any &dagger; mark to read the edition apparatus for that spot (a &Dagger; means the note also carries manuscript evidence), and tap any Greek word for its parsing, Strong&rsquo;s number and Dodson definition. Above the text, <b>Editions</b> lets you choose which of the eleven comparison editions appear and how much to filter: show every variant, hide spelling-only variants (including spelling differences in proper names), hide spelling, word-order and minor-word variants, or show only the translatable differences (verses where Adam Boyd&rsquo;s <i>Text-Critical English New Testament</i>, &copy; Robert Adam Boyd, CC BY 4.0, has a footnote). <b>Report</b> lists the variants for a chapter, book or range, to copy or print, and <b>Compare</b> shows how closely the editions agree with the Byzantine text and with each other. Its Preface, Introduction, and Appendices A&ndash;D are the second Guardian Press book beside it.</p>
       <p>The <b>greek nt</b> button up top (works in either Simple or Advanced mode) opens a separate resource, not a library book: a fully hyperlinked edition of the Robinson&ndash;Pierpont 2026 Byzantine Greek New Testament, published by Guardian Press. It's a PDF, not an in-app reader, but it comes with real navigation built in &mdash; a bookmarks panel (book &amp; chapter), a clickable Table of Contents, and a clickable Manuscript Apparatus Variant Unit Index covering 50 significant textual variants with early manuscript evidence &mdash; so you can jump straight to any passage without scrolling through its 748 pages.</p>
 
       <h4>Where the library texts come from</h4>
@@ -786,6 +786,832 @@
   </div>
 </div>
 
+<script id="gpx-engine">
+(function(){
+'use strict';
+var TEXT={},NOTES={},HOST={cur:function(){return{b:'Matthew',c:1}},go:function(){},rerender:function(){}};
+var ORDER=['Matthew','Mark','Luke','John','Acts','Romans','1 Corinthians','2 Corinthians','Galatians','Ephesians','Philippians','Colossians','1 Thessalonians','2 Thessalonians','1 Timothy','2 Timothy','Titus','Philemon','Hebrews','James','1 Peter','2 Peter','1 John','2 John','3 John','Jude','Revelation'];
+function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function chaptersOf(b){return Object.keys(TEXT[b]||{}).map(Number).sort(function(a,b){return a-b})}
+function versesOf(b,c){return Object.keys((TEXT[b]||{})[c]||{}).map(Number).sort(function(a,b){return a-b})}
+var cur={b:'Matthew',c:1,v:null};
+function syncCur(){var c=HOST.cur()||{};cur.b=c.b||'Matthew';cur.c=+c.c||1}
+var modal=null,mbox=null,mOnClose=null,mLastFocus=null;
+function ensureModal(){
+  if(modal)return;
+  modal=document.createElement('div');modal.className='gpx gpmodal';modal.id='gpx-modal';modal.hidden=true;
+  mbox=document.createElement('div');mbox.className='gpbox';mbox.id='gpx-mbox';mbox.setAttribute('role','dialog');mbox.setAttribute('aria-modal','true');
+  modal.appendChild(mbox);document.body.appendChild(modal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal()});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!modal.hidden){e.stopPropagation();closeModal()}},true);
+}
+function $(id){return mbox?mbox.querySelector('[id="'+id+'"]'):null}
+function openModal(html){
+  ensureModal();mLastFocus=document.activeElement;
+  mbox.innerHTML=html;mbox.onchange=null;mbox.onclick=null;modal.hidden=false;document.body.classList.add('gpmopen');modal.scrollTop=0;
+  var x=$('mx');if(x)x.addEventListener('click',closeModal);
+  var f=mbox.querySelector('.mfoot .primary')||mbox.querySelector('button,input');if(f)f.focus();
+}
+function closeModal(){
+  if(!modal||modal.hidden)return;
+  modal.hidden=true;document.body.classList.remove('gpmopen');mbox.innerHTML='';
+  var f=mOnClose;mOnClose=null;if(f)f();
+  else if(mLastFocus&&mLastFocus.focus)try{mLastFocus.focus()}catch(e){}
+}
+function head(kicker,title){return '<div class="mhead"><div class="k">'+kicker+'</div><h3>'+title+'</h3><button class="x" id="mx" aria-label="Close">&times;</button></div>'}
+function applySel(){FV++;saveSel();HOST.rerender()}
+function printArea(){var pa=document.getElementById('gpx-printarea');if(!pa){pa=document.createElement('div');pa.id='gpx-printarea';pa.className='gpx';document.body.appendChild(pa)}return pa}
+
+/* ---------- apparatus model: parse each note, expand group labels, filter by edition ---------- */
+var SC2L={'ᴀ':'A','ʙ':'B','ᴄ':'C','ᴅ':'D','ᴇ':'E','ꜰ':'F','ɢ':'G','ʜ':'H','ɪ':'I','ᴊ':'J','ᴋ':'K','ʟ':'L','ᴍ':'M','ɴ':'N','ᴏ':'O','ᴘ':'P','ǫ':'Q','ʀ':'R','ꜱ':'S','ᴛ':'T','ᴜ':'U','ᴠ':'V','ᴡ':'W','ʏ':'Y','ᴢ':'Z','ᵐ':'m','ᵍ':'g','ᵗ':'t','ˢ':'s','⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
+var LABEL_RE=/^[ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘǫʀꜱᴛᴜᴠᴡʏᴢ]+(?:[ᵐᵍᵗˢ]+|[⁰¹²³⁴⁵⁶⁷⁸⁹]+|†)*$/;
+var DISP={HF:'ʜꜰ',PCK:'ᴘᴄᴋ',PT:'ᴘᴛ',ECM:'ᴇᴄᴍ','ECM†':'ᴇᴄᴍ†',NA27:'ɴᴀ²⁷',NA28:'ɴᴀ²⁸',NA:'ɴᴀ',SBL:'ꜱʙʟ',TH:'ᴛʜ',WH:'ᴡʜ',SCR:'ꜱᴄʀ',ST:'ꜱᴛ',TR:'ᴛʀ',RPmg:'ʀᴘᵐᵍ'};
+var ALLIDS=['HF','PCK','PT','ECM','NA27','NA28','SBL','TH','WH','SCR','ST','RPmg'];
+var EDS=[
+ {k:'byz',name:'Byzantine family',items:[['HF','Hodges and Farstad, Majority Text, 2nd ed. (1985)'],['PCK','Pickering, Family 35, 3rd ed. (2020)'],['PT','Ecumenical Patriarchal Text (1912)']]},
+ {k:'ct',name:'Critical text',items:[['ECM','Editio Critica Maior (Mark, Acts, Catholic Epistles, Revelation only)'],['NA27','Nestle-Aland, 27th ed. (1993)'],['NA28','Nestle-Aland, 28th ed. (2012)'],['SBL','SBL Greek New Testament (2010)'],['TH','Tyndale House Greek New Testament (2017)'],['WH','Westcott and Hort (1881)']]},
+ {k:'tr',name:'Textus Receptus',items:[['SCR','Scrivener (1894)'],['ST','Stephanus (1550)']]},
+ {k:'rp',name:'RPmg',items:[['RPmg','Robinson and Pierpont alternate Byzantine readings (margin)']]}
+];
+var ECM_BOOKS={'Mark':1,'Acts':1,'James':1,'1 Peter':1,'2 Peter':1,'1 John':1,'2 John':1,'3 John':1,'Jude':1,'Revelation':1};
+function members(id,book){
+  if(id==='CT'||id==='CT†')return ECM_BOOKS[book]?['ECM','NA27','NA28','SBL','TH','WH']:['NA27','NA28','SBL','TH','WH'];
+  if(id==='NA')return ['NA27','NA28'];
+  if(id==='TR')return ['SCR','ST'];
+  if(id==='ECM†')return ['ECM'];
+  return [id];
+}
+function coreToId(core){return core.replace(/./g,function(ch){return SC2L[ch]||ch})}
+function plainify(s){return String(s).replace(/./g,function(ch){return SC2L[ch]||ch})}
+var SEL={};
+(function(){ALLIDS.forEach(function(k){SEL[k]=true});try{var d=JSON.parse(store('gnt-eds')||'[]');d.forEach(function(k){if(k in SEL)SEL[k]=false})}catch(e){}})();
+var FV=1;
+function saveSel(){store('gnt-eds',JSON.stringify(ALLIDS.filter(function(k){return !SEL[k]})))}
+function selCount(){return ALLIDS.filter(function(k){return SEL[k]}).length}
+function edFiltered(){return selCount()!==ALLIDS.length}
+var VL=(function(){var v=store('gnt-vlevel');if(v==='1'||v==='2'||v==='3')return +v;return store('gnt-nospell')==='1'?1:0})();
+function filtered(){return edFiltered()||VL>0}
+/* spelling-only detection: a reading counts as a spelling variant when, word for word, it differs from the base text only by
+   accents/breathings, final sigma, movable nu, ei/i, eu/hu, doubled or assimilated consonants, ou/ouk/ouch, outos/outo, ek/ex */
+function spWord(w){
+  var r=w.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ς/g,'σ').replace(/[^α-ω]/g,'');
+  if(!r)return '';
+  w=r.replace(/τθ/g,'θθ').replace(/πφ/g,'φφ').replace(/κχ/g,'χχ');
+  w=w.replace(/^(ου|μη)θ/,'$1δ');
+  if(w==='ουχ'||w==='ουκ')w='ου';
+  if(w==='ουτωσ')w='ουτω';
+  if(w==='εξ')w='εκ';
+  if(w==='μεχρισ'||w==='αχρισ')w=w.slice(0,-1);
+  /* movable nu, but never the nu of ουδεν/μηδεν, which are words in their own right */
+  if(w.length>=5&&/(σι|στι|σε|ε)ν$/.test(w)&&!/^(ουδεν|μηδεν)$/.test(w))w=w.slice(0,-1);
+  w=w.replace(/ηυ/g,'ευ');
+  /* ει and ι interchange, except where they carry morphology: the λειπ/λιπ stems, the ειδ/ιδ stems,
+     and a word ending, where -ει/-εις against -ι/-ις marks a different form (επει/επι, ερεις/ερις) */
+  w=w.replace(/ει/g,function(m,i,str){
+    var nx=str.charAt(i+2),pv=str.charAt(i-1),rest=str.length-(i+2);
+    if(pv==='λ'&&nx==='π')return m;
+    if(nx==='δ'&&i===0)return m;
+    if(rest===0||(rest===1&&nx==='σ'))return m;
+    return 'ι';
+  });
+  /* spellings of the same name */
+  w=w.replace(/^μωυσ/,'μωσ').replace(/^ιεροσολυμα$/,'ιερουσαλημ').replace(/^καπερναουμ/,'καφαρναουμ').replace(/^δαβιδ/,'δαυιδ');
+  w=w.replace(/γγ/g,'νγ').replace(/γκ/g,'νκ').replace(/γξ/g,'νξ').replace(/γχ/g,'νχ').replace(/ν([μπβφψ])/g,'μ$1').replace(/ττ/g,'σσ');
+  w=w.replace(/([βγδζθκμνπρστφχψ])\1/g,'$1');
+  /* a doubled lambda is only a spelling difference away from these stems, where it marks the verb (μελω/μελλω, στελω/στελλω) */
+  if(!/βαλ|μελ|στελ|λλασσ/.test(r))w=w.replace(/λλ/g,'λ');
+  return w;
+}
+function spToks(t){var o=[];String(t).trim().split(/\s+/).forEach(function(x){if(spWord(x))o.push(x)});return o}
+function isSpelling(quote,text){
+  if(!quote||!text||/[\[«]/.test(text))return false;
+  var q=spToks(quote),t=spToks(text);if(!q.length||q.length!==t.length)return false;
+  for(var i=0;i<q.length;i++){
+    if(spWord(q[i])!==spWord(t[i]))return false;
+    var a=q[i].toLowerCase().normalize('NFD'),b=t[i].toLowerCase().normalize('NFD'),ra=/[\u0300-\u036f]/.test(a),rb=/[\u0300-\u036f]/.test(b);
+    if(ra&&rb){var sa=a.replace(/ς/g,'σ'),sb=b.replace(/ς/g,'σ');if(sa!==sb&&sa.replace(/[\u0300-\u036f]/g,'')===sb.replace(/[\u0300-\u036f]/g,''))return false}
+  }
+  return true;
+}
+/* orthographic readings (strict): no brackets, no accents or breathings, same word count (or same letters re-divided), and every word is
+   identical, a spelling variant (ei/i, tt/ss, rr/rs), an elision, a movable nu or sigma, or the same word divided differently */
+function orthW(w){return w.normalize('NFD').toLowerCase().replace(/ς/g,'σ').replace(/[’ʼ᾽']/g,'’').replace(/[^α-ω’]/g,'')}
+function orthSp(w){return w.replace(/’/g,'').replace(/ει/g,'ι').replace(/ττ/g,'σσ').replace(/ρρ/g,'ρσ')}
+var ASP={τ:'θ',π:'φ',κ:'χ'};
+/* words that elide in the apparatus; a bare consonant-final form counts as an elision only of one of these
+   (or of a form whose final τ, π or κ is aspirated before a rough breathing, as in μετα/μεθ, χρηστα/χρησθ) */
+var ELIDE={αλλα:1,δε:1,ουδε:1,μηδε:1,ουτε:1,μητε:1,απο:1,υπο:1,επι:1,κατα:1,μετα:1,παρα:1,δια:1,αντι:1,αρα:1,τοτε:1};
+/* ει and ι are interchangeable in spelling, but not where they carry morphology: the λειπ/λιπ tense stems,
+   the ειδ/ιδ verb stems, and a word ending, where -ει/-εις against -ι/-ις marks a different form */
+function morphEi(w,i){
+  var nx=w.charAt(i+2),pv=w.charAt(i-1),rest=w.length-(i+2);
+  if(pv==='λ'&&nx==='π')return true;
+  if(nx==='δ'&&i===0)return true;
+  if(rest===0||(rest===1&&nx==='σ'))return true;
+  return false;
+}
+/* walk two words, allowing only ει~ι, ττ~σσ and ρρ~ρσ; false if anything else differs */
+function spellEq(a,b){
+  var i=0,j=0;
+  while(i<a.length&&j<b.length){
+    var A2=a.substr(i,2),B2=b.substr(j,2);
+    if((A2==='ττ'&&B2==='σσ')||(A2==='σσ'&&B2==='ττ')||(A2==='ρρ'&&B2==='ρσ')||(A2==='ρσ'&&B2==='ρρ')||(A2==='τθ'&&B2==='θθ')||(A2==='θθ'&&B2==='τθ')||(A2==='πφ'&&B2==='φφ')||(A2==='φφ'&&B2==='πφ')||(A2==='κχ'&&B2==='χχ')||(A2==='χχ'&&B2==='κχ')){i+=2;j+=2;continue}
+    if(a.charAt(i)===b.charAt(j)){i++;j++;continue}
+    if(A2==='ει'&&b.charAt(j)==='ι'){if(morphEi(a,i))return false;i+=2;j++;continue}
+    if(B2==='ει'&&a.charAt(i)==='ι'){if(morphEi(b,j))return false;j+=2;i++;continue}
+    return false;
+  }
+  return i===a.length&&j===b.length;
+}
+/* one form may be the other plus a final letter: an elision, a movable nu, or the movable sigma of ουτως */
+function tryTail(l,s){
+  if(l.length<2||!s.length)return false;
+  var c=l.slice(-1),p=l.slice(0,-1);
+  if('αεο'.indexOf(c)>=0&&/[βγδζθκλμνξπρστφχψ]$/.test(s)){
+    if(spellEq(p,s))return !!ELIDE[l];
+    if(ASP[p.slice(-1)]===s.slice(-1)&&spellEq(p.slice(0,-1),s.slice(0,-1)))return true;
+    return false;
+  }
+  if(c==='ν'&&/(σι|στι|σε|ε)$/.test(s)&&spellEq(p,s))return true;
+  if(c==='σ'&&/^(ουτω|μεχρι|αχρι)$/.test(s)&&spellEq(p,s))return true;
+  return false;
+}
+/* the attested spellings of a proper name, and a doubled consonant written single, are spelling differences too;
+   the guards keep real words apart: βαλλω, μελλω, αποστελλω, αλλασσω, εφαλλομαι, and γεννημα/γενημα */
+function orthCanon(w){
+  w=w.replace(/τθ/g,'θθ').replace(/πφ/g,'φφ').replace(/κχ/g,'χχ');
+  w=w.replace(/^μωυσ/,'μωσ').replace(/^δαβιδ/,'δαυιδ').replace(/^καπερναουμ/,'καφαρναουμ').replace(/^ραββουν/,'ραβουν');
+  /* a nasal assimilates to the next consonant (ενπ/εμπ, συνγ/συγγ), and λημψ/λημφ is λψ/λφ with an inserted μ */
+  w=w.replace(/[νμ]([πβφψμ])/g,'μ$1').replace(/[νγ]([κγξχ])/g,'γ$1').replace(/λημ([ψφ])/g,'λη$1');
+  if(!/βαλ|μελ|στελ|φαλ|λλασσ|γεννημ|γενημ/.test(w))w=w.replace(/([βγδζθκλμνπρστφχψ])\1/g,'$1');
+  return w;
+}
+/* proper names written two ways in the editions: the same name, spelled differently (ναζαρετ/ναζαρεθ, γεθσημανη/γεθσημανι, ταβηθα/ταβιθα).
+   Only groups of one name in one form are listed; different forms or different people (μαρια/μαριαμ, ιωνα/ιωαννου, ιωση/ιωσηφ) stay visible. */
+/* verses where Adam Boyd's Text-Critical English New Testament (TC-ENT, CC BY 4.0) has a footnote: the places where the editions differ in a way that changes the English */
+var TCV={"Matthew":{"1":[6,7,8,10,25],"2":[11,18],"3":[6,8,11,16],"4":[3,10],"5":[22,25,27,30,32,39,44,47,48],"6":[1,4,5,6,8,12,13,15,18,21,25,33,34],"7":[2,7,10,13,14,19,24,29],"8":[9,10,13,15,18,21,23,25,28,29,31,32],"9":[1,2,4,5,8,11,12,13,14,22,24,27,35,36],"10":[3,4,8,10,12,25],"11":[2,9,10,15,16,17,19,21,23],"12":[3,4,6,8,10,15,22,23,27,29,31,32,35,38,40,47],"13":[2,9,11,13,14,19,20,22,32,34,35,36,37,40,43,44,50,51,55],"14":[6,15,22,24,25,28,29,30,33,34],"15":[1,4,5,6,8,12,14,15,17,22,30,31,33,36,39],"16":[3,4,5,8,11,13,20,21,26],"17":[4,9,10,11,15,20,21,22,25,26],"18":[7,8,11,12,14,15,19,21,26,28,29,34,35],"19":[3,4,9,10,16,17,20,24,25,29],"20":[6,7,8,15,16,17,19,22,23,26,30,31,34],"21":[1,4,5,7,12,13,14,28,29,30,31],"22":[7,13,21,23,27,30,38,39,44],"23":[3,4,5,7,8,9,13,14,17,19,24,25,26,38],"24":[2,6,7,18,24,28,36,37,38,42,48,49],"25":[2,3,6,9,13,16,17,20,22,29,31,44],"26":[1,3,8,9,17,20,26,27,28,42,43,44,45,46,50,52,53,55,59,60,65,71,75],"27":[1,2,4,11,16,17,22,24,34,35,41,42,46,49,55,56,64],"28":[2,6,8,9,19,20]},"Mark":{"1":[1,2,4,5,10,11,13,14,16,19,21,23,24,27,28,31,34,36,38,39,40,41,42],"2":[1,2,4,5,7,9,12,16,17,18,20,21,22],"3":[1,5,7,14,15,16,18,20,25,27,29,31,32,33,35],"4":[1,4,8,9,10,11,12,15,18,19,20,22,24,28,30,34,36,37,40],"5":[1,3,5,9,11,12,13,22,23,28,36,38,40,41,42],"6":[2,8,11,14,15,16,20,22,32,33,36,41,44,48,51,52,53,55],"7":[1,2,4,5,6,8,14,16,18,19,21,22,24,25,28,30,31,35],"8":[1,3,9,12,13,16,17,20,21,22,23,25,26,28,29,34,36,37],"9":[3,6,7,12,14,16,17,19,23,24,25,29,30,31,33,38,40,41,42,43,44,45,46,47,48,49],"10":[1,2,5,7,10,12,13,17,19,20,21,24,25,26,29,30,32,34,35,38,39,40,43,46,49,50],"11":[1,2,3,4,6,8,10,15,17,18,19,23,24,26,28,29,30,31,32,33],"12":[4,5,6,7,9,14,16,17,21,22,23,24,25,27,28,29,30,31,33,36,38],"13":[2,5,6,7,8,9,11,14,15,18,21,22,23,25,27,28,31,32,33],"14":[2,4,5,7,9,14,16,19,20,21,22,23,24,27,31,33,34,35,37,40,43,45,51,52,53,62,64,65,68,69,70,72],"15":[3,4,7,8,12,18,23,28,32,34,39,44],"16":[2,8,9,14,17,18,19,20]},"Luke":{"1":[28,29,34,35,42,55,63,66,75,76,78],"2":[5,7,9,12,14,17,21,22,33,35,37,38,40,42,43],"3":[2,12,14,17,19,22,24,25,26,27,28,29,30,31,32,33],"4":[2,4,5,8,17,18,41,44],"5":[1,5,6,15,17,20,30,33,36,38,39],"6":[1,2,4,5,7,9,10,17,18,25,26,33,34,36,38,42,43,45,48,49],"7":[7,10,11,19,21,24,28,31,32,39,42,44,45],"8":[2,3,8,16,17,19,24,26,27,31,34,37,43,45,47,48,49,51,52,54],"9":[1,3,7,10,14,22,23,35,38,43,47,48,50,54,55,56,57,59,62],"10":[1,11,15,17,19,20,21,22,30,35,36,38,39,41,42],"11":[2,4,6,11,13,19,25,26,29,30,33,34,37,44,48,53,54],"12":[7,15,18,20,22,23,27,28,29,31,39,40,41,49,53,54,56,58],"13":[2,7,9,15,19,24,25,27,31,35],"14":[3,5,6,9,10,15,17,21,22,24,28,31],"15":[16,17,21,22,26,32],"16":[1,9,12,18,20,21,25,29],"17":[1,2,3,4,7,9,21,23,24,30,33,35],"18":[1,11,20,24,28,29],"19":[5,15,20,21,22,26,29,31,32,40,42,45,46],"20":[1,5,11,13,14,19,23,24,27,30,31,32,34,40,42,45],"21":[4,6,11,15,16,19,23,24,34,35,36,38],"22":[4,14,16,17,18,22,30,31,34,37,39,42,43,44,45,47,49,57,60,61,64,66,68],"23":[2,6,8,10,12,15,17,22,23,25,29,34,35,38,39,42,44,45,51],"24":[1,3,4,11,12,17,18,19,21,29,32,36,42,43,44,46,47,49,53]},"John":{"1":[15,16,18,19,24,26,27,28,34,39,42,50,51],"2":[17,22],"3":[13,15,17,23,25,27,28,36],"4":[1,3,17,31,35,36,37,42,43,51],"5":[1,2,3,4,12,16,30,36,44],"6":[7,11,14,15,17,22,23,39,40,42,45,47,58,63,65,69,71],"7":[8,9,26,32,33,39,40,41,46,50,52,53],"8":[2,3,4,5,6,7,9,10,11,28,29,38,39,54,58,59],"9":[4,6,8,9,10,11,14,20,21,26,35,41],"10":[4,7,8,13,16,22,26,29,32,38],"11":[12,19,22,30,31,41,46,50,53,54,57],"12":[1,4,7,9,12,17,22,25,35,40,41,47],"13":[2,18,24,26,32,36,38],"14":[2,3,4,7,11,12,14,15,16,17,28,30],"15":[7,8,10,11,14],"16":[3,4,7,10,16,23,25,27,29,32],"17":[1,4,11,12,17,21,23],"18":[13,14,15,20,24,30,34,39,40],"19":[3,6,7,10,11,13,16,17,20,24,28,29,35],"20":[6,16,17,18,19,29,30],"21":[1,3,14,15,16,17,25]},"Acts":{"1":[8,11,13,14,15,16,17,23,25],"2":[1,7,12,23,30,31,33,38,41,47],"3":[1,3,6,11,18,20,21,22,24,25,26],"4":[1,5,6,8,12,17,24,25,27,32,36],"5":[15,23,24,27,28,32,34,36,37,39,41],"6":[3,8,13],"7":[3,11,13,16,17,18,22,26,30,31,32,35,36,37,38,43,44,46,48,51],"8":[5,10,13,16,18,22,24,33,36],"9":[5,6,8,12,17,18,20,25,27,28,31,37,38],"10":[5,6,10,11,12,16,19,21,22,23,24,30,32,33,45,48],"11":[3,7,9,11,13,17,20,21,22,28],"12":[23,24,25],"13":[1,6,17,19,20,23,24,25,26,31,32,40,41,42,44,45,48],"14":[3,13,14,15,17,28],"15":[2,3,4,7,11,17,18,22,23,24,25,30,33,34,35,36,40],"16":[1,7,10,13,17,31,32,34,36],"17":[5,13,14,18,21,23,25,26,27],"18":[3,5,7,15,17,19,20,21,25,26],"19":[1,3,4,9,10,12,13,15,16,27,29,33,35,37,39],"20":[1,3,4,7,8,13,15,19,21,23,24,25,28,29,32],"21":[4,5,6,8,11,13,20,22,25,29,37],"22":[9,12,16,20,25,26,30],"23":[6,7,9,10,11,12,15,20,30],"24":[1,2,5,6,7,8,9,10,11,13,14,15,16,18,19,20,21,22,23,24,26],"25":[2,5,6,7,9,14,15,16,18,20,25],"26":[3,4,7,10,15,16,17,18,20,21,23,26,30,31],"27":[2,3,12,13,14,16,19,29,34,37,39,41],"28":[1,3,13,15,16,25,28,29]},"Romans":{"1":[1,16,23,29,31],"2":[5,8,16,17,18,19,20,21],"3":[7,22,28],"4":[1,11,15,19],"5":[1,5,6],"6":[11,12],"7":[6,13,18,25],"8":[1,2,11,24,26,28,34,38],"9":[19,28,31,32,33],"10":[1,3,5,9,14,15,17],"11":[2,3,6,17,21,22,31],"12":[11,14,19,20],"13":[1,3,7,9,11,12],"14":[4,6,9,10,12,18,21,22,24],"15":[7,8,9,11,14,15,16,19,24,29],"16":[3,5,6,8,14,16,18,20,21,24]},"1 Corinthians":{"1":[1,2,4,14,15,20,22,23],"2":[1,4,9,10,13],"3":[3,4,5,10,12,13],"4":[2,6,14,17],"5":[1,4,5,7,10,13],"6":[2,5,8,10,11,16,20],"7":[1,5,7,14,15,17,31,32,33,34,37,38,39,40],"8":[2,4,7,8,11],"9":[1,7,10,15,18,20,22,23],"10":[1,9,11,13,19,23,24,28],"11":[2,11,15,24,26,27,29],"12":[2,3,9,13,25,26,31],"13":[3,9],"14":[5,10,18,21,25,26,34,35,37,38,39],"15":[14,20,28,31,39,44,47,49,54,55],"16":[2,6,7,8,19,22,23,24]},"2 Corinthians":{"1":[1,6,10,11,12,14,15,18,19,20],"2":[3,7,10,17],"3":[1,9,14,15],"4":[4,5,6,10,14],"5":[3,5,12,14,15,17,18,21],"6":[16],"7":[8,11,12,13,16],"8":[1,4,7,9,19],"9":[4,5,7,10,11],"10":[7,8],"11":[1,3,6,10,23,28,31,32],"12":[1,3,6,7,9,11,14,15,19,20],"13":[2,4,5,7,14]},"Galatians":{"1":[3,8,11,12,15,18],"2":[11,14,15,16],"3":[1,12,14,17],"4":[6,7,14,15,19,24,25,26,28],"5":[1,19,20,21,24],"6":[12,15,17,18]},"Ephesians":{"1":[1,6,13,15,18],"2":[11,17,20],"3":[2,3,6,8,9,14,18,21],"4":[6,9,17,28,32],"5":[2,5,9,15,21,22,27,29,30],"6":[7,9,10,12,16,24]},"Philippians":{"1":[1,6,8,11,14,16,17,23,28],"2":[5,21,26,30],"3":[3,12,13,16],"4":[3,13,23]},"Colossians":{"1":[1,2,3,4,6,7,12,14,22,28],"2":[2,7,11,13,16,18,20],"3":[4,6,13,15,16,17,22,24,25],"4":[8,12,13,15,18]},"1 Thessalonians":{"1":[1,7,9],"2":[7,15,18,19],"3":[2,7,11,13],"4":[1,8,11,13],"5":[4,5,8,20,21,25,27,28]},"2 Thessalonians":{"1":[2,8,10,12],"2":[2,3,4,6,8,10,11,13,17],"3":[4,6,12,18]},"1 Timothy":{"1":[1,2,4,16,17],"2":[3,7,8,9],"3":[3,16],"4":[6,8,10,12],"5":[4,16,21],"6":[5,7,17,19,21]},"2 Timothy":{"1":[1,10,11,15,17],"2":[3,7,13,14,18,19],"3":[6],"4":[1,14,15,22]},"Titus":{"1":[4],"2":[5,7,8,10,11,13],"3":[9,15]},"Philemon":{"1":[1,2,6,7,9,11,12,20,23,24,25]},"Hebrews":{"1":[3,8,12],"2":[7,8,9,14],"3":[1,2,6,9,16,17],"4":[2],"5":[4],"6":[10],"7":[4,14,17,21],"8":[4,8,11,12],"9":[1,10,11,13,14,17,19],"10":[1,8,9,30,34,38],"11":[8,11,13,26,37,39],"12":[3,7,18,20,24,28],"13":[4,6,9,15,21,25]},"James":{"1":[12,19,23,25,26],"2":[3,5,11,13,18,20,24,26],"3":[3,5,8,9,12],"4":[1,2,4,5,7,11,12,13,14,15],"5":[5,9,10,11,12,16,19,20]},"1 Peter":{"1":[4,7,8,9,12,16,20,21,22,23,24],"2":[2,3,5,6,7,11,13,21,25],"3":[1,4,8,9,13,15,16,18,20,21],"4":[1,3,5,7,8,11,14,16],"5":[1,2,5,8,10,11,14]},"2 Peter":{"1":[1,3,4,12,17,21],"2":[2,3,4,6,8,11,12,13,14,15,17,18],"3":[2,3,6,7,9,10,11,16,18]},"1 John":{"1":[3,4,5,7],"2":[7,13,18,20,23,24,27],"3":[1,5,7,13,14,16,18,19,21,23],"4":[2,3,15,16,19,20],"5":[1,4,7,8,13,18,21]},"2 John":{"1":[3,5,7,8,9,12,13]},"3 John":{"1":[4,5,7,8,9,12,13]},"Jude":{"1":[1,4,5,15,19,22,23,24,25]},"Revelation":{"1":[2,4,5,6,8,9,11,12,13,17,18,19,20],"2":[1,2,3,5,7,8,9,10,13,14,15,16,17,19,20,21,22,24,27],"3":[1,2,3,4,5,7,8,11,12,14,16,18],"4":[2,3,4,5,6,7,8,11],"5":[1,3,4,5,6,9,10,11,12,13,14],"6":[1,2,3,4,5,6,7,8,9,11,12,14,15,17],"7":[2,5,6,7,8,9,10,17],"8":[5,7,8,11,13],"9":[2,6,7,10,13,16,18,19],"10":[1,2,4,5,7,8,9,10],"11":[1,2,4,8,9,10,11,12,13,15,16,17,18,19],"12":[8,9,10,12,14,17],"13":[1,3,4,5,6,7,8,10,14,17],"14":[1,2,3,4,5,6,7,8,9,10,12,13,15,18],"15":[2,3,4,5,6,8],"16":[1,3,4,5,6,7,8,10,12,14,16,17,18],"17":[3,4,6,8,16,18],"18":[1,2,3,5,6,7,8,9,11,13,14,20,21,23],"19":[1,3,5,6,7,8,12,13,15,17,18,20],"20":[2,3,4,5,6,7,9,11,12,14],"21":[2,3,4,5,6,7,8,9,10,14,15,16,17,23,24,26,27],"22":[1,3,5,6,8,9,11,13,14,18,19,20,21]}};
+function tcHit(n,book){
+  var m=/(\d+):(\d+)(?:[–-](?:(\d+):)?(\d+))?/.exec(n.ref||'');if(!m)return true;
+  var c=+m[1],a=+m[2],b=(m[4]&&!m[3])?+m[4]:a,L=(TCV[book]||{})[c]||[];
+  for(var v=a;v<=b;v++)if(L.indexOf(v)>=0)return true;
+  return false;
+}
+var NAMEGRP=['ναζαρετ ναζαρεθ','βεελζεβουλ βεεζεβουλ','γεθσημανη γεθσημανι γεθσημανει','ιωαννη ιωαννει ιωανει','μωση μωσει μωυσει μωυση','ταβηθα ταβιθα ταβειθα','συμεων σιμεων','ραββουνι ραββουνει ραβουνι','χοραζιν χωραζιν','πρισκα πρισκιλλα','ηρωδιωνα ηροδιωνα','λεγεωνα λεγιωνα','κρησκης κρισκης','σουσαννα σωσαννα','στοικων στωικων','συχεμ σιχεμ','σερουχ σαρουχ','σαρεπτα σαραπτα','φουρτουνατου φορτουνατου','κις κεις','σαλημ σαλειμ','ιαρεδ ιαρετ','φαλεγ φαλεκ','ευοδιαν ευωδιαν','ελμωδαμ ελμαδαμ','εμμορ εμμωρ','σεμει σεμεει','νινευι νινευη','βοανεργες βοανηργες','λασαια λασεα','κολασσαις κολοσσαις','βοοζ βοες βοος','τεσσαρακοντα τεσσερακοντα','τεσσαρες τεσσερες','τεσσαρων τεσσερων','τεσσαρας τεσσερας','αλιεις αλεεις','αλιεων αλεεων'];
+var NAMEMAP={};NAMEGRP.forEach(function(g,i){g.split(' ').forEach(function(w){NAMEMAP[orthW(w)]=i})});
+/* proper names: a name written with a different spelling is not a variant worth showing. The base word must be a name in this edition,
+   the two forms must be within one or two letters of each other, and they must end alike (a different ending is a different form or a different person:
+   Ασα/Ασαφ, Αμων/Αμως, Ιωση/Ιωσηφ, Μαρια/Μαριαν). A different number of words (Ιησους Βαραββας) is never spelling. */
+var NAMESET={};'ααρων αββα αββαδων αβελ αβια αβιαθαρ αβιληνησ αβιουδ αβρααμ αβρααμπρωτον αγαβοσ αγαρ αγνωστω αγριππα αγριππασ αδαμ αδδι αδη αδησ αδου αδραμυττηνω αδρια αζωρ αζωτον αθηναιοι αθηναισ αθηνων αθωοσ αιγυπτιοι αιγυπτιον αιγυπτιοσ αιγυπτιων αιγυπτον αιγυπτοσ αιγυπτου αιγυπτω αιθιοπων αιθιοψ αινεα αινεαν αιρε ακελδαμα ακμην ακουε ακουσομεθα ακυλαν ακυλασ αλεξανδρευσ αλεξανδρεων αλεξανδρινον αλεξανδρινω αλεξανδρον αλεξανδροσ αλεξανδρου αλληλουια αλφα αλφαιου αμιναδαβ αμπλιαν αμφιπολιν αμων αμωσ αναβα αναθεματι ανανια ανανιαν ανανιασ ανασειει ανδρεα ανδρεαν ανδρεασ ανδρεου ανδρονικον ανενδεκτον αννα ανναν αννασ ανοιξω αντιοχεα αντιοχεια αντιοχειαν αντιοχειασ αντιπασ αντιπατριδα απελλην απεσταλκασιν αποδοτε απολελυσθαι απολλυων απολλω απολλωνιαν απολλωσ απολω αποστειλον αποστητω αποστρεψον αππιου απφια αραβεσ αραβια αραβιαν αραμ αρειον αρειου αρεοπαγιτησ αρετα αρθητι αριμαθαιασ αρισταρχον αρισταρχοσ αρισταρχου αριστοβουλου αρμαγεδων αρτεμαν αρτεμιδοσ αρτεμισ αρφαξαδ αρχελαοσ αρχιππω ασα ασηρ ασηραυτη ασια ασιαν ασιαρχων ασιασ ασσαρωνα ασυγκριτον ατταλειαν αυγουστου αφρον αχαζ αχαια αχαιαν αχαιασ αχαικου αχειμ αψινθοσ βααλ βαβυλων βαβυλωνι βαβυλωνοσ βαλααμ βαλακ βαραββαν βαραββασ βαρακ βαραχιου βαρθολομαιον βαρθολομαιοσ βαριησουσ βαριωνα βαρναβα βαρναβαν βαρναβασ βαρσαβαν βαρσαββαν βαρτιμαιοσ βεελζεβουλ βελιαρ βενιαμιν βερνικη βερνικησ βεροια βεροιαιοσ βεροιαν βηθανια βηθανιαν βηθανιασ βηθεσδα βηθλεεμ βηθσαιδα βηθσαιδαν βηθσφαγη βιθυνιαν βιθυνιασ βλαστον βλεπε βλεψον βοανεργεσ βοοζ βοσκε βοσορ γαββαθα γαβριηλ γαδ γαδαρηνων γαζαν γαιον γαιοσ γαιω γαλαται γαλατιαν γαλατιασ γαλατικην γαλιλαια γαλιλαιαν γαλιλαιασ γαλιλαιοι γαλιλαιοσ γαλιλαιου γαλιλαιουσ γαλιλαιων γαλλιων γαλλιωνι γαμαλιηλ γεδεων γεθσημανη γεννησαρετ γεργεσηνων γλευκουσ γνωθι γολγοθα γομορρα γομορρασ γομορροισ γομορρων γωγ δαλμανουθα δαλματιαν δαμαρισ δαμασκηνων δαμασκον δαμασκω δανιηλ δαυιδ δεκαπολει δεκαπολεωσ δερβαιοσ δερβην δημασ δημητριοσ διαβασ διανοιχθητι διδασκαλεπου διδυμοσ διελθωμεν δικη διονυσιοσ διοπετουσ διοσ διοσκουροισ διοτρεφησ δορκασ δρουσιλλη εβερ εβλασφημησεν εβραιδι εβραικοισ εβραιοσ εβραιουσ εβραιστι εβραιων εγειρε εγκαινια εζεκιαν εκριζωθητι εκτεινον εκφοβοσ ελαιων ελαιωνοσ ελαμιται ελεαζαρ ελεησω ελιακειμ ελιεζερ ελιουδ ελισαβετ ελισσαιου ελλαδα ελλην ελληνασ ελληνεσ ελληνι ελληνιδων ελληνικη ελληνικοισ ελληνισ ελληνιστασ ελληνιστι ελληνιστων ελληνοσ ελληνων ελλησιν ελμωδαμ ελυμασ ελωι εμισησαν εμμανουηλ εμμαουσ εμμορ ενοικησω ενωσ ενωχ εξεστη εξομολογουμαι εξορκιζω επαινετον επαναγαγε επαφρα επαφρασ επαφροδιτον επαφροδιτου επερωτησω επικαταρατοσ επικουρειων επιμεληθητι επιστευσα επιστρεψω επιτρεπεται εραστον εραστοσ ερμαν ερμην ερμογενησ ερυθρα ερυθραν ερχομεθα εσκορπισεν εσλι εσρωμ εταιρε ευα ευαν ευβουλοσ ευδια ευνικη ευξαιμην ευρεθην ευροκλυδων ευτυχοσ ευφρανθητι ευφρατη ευφρατην εφεσιοι εφεσιον εφεσιων εφεσον εφεσου εφεσω εφραιμ εφφαθα ζαβουλων ζακχαιε ζακχαιοσ ζαρα ζαχαρια ζαχαριαν ζαχαριασ ζαχαριου ζεβεδαιον ζεβεδαιου ζευγη ζευγοσ ζοροβαβελ ηλι ηλια ηλιαν ηλιασ ηρωδη ηρωδην ηρωδησ ηρωδιαδα ηρωδιαδοσ ηρωδιανων ηρωδιασ ηρωδιωνα ηρωδου ησαιαν ησαιασ ησαιου ησαυ ηυλησαμεν θαδδαιον θαδδαιοσ θαμαρ θαρα θαρσει θεε θεοφιλε θεσσαλονικεων θεσσαλονικεωσ θεσσαλονικη θεσσαλονικην θεσσαλονικησ θευδασ θυατειρα θυατειροισ θυατειρων θωμα θωμαν θωμασ ιαειροσ ιακωβ ιακωβον ιακωβοσ ιακωβου ιακωβω ιαμβρησ ιαννα ιαννησ ιαρεδ ιασονα ιασονοσ ιασων ιατρε ιδουμαιασ ιεζαβελ ιεραπολει ιερεμιαν ιερεμιου ιεριχω ιεροσολυμα ιεροσολυμιται ιεροσολυμιτων ιεροσολυμοισ ιεροσολυμων ιερουσαλημ ιεσσαι ιεφθαε ιεχονιαν ιεχονιασ ιησου ιησουν ιησουσ ικονιον ικονιου ικονιω ιλλυρικου ιοππη ιοππην ιοππησ ιορδανη ιορδανην ιορδανου ιουδα ιουδαια ιουδαιαν ιουδαιασ ιουδαικοισ ιουδαικωσ ιουδαιοι ιουδαιοισ ιουδαιον ιουδαιοσ ιουδαιου ιουδαιουσ ιουδαισμω ιουδαιω ιουδαιων ιουδαν ιουδασ ιουλιαν ιουλιοσ ιουλιω ιουνιαν ιουστοσ ιουστου ισαακ ισαχαρ ισκαριωτη ισκαριωτην ισκαριωτησ ισκαριωτου ισραηλ ισραηλιται ισραηλιτησ ιταλιαν ιταλιασ ιταλικησ ιτουραιασ ιωαθαμ ιωαναν ιωαννα ιωαννη ιωαννην ιωαννησ ιωαννου ιωβ ιωηλ ιωνα ιωναν ιωνασ ιωραμ ιωρειμ ιωσαφατ ιωση ιωσησ ιωσηφ ιωσιαν καθημαι καιαφα καιαφαν καιαφασ καιν καιναν καισαρα καισαρεια καισαρειαν καισαρειασ καισαρι καισαροσ καλεσω κανα κανανιτην κανανιτησ κανδακησ καπερναουμ καππαδοκιαν καππαδοκιασ καρπω κατεποθη καυσων κεγχρεαισ κεδρων κηφα κηφασ κηφασο κιλικιαν κιλικιασ κισ κλαυδην κλαυδια κλαυδιον κλαυδιου κλεοπασ κλημεντοσ κλωπα κνιδον κολασσαισ κορβαν κορε κορινθιοι κορινθιων κορινθον κορινθω κορνηλιε κορνηλιοσ κορνηλιου κορνηλιω κουαρτοσ κρανιον κρανιου κρητεσ κρητη κρητην κρητησ κρισπον κυπριοι κυπριοσ κυπριω κυπρον κυπρου κυρηναιοι κυρηναιον κυρηναιοσ κυρηναιου κυρηναιων κυρηνην κυρηνιου κυων κων κωσαμ λαζαρε λαζαρον λαζαροσ λαμεχ λαοδικαιων λαοδικεια λαοδικειαν λαοδικειασ λασαια λεββαιοσ λεγε λεγεων λεγεωνα λευι λευιν λευισ λευιτασ λευιτησ λευιτικησ λιβερτινων λιβυησ λιθοστρωτον λιμενασ λινοσ λουκασ λουκιοσ λυδδαν λυδδησ λυδια λυδιαν λυκαονιασ λυκαονιστι λυκιασ λυσανιου λυσιασ λυστραν λυστροισ λωιδι λωτ μααθ μαγδαλα μαγδαληνη μαγωγ μαδιαμ μαθουσαλα μαιναν μαινη μακαριαι μακεδονασ μακεδονεσ μακεδονια μακεδονιαν μακεδονιασ μακεδονοσ μακεδοσιν μακεδων μαλελεηλ μαλχοσ μαναην μανασση μαρθα μαρθαν μαρθασ μαρια μαριαμ μαριαν μαριασ μαρκον μαρκοσ μαρκου ματθαιον ματθαιοσ ματθαν ματθατ ματθιαν ματταθα ματταθιου μεγαλυνει μεινον μελεα μελιτη μελχι μελχισεδεκ μενουνγε μεσιανο μεσιασ μεσοποταμια μεσοποταμιαν μεταβηθι μετανοω μηδαμωσ μηδοι μιλητον μιλητου μιλητω μιτυληνην μιχαηλ μνασωνι μολοχ μυσιαν μωρε μωσεα μωσεωσ μωση μωσην μωσησ μωυσεωσ μωυση μωυσην μωυσησ ναασσων ναγγαι ναζαρετ ναζαρηνε ναζαρηνον ναζαρηνου ναζωραιον ναζωραιοσ ναζωραιου ναζωραιων ναθαν ναθαναηλ ναιν ναουμ ναρκισσου ναχωρ νεανισκε νεαπολιν νεεμαν νεφθαλειμ νηρεα νηρι νιγερ νικανορα νικοδημοσ νικολαιτων νικολαον νικοπολιν νινευι νινευιται νινευιταισ νυμφαν νωε ξενων οζιαν ολιγοπιστε ολυμπαν ομβροσ ονησιμον ονησιμω ονησιφορου οστουν ουα ουκουν ουρβανον ουριου οφθαλμον παιδιοθεν παμφυλιαν παμφυλιασ παρασκευη παρασκευην παρμεναν πασχα παταξω παταρα πατμω πατροβαν παυλε παυλον παυλοσ παυλου παυλω παφου πεντηκοστησ περγαμον περγαμω περγη περγην περγησ περιβαλου περσιδα πετρε πετρον πετρονησαν πετροσ πετρου πετρω πιλατον πιλατοσ πιλατου πιλατω πισιδιαν πισιδιασ ποιμαινε ποντικον ποντιοσ ποντιου ποντιω ποντον ποντου ποπλιου ποπλιω πορκιον ποσοι ποσοσ ποτιολουσ πουδησ πραγματευσασθε πρισκαν πρισκιλλα πρισκιλλαν προσελθε προσθεσ προχορον προωρωμην πτολεμαιδα πυθωνοσ ρααβ ραββιο ραββουνι ραββουνιο ραγαυ ρακα ραμα ραχαβ ραχηλ ρεβεκκα ρεμφαν ρηγιον ρησα ροβοαμ ροδη ροδον ρουβιμ ρουθ ρουφον ρουφου ρωμαικοισ ρωμαιοι ρωμαιοισ ρωμαιον ρωμαιοσ ρωμαιουσ ρωμαιστι ρωμαιων ρωμη ρωμην ρωμησ σαβαωθ σαδδουκαιοι σαδδουκαιουσ σαδδουκαιων σαδδουκαιωνεπλησθησαν σαδωκ σαλα σαλαθιηλ σαλαμινι σαλημ σαλμων σαλμωνην σαλωμη σαμαρεια σαμαρειαν σαμαρειασ σαμαρειται σαμαρειταισ σαμαρειτησ σαμαρειτιδοσου σαμαρειτισ σαμαρειτων σαμοθρακην σαμον σαμουηλ σαμψων σαουλ σαπφειρη σαρδεισ σαρδεσιν σαρεπτα σαρρα σαρρασ σαταν σατανα σαταναν σατανασ σαυλον σαυλοσ σαυλου σαυλω σεβαστησ σεβαστον σεβαστου σεκουνδοσ σελευκειαν σεμει σεργιω σερουχ σηθ σημ σιδωνα σιδωνι σιδωνιοισ σιδωνοσ σιλα σιλαν σιλασ σιλουανοσ σιλουανου σιλωαμ σιλωαμο σιμων σιμωνα σιμωνι σιμωνοσ σινα σιων σιωπα σκευα σκηνοπηγια σκυθησ σμυρνη σοδομα σοδομοισ σοδομων σολομων σολομωνα σολομωνοσ σολομωντοσ σουσαννα σπανιαν σπλαγχνιζομαι σταυρωθητω στεφανα στεφανου στεφανω στοικων συμεων συντυχην συρακουσασ συραφοινικισσα συριαν συριασ συροσ συρτην συχαρ συχεμ σωπατροσ σωσθενην σωσθενησ σωσιπατροσ ταβερνων ταβηθα ταλιθα ταρσεα ταρσευσ ταρσον ταρσω τεθεαμαι τερτιοσ τερτυλλοσ τερτυλλου τεσσαρεσκαιδεκατην τιβεριαδοσ τιβεριου τιμαιου τιμοθεε τιμοθεον τιμοθεοσ τιμοθεου τιμωνα τιτον τιτοσ τιτου τραχωνιτιδοσ τροφιμον τροφιμοσ τρυφαιναν τρυφωσαν τρωαδα τρωαδι τρωαδοσ τρωγυλλιω τυραννου τυριοισ τυρον τυρου τυρω τυχικον τυχικοσ υμεναιοσ υπολαμβανω υποστρεψω φαλεγ φανουηλ φαραω φαρεσ φαρισαιοι φαρισαιοισ φαρισαιοσ φαρισαιου φαρισαιουσ φαρισαιων φηλικα φηλικι φηλικοσ φηλιξ φηστε φηστον φηστοσ φηστου φηστω φιλαδελφεια φιλαδελφειαν φιλε φιλημονι φιλητοσ φιλιππε φιλιππησιοι φιλιπποισ φιλιππον φιλιπποσ φιλιππου φιλιππουσ φιλιππω φιλιππων φιλολογον φιμωθητι φλεγοντα φοιβην φοινικα φοινικην φοινικησ φορου φουρτουνατου φρυγιαν φυγελοσ χαιρε χαλδαιων χανααν χαναναια χαρραν χερουβιμ χιου χλοησ χοινιξ χοραζιν χουζα χριστιανον χριστιανοσ χριστιανουσ χρονιζει ωβηδ ωραια ωραιαν ωσαννα ωσηε'.split(' ').forEach(function(w){NAMESET[w]=1});
+function lev(a,b){var p=[],i,j;for(j=0;j<=b.length;j++)p[j]=j;for(i=1;i<=a.length;i++){var d=p[0];p[0]=i;for(j=1;j<=b.length;j++){var t=p[j];p[j]=Math.min(p[j]+1,p[j-1]+1,d+(a.charAt(i-1)===b.charAt(j-1)?0:1));d=t}}return p[b.length]}
+var NAMEDIFF={'ιαννα|ιωαννα':1,'ιωαννα|ιαννα':1};
+function nameClose(a,b){
+  if(NAMEDIFF[a+'|'+b])return false;
+  if(!(NAMESET[a]||NAMESET[b])||a.length<4||b.length<4||a.charAt(0)!==b.charAt(0))return false;
+  var x=a.replace(/ζ$/,'σ').replace(/θ$/,'τ'),y=b.replace(/ζ$/,'σ').replace(/θ$/,'τ');
+  if(x.slice(-2)!==y.slice(-2))return false;
+  return lev(x,y)<=(Math.min(x.length,y.length)<=5?1:2);
+}
+function orthPair(a,b){
+  if(a===b)return true;
+  if(NAMEMAP[a]!==undefined&&NAMEMAP[a]===NAMEMAP[b])return true;
+  if(nameClose(a,b))return true;
+  var x=a.replace(/\u2019/g,''),y=b.replace(/\u2019/g,'');
+  if(x===y||spellEq(x,y))return true;
+  if(tryTail(x,y)||tryTail(y,x))return true;
+  var cx=orthCanon(x),cy=orthCanon(y);
+  if(cx===cy||spellEq(cx,cy))return true;
+  return tryTail(cx,cy)||tryTail(cy,cx);
+}
+function isOrthographic(quote,text){
+  if(!quote||!text||/[\[\]«»()0-9]/.test(text)||/[()0-9]/.test(quote)||/[̀-ͯ]/.test(quote.normalize('NFD'))||/[̀-ͯ]/.test(text.normalize('NFD')))return false;
+  var q=String(quote).trim().split(/\s+/).map(orthW).filter(Boolean),t=String(text).trim().split(/\s+/).map(orthW).filter(Boolean);
+  if(!q.length||!t.length)return false;
+  if(q.join('')===t.join('')&&q.length!==t.length)return true;
+  if(q.length!==t.length)return false;
+  for(var i=0;i<q.length;i++)if(!orthPair(q[i],t[i]))return false;
+  return true;
+}
+var MINOR_W={};'ο το του της των τω τη τοις ταις τον την τους τας οι αι τα και δε τε γαρ ουν μεν δη'.split(' ').forEach(function(w){MINOR_W[w]=1});
+function sigToks(t){return String(t).replace(/\([^)]*\)/g,' ').replace(/[\[\]«»]/g,'').trim().split(/\s+/).map(spWord).filter(Boolean)}
+function cnt(a){var o={};a.forEach(function(w){o[w]=(o[w]||0)+1});return o}
+/* a reading is minor when, apart from spelling, it differs from the text only by word order, by brackets,
+   or by adding, dropping or swapping minor words (articles, kai, de, te, gar, oun, men, de) */
+function isMinorDiff(quote,text){
+  /* an accent or breathing in the apparatus is itself the variant (μενει/μενεῖ, τινα/τίνα), so never call it minor */
+  if(/[\u0300-\u036f]/.test(String(quote).normalize('NFD'))||/[\u0300-\u036f]/.test(String(text).normalize('NFD')))return false;
+  var tx=String(text).trim(),A=cnt(sigToks(quote)),B;
+  if(/^om\b/i.test(tx))B={};else if(!tx)B=A;else B=cnt(sigToks(tx));
+  var bad=false;
+  Object.keys(A).forEach(function(w){if(!MINOR_W[w]&&(A[w]||0)!==(B[w]||0))bad=true});
+  Object.keys(B).forEach(function(w){if(!MINOR_W[w]&&(A[w]||0)!==(B[w]||0))bad=true});
+  return !bad;
+}
+function filterDesc(){
+  var p=[];if(edFiltered())p.push(selCount()+' of '+ALLIDS.length+' sources');if(VL===1)p.push('orthographic variants hidden');if(VL===3)p.push('only translatable differences (Boyd\'s TC-ENT)');if(VL===2)p.push('orthographic, word-order and minor-word variants hidden');
+  return p.join(', ');
+}
+
+function parseNote(n){
+  if(n._p)return n._p;
+  var parts=String(n.note||'').split(/\s*‖\s*/),gs=[],gid=0;
+  parts[0].split(/\s*¦\s*/).forEach(function(g){
+    g=g.trim();if(!g)return;
+    var toks=g.split(/\s+/),k=0,labs=[],stack=[];
+    while(k<toks.length){
+      var m=/^([\[«]*)(.+?)([\]»]*)$/.exec(toks[k]);
+      if(!m||!LABEL_RE.test(m[2]))break;
+      for(var a=0;a<m[1].length;a++){var o=m[1].charAt(a);stack.push({id:++gid,o:o,c:o==='['?']':'»'})}
+      labs.push({id:coreToId(m[2]),raw:m[2],br:stack.slice()});
+      for(var z=0;z<m[3].length;z++)stack.pop();
+      k++;
+    }
+    gs.push({labs:labs,text:toks.slice(k).join(' ')});
+  });
+  var ms=parts.length>1?parts.slice(1).join(' ‖ ').replace(/^Manuscript Evidence:\s*/i,'').trim():'';
+  n._p={groups:gs,ms:ms};return n._p;
+}
+function compress(inter,orig){
+  var has={};inter.forEach(function(x){has[x]=1});var out=[],done={};
+  ALLIDS.forEach(function(x){
+    if(!has[x])return;
+    if(x==='NA27'||x==='NA28'){if(has.NA27&&has.NA28){if(!done.NA){out.push('NA');done.NA=1}return}}
+    if(x==='SCR'||x==='ST'){if(has.SCR&&has.ST){if(!done.TR){out.push('TR');done.TR=1}return}}
+    if(x==='ECM'&&orig==='CT†'){out.push('ECM†');return}
+    out.push(x);
+  });
+  return out;
+}
+function labelStr(labs){
+  var toks=[],stack=[];
+  labs.forEach(function(l){
+    var ids=l.br.map(function(b){return b.id}),pre='';
+    while(stack.length&&ids.indexOf(stack[stack.length-1].id)<0)toks[toks.length-1]+=stack.pop().c;
+    l.br.forEach(function(b){if(!stack.some(function(s){return s.id===b.id})){pre+=b.o;stack.push(b)}});
+    toks.push(pre+l.disp);
+  });
+  while(stack.length)toks[toks.length-1]+=stack.pop().c;
+  return toks.join(' ');
+}
+/* ---------- ordered note list per book, used to resolve "last note" / "next note" / "cf. 16:8" ---------- */
+var NLIST={};
+function noteList(book){
+  if(NLIST[book])return NLIST[book];
+  var L=[],nb=NOTES[book]||{};
+  Object.keys(nb).map(Number).sort(function(a,b){return a-b}).forEach(function(c){
+    Object.keys(nb[c]).map(Number).sort(function(a,b){return a-b}).forEach(function(v){
+      nb[c][v].forEach(function(n,k){n._ix=L.length;n._ch=c;n._vs=v;n._k=k;L.push(n)});
+    });
+  });
+  return NLIST[book]=L;
+}
+/* a note's view under the current filters, before any cross-reference is rewritten */
+function noteBase(n,book){
+  if(n._fvb===FV&&n._bkb===book)return n._nb;
+  var p=parseNote(n),cand=[];
+  p.groups.forEach(function(g,gi){
+    var labs=[],seen={},split=false;
+    g.labs.forEach(function(l){
+      if(l.id==='ECM†'||l.id==='CT†')split=true;
+      var M=members(l.id,book),inter=M.filter(function(x){return SEL[x]});
+      if(!inter.length)return;
+      var ids=inter.length===M.length?[{disp:l.raw,key:l.id}]:compress(inter,l.id).map(function(d){return{disp:DISP[d],key:d}});
+      ids.forEach(function(x){
+        var sig=x.key+'|'+l.br.map(function(b){return b.id}).join(',');
+        if(seen[sig])return;seen[sig]=1;labs.push({disp:x.disp,br:l.br});
+      });
+    });
+    if(!labs.length)return;
+    var txt=g.text.trim()==='txt';
+    /* a reading that only says "same as the text" has nothing to say once ECM, whose branch it belongs to, is switched off */
+    if(txt&&!SEL.ECM)return;
+    cand.push({gi:gi,labels:labelStr(labs),text:g.text,split:split,txt:txt,hide:false});
+  });
+  if(VL>0&&cand.length&&!p.ms){
+    cand.forEach(function(g){g.hide=!g.txt&&(isOrthographic(n.quote,g.text)||(VL===2&&isMinorDiff(n.quote,g.text)))});
+    /* the branches of an ECM split guiding line stand or fall together */
+    var sp=cand.filter(function(g){return g.split});
+    if(sp.length){
+      var anyShown=sp.some(function(g){return !g.txt&&!g.hide});
+      sp.forEach(function(g){g.hide=!anyShown});
+    }
+    cand=cand.filter(function(g){return !g.hide});
+  }
+  /* translatable differences only: keep the note when TC-ENT has a footnote in one of its verses */
+  if(VL===3&&!p.ms&&!tcHit(n,book))cand=[];
+  /* translatable differences only: keep the note when TC-ENT has a footnote in one of its verses */
+  var nb=cand.length?{groups:cand,ms:p.ms,hasMs:!!p.ms}:null;
+  n._fvb=FV;n._bkb=book;n._nb=nb;return nb;
+}
+/* "cf. ..." and "as last ..." remarks that point at a note or reading that is no longer on screen */
+function fixRefs(txt,n,book,groups,raw){
+  var L=noteList(book);
+  function hiddenNote(x){return !x||!noteBase(x,book)}
+  function hiddenCf(r){
+    r=r.trim();
+    if(/^last note$/i.test(r))return hiddenNote(L[n._ix-1]);
+    if(/^next note$/i.test(r))return hiddenNote(L[n._ix+1]);
+    var m=/^(\d+):(\d+)(?:[–-](\d+))?$/.exec(r);
+    if(m){
+      var c=+m[1],a=+m[2],b=m[3]?+m[3]:a,found=false,hid=true;
+      L.forEach(function(x){if(x._ch===c&&x._vs>=a&&x._vs<=b){found=true;if(noteBase(x,book))hid=false}});
+      return found&&hid;
+    }
+    return false;
+  }
+  txt=txt.replace(/\s*\(([^()]*)\)/g,function(all,inner){
+    if(!/(^|\b)cf\./.test(inner))return all;
+    var parts=inner.replace(/^\s*and\s+/,'').split(/,\s*(?:and\s+)?/),keep=[],drop=false;
+    parts.forEach(function(pt){
+      var m=/^\s*cf\.\s*(.+?)\s*$/.exec(pt);
+      if(m&&hiddenCf(m[1])){drop=true;return}
+      keep.push(pt.trim());
+    });
+    if(!drop)return all;
+    return keep.length?' ('+keep.join(', ')+')':'';
+  });
+  txt=txt.replace(/\s+$/,'');
+  if(groups){
+    var m=/^as last (\S+)(\s[\s\S]*|)$/.exec(txt);
+    if(m&&LABEL_RE.test(m[1].replace(/^[\[«]+|[\]»]+$/g,''))){
+      var id=coreToId(m[1].replace(/^[\[«]+|[\]»]+$/g,'')),ref=null;
+      raw.forEach(function(g){if(g!==raw.cur&&raw.idx>raw.indexOf(g)&&g.labs.some(function(l){return l.id===id}))ref=g});
+      if(ref){
+        var shown=members(id,book).some(function(x){return SEL[x]})&&groups.some(function(g){return raw[g.gi]===ref});
+        if(!shown)txt=ref.text+m[2];
+      }
+    }
+  }
+  return txt;
+}
+/* the note as it should appear with the current edition selection, or null when nothing is left to show */
+function noteView(n,book){
+  if(n._fv===FV&&n._bk===book)return n._nv;
+  var b=noteBase(n,book),nv=null;
+  if(b){
+    var raw=parseNote(n).groups;
+    var gs=b.groups.map(function(g){
+      raw.cur=raw[g.gi];raw.idx=g.gi;
+      return{labels:g.labels,text:fixRefs(g.text,n,book,b.groups,raw)};
+    });
+    nv={groups:gs,ms:b.ms,hasMs:b.hasMs,quote:fixRefs(n.quote||'',n,book,null,null)};
+  }
+  n._fv=FV;n._bk=book;n._nv=nv;return nv;
+}
+function chapterNotes(b,c){
+  var out=[],nb=NOTES[b]&&NOTES[b][c];if(!nb)return out;
+  Object.keys(nb).map(Number).sort(function(x,y){return x-y}).forEach(function(v){
+    nb[v].forEach(function(n,i){var nv=noteView(n,b);if(nv)out.push({b:b,c:c,v:v,i:i,n:n,nv:nv})});
+  });
+  return out;
+}
+function chapterTotal(b,c){var t=0,nb=NOTES[b]&&NOTES[b][c];if(nb)Object.keys(nb).forEach(function(v){t+=nb[v].length});return t}
+/* nearest chapter (before or after) that still has a visible variant */
+function adjChapter(d){
+  var bi=ORDER.indexOf(cur.b),cs=chaptersOf(cur.b),ci=cs.indexOf(cur.c);
+  for(;;){
+    ci+=d;
+    if(ci<0){bi--;if(bi<0)return null;cs=chaptersOf(ORDER[bi]);ci=cs.length-1}
+    else if(ci>=cs.length){bi++;if(bi>=ORDER.length)return null;cs=chaptersOf(ORDER[bi]);ci=0}
+    if(chapterNotes(ORDER[bi],cs[ci]).length)return{b:ORDER[bi],c:cs[ci]};
+  }
+}
+
+/* ---------- display of apparatus text: English in italics, and everything attached to a manuscript siglum superscripted ---------- */
+var SUPBACK={'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','ᵛ':'v','ⁱ':'i','ᵈ':'d','ᶜ':'c','ˢ':'s','ᵃ':'a','ᵇ':'b','ˡ':'l'};
+function unsup(s){return s.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹ᵛⁱᵈᶜˢᵃᵇˡ]/g,function(c){return SUPBACK[c]})}
+function supH(s){return s?'<sup class="ms-s">'+esc(unsup(s.replace(/[\u0001\u0003]/g,function(c){return c==='\u0001'?'(':'['}).replace(/[\u0002\u0004]/g,function(c){return c==='\u0002'?')':']'})))+'</sup>':''}
+/* a bracket group that holds nothing but sigla marks, like (L) or (*), is part of the siglum notation */
+function markSigGroups(s){
+  var pairs=[['(',')','\u0001','\u0002'],['[',']','\u0003','\u0004']],out=s.split('');
+  pairs.forEach(function(pr){
+    var st=[];
+    for(var i=0;i<s.length;i++){
+      var ch=s.charAt(i);
+      if(ch===pr[0])st.push(i);
+      else if(ch===pr[1]&&st.length){
+        var o=st.pop(),inner=s.slice(o+1,i);
+        /* only a group glued to the siglum, like 0233(*) or D*,(2), is superscripted; a group that surrounds the whole siglum, like (D) or (0233*: ...), stays normal size */
+        var attached=o>0&&/[^\s(\[]/.test(s.charAt(o-1));
+        var sigOnly=!/[:;]|[a-zα-ωά-ώ]{2,}/.test(unsup(inner).replace(/vid/g,''))&&/\S/.test(inner);
+        if(attached&&sigOnly){out[o]=pr[2];out[i]=pr[3]}
+      }
+    }
+  });
+  return out.join('');
+}
+var SIGTOK=/^((?:[\u0001\u0003]|[(\[])*)(𝔓[⁰-⁹]*|ℵ|[A-ZΓΔΘΛΞΠΣΦΨΩ]|\d{2,4})((?:[*ᶜˢᵛⁱᵈ⁰¹²³⁴⁵⁶⁷⁸⁹ᵃᵇˡ,;:\u0001\u0002\u0003\u0004])*)([)\]]*)$/;
+var LATIN=/[A-Za-z]/,REFTOK=/^[(\[]*\d+(?::\d+)?(?:[–-]\d+(?::\d+)?)?[)\]]*[,;.:]*$/;
+function fmtApp(s,isMs){
+  s=String(s);
+  if(isMs)s=markSigGroups(s);
+  var toks=s.split(/(\s+)/),items=[],ws='',prevEng=false;
+  toks.forEach(function(t){
+    if(!t)return;
+    if(/^\s+$/.test(t)){ws=t;return}
+    var m=isMs?SIGTOK.exec(t):null,html,eng=false;
+    if(m){
+      var core=m[2],sfx=m[3],colon=/[:;]+$/.exec(sfx);
+      /* a colon or semicolon after the siglum is punctuation, not a mark, so it stays normal size */
+      if(colon)sfx=sfx.slice(0,colon.index);
+      html=m[1].replace(/[\u0001\u0003]+/g,function(x){return supH(x)})+(core.indexOf('𝔓')===0?'𝔓'+supH(core.slice(2)+sfx):esc(core)+supH(sfx))+(colon?esc(colon[0]):'')+esc(m[4]);
+    }else if(LATIN.test(t)){eng=true;html=esc(t)}
+    else if(prevEng&&REFTOK.test(t.replace(/[\u0001-\u0004]/g,''))){eng=true;html=esc(t)}
+    else html=esc(t);
+    /* closing (or stray opening) brackets of a siglum group that sit on a comment word */
+    html=html.replace(/[\u0001-\u0004]+/g,function(x){return supH(x)});
+    items.push({h:html,e:eng,w:items.length?ws:''});
+    prevEng=eng;ws='';
+  });
+  var out='',i=0;
+  while(i<items.length){
+    var it=items[i];
+    if(!it.e){out+=it.w+it.h;i++;continue}
+    var run=it.h;i++;
+    while(i<items.length&&items[i].e){run+=items[i].w+items[i].h;i++}
+    out+=it.w+'<i>'+run+'</i>';
+  }
+  return out;
+}
+
+function edDialog(after){
+  syncCur();
+  var h=head('Apparatus','Choose editions')+'<div class="mbody"><p class="mnote">Choose which comparison editions you want to see in the apparatus. Group labels such as <b class="sc">ᴄᴛ</b>, <b class="sc">ɴᴀ</b> and <b class="sc">ᴛʀ</b> are split up automatically: a note disappears when none of your editions is left in it, and a reading shows only the editions you picked. The same selection is used by the Report.</p>';
+  EDS.forEach(function(g){
+    h+='<div class="ed"><label class="eh"><input type="checkbox" data-master="'+g.k+'"><span>'+esc(g.name)+'</span></label>';
+    g.items.forEach(function(it){h+='<label><input type="checkbox" data-ed="'+it[0]+'" data-g="'+g.k+'"><span><b class="sc">'+DISP[it[0]]+'</b> '+esc(it[1])+'</span></label>'});
+    h+='</div>';
+  });
+  h+='<fieldset class="fs"><legend>Kind of variant</legend><p class="beta"><b>Beta.</b> Apparatus filtering is still in beta and may not be perfect yet. If a variant is hidden that you expected to see, or shown when it should be hidden, choose &ldquo;Show all variants&rdquo;.</p>'+
+    [['0','Show all variants','Every difference in the apparatus, including spelling.','<p>No filtering. Every note and every reading in the apparatus is shown (subject to the edition checkboxes above).</p>'],['1','Hide orthographic variants','Hides readings that differ from the text only in spelling: ει/ι, ττ/σσ, ρρ/ρσ (Δαυιδ/Δαυειδ), elision (αλλα/αλλ’), movable ν or ς, words divided differently (ο τι/οτι), doubled consonants (Ιωαννης/Ιωανης) and name spellings (Μωσης/Μωυσης). In a note with several readings, only the orthographic ones are removed; if all of them are orthographic, the note disappears.','<p><b>How every filter works</b></p><ol><li>The edition checkboxes are applied first.</li><li>Each reading is judged on its own against the note&rsquo;s base text.</li><li>A reading that is hidden is dropped; a reading that is not hidden stays.</li><li>If at least one reading in a note stays, the note stays with only those readings.</li><li>If no reading in a note stays, the note and its dagger disappear.</li><li>A note that carries manuscript evidence (&Dagger;) is never hidden by this setting.</li><li>If the rules cannot prove a reading is hidden, it stays.</li></ol><p><b>A reading is orthographic only if all of these hold</b></p><ul><li>It has no brackets, parentheses or numbers.</li><li>Neither it nor the base text has accents or breathings.</li><li>It has the same number of words as the base, or it is the same letters divided into different words (<span class="gr">ο τι</span>/<span class="gr">οτι</span>, <span class="gr">μαραν αθα</span>/<span class="gr">μαραναθα</span>).</li><li>Every word, compared with the base word in the same position, is identical or differs only in one of the six ways below.</li></ul><p><b>The six differences allowed in a word</b></p><ol><li><b>Spelling.</b> <span class="gr">ει</span> for <span class="gr">ι</span>, <span class="gr">ττ</span> for <span class="gr">σσ</span>, <span class="gr">ρρ</span> for <span class="gr">ρσ</span>, <span class="gr">τθ</span> for <span class="gr">θθ</span>, <span class="gr">πφ</span> for <span class="gr">φφ</span>, <span class="gr">κχ</span> for <span class="gr">χχ</span> (<span class="gr">Δαυιδ</span>/<span class="gr">Δαυειδ</span>, <span class="gr">κρειττον</span>/<span class="gr">κρεισσον</span>, <span class="gr">αρρενες</span>/<span class="gr">αρσενες</span>, <span class="gr">ματθαιος</span>/<span class="gr">μαθθαιος</span>).</li><li><b>Elision.</b> The longer form is the shorter plus a final <span class="gr">α</span>, <span class="gr">ε</span> or <span class="gr">ο</span>, the shorter ends in a consonant, and the longer is one of the words that elide (<span class="gr">αλλα, δε, ουδε, μηδε, ουτε, μητε, απο, υπο, επι, κατα, μετα, παρα, δια, αντι, αρα, τοτε</span>), or the final <span class="gr">τ</span>, <span class="gr">π</span> or <span class="gr">κ</span> is aspirated as it is before a rough breathing (<span class="gr">μετα</span>/<span class="gr">μεθ</span>, <span class="gr">κατα</span>/<span class="gr">καθ</span>, <span class="gr">χρηστα</span>/<span class="gr">χρησθ</span>).</li><li><b>Movable ν.</b> A final <span class="gr">ν</span> added to a form ending <span class="gr">σι</span>, <span class="gr">στι</span>, <span class="gr">σε</span> or <span class="gr">ε</span> (<span class="gr">εστι</span>/<span class="gr">εστιν</span>, <span class="gr">επεσε</span>/<span class="gr">επεσεν</span>).</li><li><b>Movable ς.</b> A final <span class="gr">ς</span> on <span class="gr">ουτω</span>, <span class="gr">μεχρι</span> or <span class="gr">αχρι</span>.</li><li><b>A doubled consonant written single, and the spellings of a proper name.</b> <span class="gr">Ιωαννης</span>/<span class="gr">Ιωανης</span>, <span class="gr">εννατος</span>/<span class="gr">ενατος</span>, <span class="gr">ερραντισεν</span>/<span class="gr">εραντισεν</span>, <span class="gr">κραββατον</span>/<span class="gr">κραβαττον</span>, and <span class="gr">Μωσης</span>/<span class="gr">Μωυσης</span>, <span class="gr">Δαβιδ</span>/<span class="gr">Δαυιδ</span>, <span class="gr">Καπερναουμ</span>/<span class="gr">Καφαρναουμ</span>, <span class="gr">Ραββουνι</span>/<span class="gr">Ραβουνι</span>. Other names written two ways in the editions are on a fixed list of the same name in the same form (<span class="gr">Ναζαρετ</span>/<span class="gr">Ναζαρεθ</span>, <span class="gr">Γεθσημανη</span>/<span class="gr">Γεθσημανι</span>, <span class="gr">Ταβηθα</span>/<span class="gr">Ταβιθα</span>, <span class="gr">Συμεων</span>/<span class="gr">Σιμεων</span>, <span class="gr">Μωση</span>/<span class="gr">Μωυσει</span>). In general, a proper name spelled differently is not shown as a variant: the base word must be a name in this edition, the other form must differ by only one or two letters, and both must end alike (<span class="gr">Αχαζ</span>/<span class="gr">Αχας</span>, <span class="gr">Βοοζ</span>/<span class="gr">Βοες</span>, <span class="gr">Λευις</span>/<span class="gr">Λευεις</span>). A different ending means a different form or a different person and stays visible (<span class="gr">Ασα</span>/<span class="gr">Ασαφ</span>, <span class="gr">Αμων</span>/<span class="gr">Αμως</span>), and so does any added or missing word (<span class="gr">Ιησουν Βαραββαν</span> against <span class="gr">Βαραββαν</span>). Different forms or different people stay visible (<span class="gr">Μαρια</span>/<span class="gr">Μαριαμ</span>, <span class="gr">Ιωνα</span>/<span class="gr">Ιωαννου</span>, <span class="gr">Ιωση</span>/<span class="gr">Ιωσηφ</span>). The same fixed list covers a few ordinary words with two spellings (<span class="gr">τεσσαρακοντα</span>/<span class="gr">τεσσερακοντα</span>, <span class="gr">αλιεις</span>/<span class="gr">αλεεις</span>), and a reading that repeats a word with an ellipsis (<span class="gr">Δαυιδ … Δαυιδ</span>) is judged word by word like any other.</li><li><b>Assimilated nasals.</b> <span class="gr">ν</span> and <span class="gr">μ</span> before <span class="gr">π β φ ψ μ</span>, <span class="gr">ν</span> and <span class="gr">γ</span> before <span class="gr">κ γ ξ χ</span>, and the inserted <span class="gr">μ</span> of <span class="gr">λημψ</span>/<span class="gr">λημφ</span> (<span class="gr">ενπεριπατησω</span>/<span class="gr">εμπεριπατησω</span>, <span class="gr">ασυνκριτον</span>/<span class="gr">ασυγκριτον</span>, <span class="gr">ληψεται</span>/<span class="gr">λημψεται</span>).</li></ol><p><b>Where ει and ι are not treated as spelling</b>, because there they mark a different form: in the <span class="gr">λειπ</span>/<span class="gr">λιπ</span> tense stems (<span class="gr">απελειπον</span>/<span class="gr">απελιπον</span>), in the <span class="gr">ειδ</span>/<span class="gr">ιδ</span> stems at the start of a word (<span class="gr">ειδετε</span>/<span class="gr">ιδετε</span>, <span class="gr">ειδητε</span>/<span class="gr">ιδητε</span>), and at the end of a word, where <span class="gr">-ει</span> and <span class="gr">-εις</span> against <span class="gr">-ι</span> and <span class="gr">-ις</span> mark a different form (<span class="gr">επει</span>/<span class="gr">επι</span>, <span class="gr">ερεις</span>/<span class="gr">ερις</span>).</p><p><b>Where a doubled consonant is not treated as spelling</b>, because there it marks the word: <span class="gr">βαλλω</span>, <span class="gr">μελλω</span> (<span class="gr">εμελεν</span>/<span class="gr">εμελλεν</span>), <span class="gr">αποστελλω</span> (<span class="gr">αποστελει</span>/<span class="gr">αποστελλει</span>), <span class="gr">αλλασσω</span>, <span class="gr">εφαλλομαι</span> (<span class="gr">εφαλομενος</span>/<span class="gr">εφαλλομενος</span>), and <span class="gr">γεννημα</span> against <span class="gr">γενημα</span>.</p><p><b>Always kept at this level</b>: bracketed readings, accented readings, added, omitted or different words, any change of form (tense, case, number, person), word-order changes, other itacisms such as <span class="gr">αι</span>/<span class="gr">ε</span> and <span class="gr">η</span>/<span class="gr">ι</span>, <span class="gr">ουκ</span>/<span class="gr">ουχ</span>, and <span class="gr">Ιεροσολυμα</span> against <span class="gr">Ιερουσαλημ</span>, which is a different form of the name rather than a different spelling; that one is hidden only by the next choice.</p>'],['2','Hide orthographic, word-order and minor-word variants','Also hides differences of word order and of minor words (the article, και, δε, τε, γαρ, ουν, μεν) and bracket-only readings. What stays: different words, forms, tenses and moods, additions and omissions of substantive words.','<p><b>How every filter works</b></p><ol><li>The edition checkboxes are applied first.</li><li>Each reading is judged on its own against the note&rsquo;s base text.</li><li>A reading that is hidden is dropped; a reading that is not hidden stays.</li><li>If at least one reading in a note stays, the note stays with only those readings.</li><li>If no reading in a note stays, the note and its dagger disappear.</li><li>A note that carries manuscript evidence (&Dagger;) is never hidden by this setting.</li><li>If the rules cannot prove a reading is hidden, it stays.</li></ol><p><b>A reading is hidden if either test is met</b></p><ol><li>It is orthographic by the strict rules of the previous choice.</li><li>It is a minor difference: after normalizing spelling and ignoring brackets, parenthetical remarks and word order, it differs from the base only by adding, dropping or swapping minor words. The minor words are <span class="gr">ο το του της των τω τη τοις ταις τον την τους τας οι αι τα</span> (the article), <span class="gr">και</span>, <span class="gr">δε</span>, <span class="gr">τε</span>, <span class="gr">γαρ</span>, <span class="gr">ουν</span>, <span class="gr">μεν</span>, <span class="gr">δη</span>. An omission (&ldquo;om.&rdquo;) counts as an empty reading.</li></ol><p><b>The spelling normalizing used by test 2</b> is wider than the orthographic rules, because word order is already ignored here: accents, breathings and punctuation removed; final <span class="gr">ς</span> as <span class="gr">σ</span>; <span class="gr">ουθ</span>/<span class="gr">μηθ</span> as <span class="gr">ουδ</span>/<span class="gr">μηδ</span>; <span class="gr">ουκ</span> and <span class="gr">ουχ</span> as <span class="gr">ου</span>; <span class="gr">ουτως</span> as <span class="gr">ουτω</span>; <span class="gr">εξ</span> as <span class="gr">εκ</span>; <span class="gr">μεχρις</span> and <span class="gr">αχρις</span> without the <span class="gr">ς</span>; movable <span class="gr">ν</span> dropped; <span class="gr">ηυ</span> as <span class="gr">ευ</span>; <span class="gr">ει</span> as <span class="gr">ι</span>; <span class="gr">γγ γκ γξ γχ</span> as <span class="gr">νγ νκ νξ νχ</span>; <span class="gr">ν</span> before <span class="gr">μ π β φ ψ</span> as <span class="gr">μ</span>; <span class="gr">ττ</span> as <span class="gr">σσ</span>; doubled consonants made single, so <span class="gr">Ιωανης</span> matches <span class="gr">Ιωαννης</span>; and the name forms <span class="gr">Μωυσ-</span> as <span class="gr">Μωσ-</span>, <span class="gr">Ιεροσολυμα</span> as <span class="gr">Ιερουσαλημ</span>, <span class="gr">Καπερναουμ</span> as <span class="gr">Καφαρναουμ</span>, <span class="gr">Δαβιδ</span> as <span class="gr">Δαυιδ</span>.</p><p><b>Kept even here</b>: any reading that carries an accent or breathing, because there the accent is the variant (<span class="gr">μενει</span>/<span class="gr">μενεῖ</span>, <span class="gr">τινα</span>/<span class="gr">τίνα</span>); the <span class="gr">λειπ</span>/<span class="gr">λιπ</span> and <span class="gr">ειδ</span>/<span class="gr">ιδ</span> stems and word endings in <span class="gr">-ει</span>/<span class="gr">-ις</span>, as above; the <span class="gr">ν</span> of <span class="gr">ουδεν</span> and <span class="gr">μηδεν</span>; the doubled lambda of <span class="gr">μελλω</span> and <span class="gr">αποστελλω</span> (<span class="gr">αποστελει</span>/<span class="gr">αποστελλει</span>); and of course different words, changes of form, and the addition or omission of any word that is not on the minor-word list.</p>'],['3','Show only translatable differences (Adam Boyd&rsquo;s TC-ENT)','Shows variants only in verses where Adam Boyd&rsquo;s Text-Critical English New Testament has a footnote, that is, where the editions differ in a way that changes the English. In those verses every non-orthographic reading is shown, so you see the whole picture.','<p><b>Credit.</b> The list of translatable differences comes from <i>The Text-Critical English New Testament: Byzantine Text Version</i> (TC-ENT) by Robert Adam Boyd, &copy; 2022 Robert Adam Boyd, licensed CC BY 4.0. Its footnotes record, across eleven Greek editions, the places where the differences can be translated. This setting uses only the locations and editions of those footnotes; the Greek apparatus shown is still this edition&rsquo;s own.</p><p><b>The rule, in one sentence</b>: a note is shown only if one of its verses has a footnote in Boyd&rsquo;s TC-ENT, and within that note every reading that is not orthographic is shown.</p><p><b>How it is carried out</b></p><ol><li>The edition checkboxes are applied first.</li><li>Orthographic readings are dropped by exactly the same rules as &ldquo;Hide orthographic variants&rdquo; (spelling, elision, movable &nu; and &sigmaf;, doubled consonants, the name spellings). Accents, brackets, added, omitted or different words, changes of form and word order all stay.</li><li>Boyd&rsquo;s 2,968 footnotes were read from his files and each was turned into a verse reference (a footnote on 1:7&ndash;8 counts for both verses). That list covers 2,433 verses of the New Testament.</li><li>For each note, its verse or verse range is checked against that list. If none of its verses is on the list, the whole note disappears with its dagger. If at least one is, the note stays with its remaining readings.</li><li>The match is by verse only. The setting does not try to decide which reading in the verse his footnote is about, so a verse that he footnotes once can still show several readings.</li><li>A note that carries manuscript evidence (&Dagger;) is never hidden by this setting.</li><li>Because the test is the verse and the spelling rules, a verse he does not footnote shows nothing, even if the editions differ in a way that does not change the English (word order, a missing article).</li></ol>']].map(function(r){return '<label class="sp"><input type="radio" name="vl" value="'+r[0]+'"><span><b>'+r[1]+'</b><br><small>'+r[2]+'</small></span></label><details class="rules"><summary>Exact rules</summary>'+r[3]+'</details>'}).join('')+'<p class="mnote" style="margin:6px 0 0;font-size:13px">A note that also has manuscript data always stays visible. These are automatic rules, so a borderline reading may be classed either way.</p></fieldset><div class="sum" id="edsum"></div></div><div class="mfoot"><button id="edall">Select all</button><button id="ednone">Clear all</button><button class="primary" id="eddone">Done</button></div>';
+  openModal(h);
+  function sync(){
+    Array.prototype.forEach.call(mbox.querySelectorAll('input[data-ed]'),function(i){i.checked=!!SEL[i.getAttribute('data-ed')]});
+    Array.prototype.forEach.call(mbox.querySelectorAll('input[data-master]'),function(m){
+      var k=m.getAttribute('data-master'),kids=mbox.querySelectorAll('input[data-g="'+k+'"]'),on=0;
+      Array.prototype.forEach.call(kids,function(i){if(i.checked)on++});
+      m.checked=on===kids.length;m.indeterminate=on>0&&on<kids.length;
+    });
+    $('edsum').textContent=selCount()+' of '+ALLIDS.length+' sources selected'+(selCount()===0?'. With nothing selected, no variants are shown.':'.');
+  }
+  Array.prototype.forEach.call(mbox.querySelectorAll('input[type=checkbox]'),function(t){
+    t.addEventListener('change',function(){
+      if(t.hasAttribute('data-ed'))SEL[t.getAttribute('data-ed')]=t.checked;
+      else{var k=t.getAttribute('data-master');EDS.forEach(function(g){if(g.k===k)g.items.forEach(function(it){SEL[it[0]]=t.checked})})}
+      sync();
+    });
+  });
+  Array.prototype.forEach.call(mbox.querySelectorAll('input[name=vl]'),function(r){
+    r.checked=(+r.value===VL);
+    r.addEventListener('change',function(){VL=+this.value;store('gnt-vlevel',String(VL))});
+  });
+  $('edall').addEventListener('click',function(){ALLIDS.forEach(function(k){SEL[k]=true});sync()});
+  $('ednone').addEventListener('click',function(){ALLIDS.forEach(function(k){SEL[k]=false});sync()});
+  $('eddone').addEventListener('click',closeModal);
+  mOnClose=function(){applySel();if(after)after();else if(mLastFocus&&mLastFocus.focus)try{mLastFocus.focus()}catch(e){}};
+  sync();
+}
+
+/* variant report */
+function plainOrNot(s,plain){return plain?plainify(s):s}
+function vkey(b,c,v){return ORDER.indexOf(b)*1e6+c*1e3+v}
+function rangeNotes(k1,k2){
+  var out=[];
+  ORDER.forEach(function(b,bi){
+    var nb=NOTES[b];if(!nb)return;
+    if(bi*1e6+999999<k1||bi*1e6>k2)return;
+    Object.keys(nb).map(Number).sort(function(x,y){return x-y}).forEach(function(c){
+      Object.keys(nb[c]).map(Number).sort(function(x,y){return x-y}).forEach(function(v){
+        var key=bi*1e6+c*1e3+v;if(key<k1||key>k2)return;
+        nb[c][v].forEach(function(n,i){var nv=noteView(n,b);if(nv)out.push({b:b,c:c,v:v,i:i,n:n,nv:nv})});
+      });
+    });
+  });
+  return out;
+}
+function reportData(o){
+  var items=rangeNotes(o.k1,o.k2),withMs=items.filter(function(x){return x.nv.hasMs}).length;
+  var eds=ALLIDS.filter(function(k){return SEL[k]}).map(function(k){return plainOrNot(DISP[k],o.plain)});
+  var meta=['Range: '+o.desc,
+    'Editions: '+(edFiltered()?eds.join(', ')+' ('+selCount()+' of '+ALLIDS.length+' sources)':'all comparison editions and RPmg'),
+    (VL===3?'Only translatable differences are shown (those footnoted in Adam Boyd&rsquo;s TC-ENT).':VL===2?'Orthographic, word-order and minor-word variants are hidden.':VL===1?'Orthographic variants are hidden.':'Orthographic variants are included.'),
+    'Variants: '+items.length+(o.ms?' ('+withMs+' with manuscript data)':''),
+    (o.ms?'‡ marks variants that include manuscript data.':'Manuscript data is not included.')];
+  return {items:items,meta:meta};
+}
+function reportText(o){
+  var d=reportData(o),t=['Greek New Testament (Byzantine Text), Guardian Press 2026','Variant report',''].concat(d.meta,['']);
+  d.items.forEach(function(x){
+    t.push(x.n.ref+(o.ms&&x.nv.hasMs?' ‡':''));
+    var tq=x.nv.quote!=null?x.nv.quote:x.n.quote;if(tq)t.push('TEXT '+tq);
+    x.nv.groups.forEach(function(g){t.push(plainOrNot(g.labels,o.plain)+(g.text?' '+g.text:''))});
+    if(o.ms&&x.nv.ms){t.push('MANUSCRIPT EVIDENCE');x.nv.ms.split(/\s*¦\s*/).filter(Boolean).forEach(function(m){t.push(m)})}
+    t.push('');
+  });
+  return t.join('\n');
+}
+function reportRows(o,limit){
+  var d=reportData(o),h='';
+  d.items.slice(0,limit||d.items.length).forEach(function(x){
+    h+='<div class="rv"><div class="rr">'+esc(x.n.ref)+(o.ms&&x.nv.hasMs?' &Dagger;':'')+'</div>';
+    var rq=x.nv.quote!=null?x.nv.quote:x.n.quote;if(rq)h+='<div class="rt"><small>Text</small>'+fmtApp(rq)+'</div>';
+    x.nv.groups.forEach(function(g){h+='<div class="rg"><span class="rl">'+esc(plainOrNot(g.labels,o.plain))+'</span> '+fmtApp(g.text)+'</div>'});
+    if(o.ms&&x.nv.ms){h+='<div class="rm">Manuscript evidence</div>';x.nv.ms.split(/\s*¦\s*/).filter(Boolean).forEach(function(m){h+='<div class="rg">'+fmtApp(m,true)+'</div>'})}
+    h+='</div>';
+  });
+  return {html:h,d:d};
+}
+function copyText(s){
+  function fallback(){var ta=document.createElement('textarea');ta.value=s;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(ta);return Promise.resolve(ok)}
+  if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(s).then(function(){return true},fallback);
+  return fallback();
+}
+function printReport(o){
+  var r=reportRows(o);
+  var pa=printArea();
+  pa.innerHTML='<h1>Greek New Testament (Byzantine Text), Guardian Press 2026</h1><div class="rmeta"><b>Variant report</b><br>'+r.d.meta.map(esc).join('<br>')+'</div>'+r.html;
+  document.body.classList.add('gpprinting');
+  var done=function(){document.body.classList.remove('gpprinting');pa.innerHTML='';window.removeEventListener('afterprint',done)};
+  window.addEventListener('afterprint',done);
+  setTimeout(function(){window.print()},60);
+}
+var RPT={scope:'chapter',book:null,fb:'Matthew',fc:1,fv:1,tb:'Matthew',tc:1,tv:999,ms:true,plain:false};
+function bookOpts(sel){return ORDER.map(function(b){return '<option'+(b===sel?' selected':'')+'>'+esc(b)+'</option>'}).join('')}
+function reportDialog(){
+  syncCur();
+  if(!RPT.book)RPT.book=cur.b;
+  if(!RPT.init){RPT.init=1;RPT.fb=cur.b;RPT.fc=cur.c;RPT.fv=1;RPT.tb=cur.b;RPT.tc=cur.c;RPT.tv=versesOf(cur.b,cur.c).slice(-1)[0]}
+  var h=head('Apparatus','Variant report')+'<div class="mbody"><form id="rf"><fieldset class="fs"><legend>Passage</legend>';
+  function radio(v,label,extra){return '<label><input type="radio" name="sc" value="'+v+'"'+(RPT.scope===v?' checked':'')+'><span>'+label+'</span>'+(extra||'')+'</label>'}
+  h+=radio('chapter','Current chapter ('+esc(cur.b)+' '+cur.c+')');
+  h+=radio('book','Current book ('+esc(cur.b)+')');
+  h+=radio('other','A different book',' <select id="rbook" aria-label="Book">'+bookOpts(RPT.book)+'</select>');
+  h+=radio('nt','The entire New Testament');
+  h+=radio('custom','A custom range');
+  h+='<div class="row2">From <select id="fb" aria-label="From book">'+bookOpts(RPT.fb)+'</select> chapter <input type="number" min="1" id="fc" value="'+RPT.fc+'" aria-label="From chapter"> verse <input type="number" min="1" id="fv" value="'+RPT.fv+'" aria-label="From verse"></div>';
+  h+='<div class="row2">To <select id="tb" aria-label="To book">'+bookOpts(RPT.tb)+'</select> chapter <input type="number" min="1" id="tc" value="'+RPT.tc+'" aria-label="To chapter"> verse <input type="number" min="1" id="tv" value="'+RPT.tv+'" aria-label="To verse"></div>';
+  h+='</fieldset><fieldset class="fs"><legend>Options</legend>';
+  h+='<label><input type="checkbox" id="rms"'+(RPT.ms?' checked':'')+'><span>Include manuscript data where the edition gives it (&Dagger;)</span></label>';
+  h+='<label><input type="checkbox" id="rplain"'+(RPT.plain?' checked':'')+'><span>Write edition labels in plain capitals (CT, NA28) instead of small capitals</span></label>';
+  h+='</fieldset><p class="mnote">The report lists the variants for your selected editions: '+(filtered()?'filter on: '+filterDesc()+'.':'all sources are selected.')+' <a href="#" id="rped">Change editions</a></p><div class="err" id="rerr" hidden></div></form></div>';
+  h+='<div class="mfoot"><button id="rcancel">Cancel</button><button class="primary" id="rgo">Create report</button></div>';
+  openModal(h);
+  Array.prototype.forEach.call(mbox.querySelectorAll('.row2 select,.row2 input'),function(el){el.addEventListener('focus',function(){mbox.querySelector('input[value="custom"]').checked=true})});
+  $('rbook').addEventListener('focus',function(){mbox.querySelector('input[value="other"]').checked=true});
+  $('rbook').addEventListener('change',function(){mbox.querySelector('input[value="other"]').checked=true});
+  $('rped').addEventListener('click',function(e){e.preventDefault();saveRpt();mOnClose=null;modal.hidden=true;document.body.classList.remove('gpmopen');edDialog(reportDialog)});
+  $('rcancel').addEventListener('click',closeModal);
+  function saveRpt(){
+    var sc=mbox.querySelector('input[name=sc]:checked');RPT.scope=sc?sc.value:'chapter';
+    RPT.book=$('rbook').value;RPT.fb=$('fb').value;RPT.tb=$('tb').value;
+    RPT.fc=Math.max(1,parseInt($('fc').value,10)||1);RPT.fv=Math.max(1,parseInt($('fv').value,10)||1);
+    RPT.tc=Math.max(1,parseInt($('tc').value,10)||1);RPT.tv=Math.max(1,parseInt($('tv').value,10)||1);
+    RPT.ms=$('rms').checked;RPT.plain=$('rplain').checked;
+  }
+  $('rgo').addEventListener('click',function(){
+    saveRpt();var o={ms:RPT.ms,plain:RPT.plain},er=$('rerr');
+    if(RPT.scope==='chapter'){o.k1=vkey(cur.b,cur.c,0);o.k2=vkey(cur.b,cur.c,999);o.desc=cur.b+' '+cur.c}
+    else if(RPT.scope==='book'){o.k1=vkey(cur.b,0,0);o.k2=vkey(cur.b,999,999);o.desc=cur.b}
+    else if(RPT.scope==='other'){o.k1=vkey(RPT.book,0,0);o.k2=vkey(RPT.book,999,999);o.desc=RPT.book}
+    else if(RPT.scope==='nt'){o.k1=0;o.k2=1e9;o.desc='The entire New Testament'}
+    else{
+      o.k1=vkey(RPT.fb,RPT.fc,RPT.fv);o.k2=vkey(RPT.tb,RPT.tc,RPT.tv);
+      o.desc=RPT.fb+' '+RPT.fc+':'+RPT.fv+' to '+RPT.tb+' '+RPT.tc+':'+RPT.tv;
+      if(o.k1>o.k2){er.textContent='The start of the range must come before its end.';er.hidden=false;return}
+    }
+    reportResult(o);
+  });
+}
+function reportResult(o){
+  var LIMIT=250,r=reportRows(o,LIMIT),d=r.d;
+  var h=head('Apparatus','Variant report')+'<div class="mbody"><div class="rmeta">'+d.meta.map(esc).join('<br>')+'</div>';
+  if(!d.items.length)h+='<p class="mnote">No variants were found for this passage with the editions you have selected.</p>';
+  else{h+='<div class="rlist">'+r.html+(d.items.length>LIMIT?'<div class="rmore">Showing the first '+LIMIT+' of '+d.items.length+' variants. Copy and Print include all of them.</div>':'')+'</div>'}
+  h+='<div class="err" id="rerr" hidden></div></div><div class="mfoot"><button id="rback">Back</button><button id="rcopy"'+(d.items.length?'':' disabled')+'>Copy to clipboard</button><button class="primary" id="rprint"'+(d.items.length?'':' disabled')+'>Print</button></div>';
+  openModal(h);
+  $('rback').addEventListener('click',reportDialog);
+  $('rcopy').addEventListener('click',function(){var b=this;copyText(reportText(o)).then(function(ok){b.textContent=ok?'Copied':'Copy failed';setTimeout(function(){b.textContent='Copy to clipboard'},1800)})});
+  $('rprint').addEventListener('click',function(){printReport(o)});
+}
+
+/* ---------- compare editions ---------- */
+var CMPED=['HF','PCK','PT','ECM','NA27','NA28','SBL','TH','WH','SCR','ST'];
+var CMPN={Byz:'This edition (Byzantine text)',HF:'Hodges and Farstad',PCK:'Pickering',PT:'Patriarchal Text',ECM:'Editio Critica Maior',NA27:'Nestle-Aland 27',NA28:'Nestle-Aland 28',SBL:'SBL Greek New Testament',TH:'Tyndale House GNT',WH:'Westcott and Hort',SCR:'Scrivener (Textus Receptus)',ST:'Stephanus (Textus Receptus)'};
+var CMPS={Byz:'Byz',HF:'HF',PCK:'Pickering',PT:'PT',ECM:'ECM',NA27:'NA27',NA28:'NA28',SBL:'SBL',TH:'THGNT',WH:'WH',SCR:'Scrivener',ST:'Stephanus'};
+var CMP={kind:1,scope:'nt',a:'Byz',b:'SCR',show:'differ',more:150,cache:{}};
+var CMPG={gospels:['Matthew','Mark','Luke','John'],acts:['Acts'],paul:['Romans','1 Corinthians','2 Corinthians','Galatians','Ephesians','Philippians','Colossians','1 Thessalonians','2 Thessalonians','1 Timothy','2 Timothy','Titus','Philemon'],general:['Hebrews','James','1 Peter','2 Peter','1 John','2 John','3 John','Jude'],rev:['Revelation']};
+/* every apparatus note is one variation unit; each edition holds the main-text reading unless the note names it with another */
+function cmpUnits(kind){
+  if(CMP.cache[kind])return CMP.cache[kind];
+  var U=[];
+  ORDER.forEach(function(b){
+    noteList(b).forEach(function(n){
+      var p=parseNote(n),S={},R={},any=false;
+      p.groups.forEach(function(g,gi){
+        var t=g.text.trim(),base=t==='txt'||(t===''&&g.labs.length>0&&g.labs.every(function(l){return l.br.length>0}));
+        if(!base&&kind>0&&!p.ms&&(isOrthographic(n.quote,t)||(kind===2&&isMinorDiff(n.quote,t))))base=true;
+        var id=base?'B':'r'+gi;if(!base)R[id]=g.text;
+        g.labs.forEach(function(l){members(l.id,b).forEach(function(e){
+          if(CMPED.indexOf(e)<0)return;
+          var a=S[e]||(S[e]=[]);if(a.indexOf(id)<0)a.push(id);any=true;
+        })});
+      });
+      if(any)U.push({n:n,b:b,c:n._ch,v:n._vs,S:S,R:R});
+    });
+  });
+  return CMP.cache[kind]=U;
+}
+var CMPW=null;
+function cmpWords(){
+  if(CMPW)return CMPW;CMPW={};
+  ORDER.forEach(function(b){CMPW[b]={};Object.keys(TEXT[b]).forEach(function(c){
+    var n=0;Object.keys(TEXT[b][c]).forEach(function(v){
+      String(TEXT[b][c][v]).replace(/†\d+\u2060?/g,' ').split(/\s+/).forEach(function(w){if(/[\u0370-\u03ff\u1f00-\u1fff]/.test(w))n++});
+    });CMPW[b][c]=n});});
+  return CMPW;
+}
+function cmpWc(t){return String(t||'').replace(/\([^)]*\)/g,' ').split(/\s+/).filter(function(w){return /[\u0370-\u03ff\u1f00-\u1fff]/.test(w)}).length}
+/* roughly how many words of the text a reading touches: the text's own words, or the words the other reading has */
+function cmpTouch(u,e){
+  var S=cmpSets(u,e);if(!S)return 0;var m=1;
+  S.forEach(function(id){var k=id==='B'?cmpWc(u.n.quote):cmpWc(u.R[id]);if(k>m)m=k});
+  return m;
+}
+function cmpScopeBC(sc){
+  if(sc==='nt')return function(){return true};
+  if(sc==='chapter')return function(b,c){return b===cur.b&&+c===+cur.c};
+  if(CMPG[sc])return function(b){return CMPG[sc].indexOf(b)>=0};
+  return function(b){return b===sc};
+}
+function cmpScope(sc){
+  if(sc==='nt')return function(){return true};
+  if(sc==='chapter')return function(u){return u.b===cur.b&&u.c===+cur.c};
+  if(CMPG[sc])return function(u){return CMPG[sc].indexOf(u.b)>=0};
+  return function(u){return u.b===sc};
+}
+function cmpSets(u,e){
+  if(e==='Byz')return['B'];
+  if(e==='ECM'&&!ECM_BOOKS[u.b])return null;
+  return u.S[e]||['B'];
+}
+function cmpScore(A,B){
+  if(!A||!B)return null;
+  var k=0;A.forEach(function(x){if(B.indexOf(x)>=0)k++});
+  return k/Math.max(A.length,B.length);
+}
+function cmpRun(){
+  var units=cmpUnits(CMP.kind).filter(cmpScope(CMP.scope)),all=['Byz'].concat(CMPED);
+  var st={};all.forEach(function(a){st[a]={};all.forEach(function(b){st[a][b]={s:0,n:0,w:0,t:0}})});
+  units.forEach(function(u){
+    var sets={};all.forEach(function(e){sets[e]=cmpSets(u,e)});
+    all.forEach(function(a){all.forEach(function(b){
+      var sc=cmpScore(sets[a],sets[b]);if(sc===null)return;
+      var c=st[a][b];c.s+=sc;c.n++;
+      if(sc<1)c.w+=(1-sc)*Math.max(cmpTouch(u,a),cmpTouch(u,b));
+    })});
+  });
+  var W=cmpWords(),inS=cmpScopeBC(CMP.scope);
+  all.forEach(function(a){all.forEach(function(b){
+    var t=0;ORDER.forEach(function(bk){
+      if((a==='ECM'||b==='ECM')&&!ECM_BOOKS[bk])return;
+      Object.keys(W[bk]).forEach(function(c){if(inS(bk,c))t+=W[bk][c]});
+    });
+    st[a][b].t=t;
+  })});
+  return{units:units,st:st};
+}
+function cmpWordPct(c){return c.t?Math.max(0,(1-c.w/c.t)*100):0}
+function cmpPct(s,n){return n?(s/n*100):0}
+function cmpFmt(x){return x.toFixed(1)+'%'}
+function cmpReadHtml(u,e){
+  var S=cmpSets(u,e);
+  if(!S)return '<span class="cna">not covered by this edition here</span>';
+  return S.map(function(id){
+    if(id==='B')return '<span class="ctx">'+(u.n.quote?fmtApp(u.n.quote):'')+'</span> <span class="cm">(the text)</span>';
+    return fmtApp(u.R[id]);
+  }).join(' <span class="cm">or</span> ');
+}
+function cmpDialogHtml(){
+  var h=head('Editions','Compare editions')+'<div class="mbody">';
+  h+='<p class="mnote">See how closely the editions agree with the Byzantine text and with each other. Agreement is counted over the places where this edition&rsquo;s apparatus records a variation (a &ldquo;variation unit&rdquo;); an edition the apparatus does not name at a unit is counted as agreeing with the text there.</p>';
+  h+='<div class="cmpctl"><label>Passage <select id="cmp-sc" aria-label="Passage">';
+  h+='<option value="nt">The entire New Testament</option><option value="gospels">The Gospels</option><option value="acts">Acts</option><option value="paul">Paul&rsquo;s letters</option><option value="general">General epistles (Hebrews&ndash;Jude)</option><option value="rev">Revelation</option><option value="chapter">Current chapter ('+esc(cur.b)+' '+cur.c+')</option><optgroup label="A single book">'+bookOpts('')+'</optgroup></select></label>';
+  h+='<label>Count <select id="cmp-k" aria-label="Which differences to count"><option value="0">All differences, including spelling</option><option value="1">Ignore spelling (orthographic) differences</option><option value="2">Ignore spelling, word order and minor words</option></select></label></div>';
+  h+='<div id="cmpout"></div></div><div class="mfoot"><button class="primary" id="cmp-done">Done</button></div>';
+  return h;
+}
+function cmpOut(){
+  var r=cmpRun(),st=r.st,N=r.units.length,h='';
+  var scTxt=$('cmp-sc').options[$('cmp-sc').selectedIndex].text.replace(/^Current chapter \((.*)\)$/,'$1');
+  h+='<h4 class="cmph">Agreement with the Byzantine text</h4><p class="cmps">'+esc(scTxt)+' &middot; '+N.toLocaleString()+' variation units. RPᵐᵍ-only notes are excluded because Compare covers printed editions. Select an edition to see where it differs.</p>';
+  h+='<div class="cbh"><span></span><span>Share of variation units</span><span></span><span>Whole text (est.)</span></div><div class="cbars">';
+  var rows=CMPED.filter(function(e){return st.Byz[e].n>0}).map(function(e){var c=st.Byz[e];return{e:e,p:cmpPct(c.s,c.n),s:c.s,n:c.n,wp:cmpWordPct(c)}}).sort(function(a,b){return b.wp-a.wp});
+  rows.forEach(function(x){
+    h+='<button type="button" class="cb'+(CMP.b===x.e&&CMP.a==='Byz'?' sel':'')+'" data-pair="Byz,'+x.e+'"><span class="cn">'+esc(CMPN[x.e])+'</span><span class="cbar"><i style="width:'+x.p.toFixed(2)+'%"></i></span><span class="cp">'+cmpFmt(x.p)+'<small>'+Math.round(x.s).toLocaleString()+' of '+x.n.toLocaleString()+'</small></span><span class="cw">'+x.wp.toFixed(1)+'%</span></button>';
+  });
+  h+='</div><p class="cmps"><b>Variation units</b> counts the places the apparatus records a variation, so it is strict: those places exist because some edition departs from the text. <b>Whole text</b> estimates the share of all the words in the text that the edition reads the same, by adding up the words each difference touches. It is an estimate, so read it as approximate.</p>';
+  if(CMPED.some(function(e){return st.Byz[e].n===0}))h+='<p class="cmps">Editions that do not cover this passage are left out (the ECM covers Mark, Acts, the Catholic Epistles and Revelation only).</p>';
+  /* two-edition comparison */
+  var all=['Byz'].concat(CMPED);
+  function opts(sel){return all.map(function(e){return'<option value="'+e+'"'+(e===sel?' selected':'')+'>'+esc(CMPN[e])+'</option>'}).join('')}
+  var pr=st[CMP.a][CMP.b];
+  h+='<h4 class="cmph" id="cmp-pair">Compare two editions</h4><div class="cmpctl"><label>First <select id="cmp-a" aria-label="First edition">'+opts(CMP.a)+'</select></label><label>Second <select id="cmp-b" aria-label="Second edition">'+opts(CMP.b)+'</select></label></div>';
+  if(CMP.a===CMP.b)h+='<p class="cmps">Choose two different editions.</p>';
+  else if(!pr.n)h+='<p class="cmps">One of these editions does not cover this passage.</p>';
+  else{
+    var diffs=[];
+    r.units.forEach(function(u){
+      var sc=cmpScore(cmpSets(u,CMP.a),cmpSets(u,CMP.b));if(sc===null||sc>=1)return;
+      diffs.push(u);
+    });
+    var together=0;
+    r.units.forEach(function(u){var A=cmpSets(u,CMP.a),B=cmpSets(u,CMP.b);if(A&&B&&cmpScore(A,B)>=1&&cmpScore(A,['B'])<1)together++});
+    var p=cmpPct(pr.s,pr.n),wp=cmpWordPct(pr);
+    h+='<div class="cmpsum"><div class="bg"><div class="big">'+wp.toFixed(1)+'%</div><small>of the whole text (est.)</small></div><div class="bg"><div class="big sm">'+cmpFmt(p)+'</div><small>of variation units</small></div><div class="cmpt"><b>'+esc(CMPS[CMP.a])+'</b> and <b>'+esc(CMPS[CMP.b])+'</b> read the same in '+Math.round(pr.s).toLocaleString()+' of '+pr.n.toLocaleString()+' variation units and differ in '+diffs.length.toLocaleString()+'.'+(CMP.a!=='Byz'&&CMP.b!=='Byz'?' They agree with each other against the Byzantine text in '+together.toLocaleString()+'.':'')+'</div></div>';
+    h+='<div class="cmpctl"><label>Show <select id="cmp-show" aria-label="Which units to list"><option value="differ"'+(CMP.show==='differ'?' selected':'')+'>Where they differ</option><option value="together"'+(CMP.show==='together'?' selected':'')+'>Where they agree against the Byzantine text</option></select></label></div>';
+    var list=CMP.show==='together'?r.units.filter(function(u){var A=cmpSets(u,CMP.a),B=cmpSets(u,CMP.b);return A&&B&&cmpScore(A,B)>=1&&cmpScore(A,['B'])<1}):diffs;
+    if(!list.length)h+='<p class="cmps">None in this passage.</p>';
+    else{
+      h+='<div class="cul">';
+      list.slice(0,CMP.more).forEach(function(u){
+        h+='<div class="cu"><button type="button" class="cref" data-b="'+esc(u.b)+'" data-c="'+u.c+'" data-v="'+u.v+'">'+esc(u.b)+' '+u.c+':'+u.v+'</button><div class="cr"><b>'+esc(CMPS[CMP.a])+'</b> '+cmpReadHtml(u,CMP.a)+'</div><div class="cr"><b>'+esc(CMPS[CMP.b])+'</b> '+cmpReadHtml(u,CMP.b)+'</div></div>';
+      });
+      if(list.length>CMP.more)h+='<div class="cmore"><button type="button" id="cmp-more">Show '+Math.min(150,list.length-CMP.more)+' more ('+(list.length-CMP.more).toLocaleString()+' left)</button></div>';
+      h+='</div>';
+    }
+  }
+  /* matrix */
+  var mxT=CMP.mx!=='units';
+  h+='<h4 class="cmph">Every pair</h4><div class="cmpctl"><label>Show <select id="cmp-mx" aria-label="What the grid shows"><option value="text"'+(mxT?' selected':'')+'>Whole-text estimate</option><option value="units"'+(mxT?'':' selected')+'>Variation units</option></select></label></div><p class="cmps">Percent agreement. Select a cell to compare that pair above.</p><div class="cmx"><table><thead><tr><th></th>';
+  all.forEach(function(e){h+='<th>'+esc(CMPS[e])+'</th>'});
+  h+='</tr></thead><tbody>';
+  all.forEach(function(a){
+    h+='<tr><th>'+esc(CMPS[a])+'</th>';
+    all.forEach(function(b){
+      var c=st[a][b];
+      if(a===b){h+='<td class="dg"></td>';return}
+      if(!c.n){h+='<td class="na">&ndash;</td>';return}
+      var p=mxT?cmpWordPct(c):cmpPct(c.s,c.n),al=mxT?Math.max(0,Math.min(1,(p-86)/14)):Math.max(0,Math.min(1,(p-20)/80));
+      h+='<td><button type="button" data-pair="'+a+','+b+'" style="background:rgba(8,119,171,'+(al*.85+.05).toFixed(2)+');color:'+(al>.5?'#fff':'#202124')+'" title="'+esc(CMPN[a]+' and '+CMPN[b]+': '+cmpFmt(p))+'">'+p.toFixed(1)+'</button></td>';
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table></div><p class="cmps">Only the printed editions are compared, not manuscripts. A reading classed as spelling-only follows the same rules as the variant filter.</p>';
+  $('cmpout').innerHTML=h;
+}
+function cmpDialog(){
+  syncCur();
+  if(!CMP.touched)CMP.scope=cur.b; /* open on the book being read until the reader picks a passage */
+  openModal(cmpDialogHtml());
+  $('cmp-sc').value=CMP.scope;$('cmp-k').value=String(CMP.kind);
+  $('cmp-done').addEventListener('click',closeModal);
+  cmpOut();
+  mbox.onchange=function(e){
+    var t=e.target.id;if(!t||t.indexOf('cmp-')!==0)return;
+    if(t==='cmp-sc'){CMP.scope=e.target.value;CMP.touched=true}
+    else if(t==='cmp-k'){CMP.kind=+e.target.value}
+    else if(t==='cmp-a'){CMP.a=e.target.value}
+    else if(t==='cmp-b'){CMP.b=e.target.value}
+    else if(t==='cmp-show'){CMP.show=e.target.value}
+    else if(t==='cmp-mx'){CMP.mx=e.target.value}
+    CMP.more=150;var y=mbox.scrollTop;cmpOut();
+  };
+  mbox.onclick=function(e){
+    var pr=e.target.closest&&e.target.closest('[data-pair]');
+    if(pr){var q=pr.getAttribute('data-pair').split(',');CMP.a=q[0];CMP.b=q[1];CMP.more=150;cmpOut();var t=$('cmp-pair');if(t)t.scrollIntoView({block:'start',behavior:'smooth'});return}
+    var rf=e.target.closest&&e.target.closest('.cref');
+    if(rf){var tb=rf.getAttribute('data-b'),tc=+rf.getAttribute('data-c'),tv=+rf.getAttribute('data-v');closeModal();HOST.go(tb,tc,tv);return}
+    if(e.target.id==='cmp-more'){CMP.more+=150;cmpOut();return}
+  };
+}
+
+
+/* ---------- public API for the host app ---------- */
+function popHtml(n,book){
+  var nv=noteView(n,book)||{groups:[],ms:'',hasMs:false};
+  var h='<div class="gpx-pop gpx"><div class="gref">'+esc(n.ref)+' &middot; apparatus'+(nv.hasMs?'<span class="msflag">&Dagger; manuscript data</span>':'')+'</div>';
+  var qt=nv.quote!=null?nv.quote:n.quote;if(qt)h+='<div class="glem"><small>Text</small>'+fmtApp(qt)+'</div>';
+  nv.groups.forEach(function(g){h+='<div class="gg"><span class="glab">'+esc(g.labels)+'</span> '+fmtApp(g.text)+'</div>'});
+  if(nv.ms){h+='<div class="gms"><b>Manuscript evidence</b>';nv.ms.split(/\s*¦\s*/).filter(Boolean).forEach(function(x){h+='<div class="gg">'+fmtApp(x,true)+'</div>'});h+='</div>'}
+  if(filtered())h+='<div class="gsrc">Filter on: '+esc(filterDesc())+'. Use the Editions button to change this. Filtering is in beta and might not be perfect yet.</div>';
+  h+='<div class="gsrc">From The Greek New Testament According to the Byzantine Text, Guardian Press 2026 (public domain)</div></div>';
+  return h;
+}
+window.GPX={
+  css:".gpx select,.gpx input[type=search],.gpx button{font:inherit;font-size:15px;line-height:1.2;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--text);padding:9px 11px}\n.gpx select{max-width:100%}\n.gpx button{cursor:pointer;font-weight:700}\n.gpx button:hover:not(:disabled){border-color:var(--cyan)}\n.gpx button:disabled{opacity:.4;cursor:default}\n.gpx button.primary{background:var(--cyan);border-color:var(--cyan);color:#001a2a}\n.gpx button.primary:hover{background:#1596d6}\n.gpx button.on{background:var(--callout);border-color:var(--cyan);color:var(--blue)}\n.gpx .cmpctl{display:flex;gap:10px 16px;flex-wrap:wrap;margin:0 0 12px}\n.gpx .cmpctl label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);min-width:0}\n.gpx .cmpctl select{font-size:15px;letter-spacing:0;text-transform:none;font-weight:400;max-width:100%}\n.gpx .cmph{margin:22px 0 4px;font-size:15px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue)}\n.gpx .cmps{margin:0 0 10px;font-size:14px;color:var(--slate)}\n.gpx .cbars{display:flex;flex-direction:column;gap:4px;margin:0 0 8px}\n.gpx .cbh{display:grid;grid-template-columns:minmax(120px,210px) 1fr 92px 92px;gap:8px;padding:0 10px;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-top:6px}\n.gpx .cbh span:nth-child(2){text-align:left}\n.gpx .cbh span:nth-child(4){text-align:right}\n.gpx .cb{display:grid;grid-template-columns:minmax(120px,210px) 1fr 92px 92px;gap:8px;align-items:center;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:6px;padding:7px 10px;font:inherit;cursor:pointer}\n.gpx .cb:hover,.gpx .cb.sel{border-color:var(--blue);background:var(--callout)}\n.gpx .cb .cn{font-size:14.5px;font-weight:600}\n.gpx .cb .cbar{height:12px;background:#E8ECEF;border-radius:6px;overflow:hidden}\n.gpx .cb .cbar i{display:block;height:100%;background:var(--blue);border-radius:6px}\n.gpx .cb .cp{font-weight:700;font-size:14px;text-align:right;line-height:1.15}\n.gpx .cb .cp small{display:block;font-size:11.5px;font-weight:400;color:var(--muted)}\n.gpx .cb .cw{font-weight:800;font-size:16px;text-align:right;color:var(--blue)}\n.gpx .cmpsum{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:2px 0 12px;padding:12px 14px;background:var(--callout);border-left:4px solid var(--cyan);border-radius:6px;font-size:15px}\n.gpx .cmpsum .bg small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}\n.gpx .cmpsum .big{font-size:30px;font-weight:800;color:var(--blue);line-height:1}\n.gpx .cmpsum .big.sm{font-size:22px}\n.gpx .cmpsum .cmpt{flex:1 1 220px}\n.gpx .cul{max-height:46vh;overflow:auto;border:1px solid var(--line);border-radius:6px}\n.gpx .cu{padding:9px 12px;border-bottom:1px solid var(--line);font-family:'Gentium Plus',Georgia,serif;font-size:18px;line-height:1.5}\n.gpx .cu:last-child{border-bottom:0}\n.gpx .cu .cref{font:700 12px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);background:none;border:0;padding:0 0 2px;cursor:pointer;text-decoration:underline}\n.gpx .cu .cr b{font:700 12px Arial,sans-serif;letter-spacing:.05em;color:var(--blue);display:inline-block;min-width:74px}\n.gpx .cu .cm,.gpx .cu .cna{font:italic 13px Arial,sans-serif;color:var(--muted)}\n.gpx .cu .ctx{color:var(--slate)}\n.gpx .cmore{padding:10px;text-align:center}\n.gpx .cmx{overflow:auto;border:1px solid var(--line);border-radius:6px;margin:0 0 10px}\n.gpx .cmx table{border-collapse:collapse;font-size:12px;width:100%}\n.gpx .cmx th{font-weight:700;padding:4px 5px;background:var(--card);position:sticky;top:0;white-space:nowrap}\n.gpx .cmx tbody th{text-align:left;position:sticky;left:0}\n.gpx .cmx td{padding:1px;text-align:center}\n.gpx .cmx td button{width:100%;min-width:42px;border:0;border-radius:3px;padding:6px 2px;font:600 12px Arial,sans-serif;cursor:pointer}\n.gpx .cmx td.dg{background:#E8ECEF}\n.gpx .cmx td.na{color:var(--muted)}\n.gpx sup.ms-s{font-size:.68em;line-height:0;font-weight:400;font-style:normal;vertical-align:super}\n.gpx .beta{margin:2px 0 8px;padding:8px 12px;background:#FFF6E0;border-left:4px solid #E0A100;border-radius:6px;font-size:13.5px;line-height:1.45;color:#3a3000}\n.gpx button.on .cnt,.gpx .cnt{font-weight:700}\n.gpx .mhead{background:var(--black);color:#fff;padding:16px 56px 14px 20px;position:relative}\n.gpx .mhead .k{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}\n.gpx .mhead h3{margin:2px 0 0;font-size:22px;font-weight:800;line-height:1.2}\n.gpx .mhead .x{position:absolute;right:10px;top:10px;background:transparent;border:0;color:#fff;font-size:26px;padding:4px 10px}\n.gpx .mbody{padding:18px 20px}\n.gpx .mfoot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:var(--card)}\n.gpx .mnote{margin:0 0 14px;color:var(--slate);font-size:15px}\n.gpx .mnote a{font-weight:700}\n.gpx .ed{border:1px solid var(--line);border-radius:6px;margin:0 0 12px;background:var(--card)}\n.gpx .ed label{display:flex;gap:10px;align-items:flex-start;padding:7px 14px;cursor:pointer;font-size:15px;line-height:1.4}\n.gpx .ed label.eh{font-weight:800;font-size:16px;border-bottom:1px solid var(--line);padding:10px 14px}\n.gpx .ed input,.gpx .fs input[type=checkbox],.gpx .fs input[type=radio]{margin:3px 0 0;width:18px;height:18px;accent-color:var(--blue);flex:none}\n.gpx .sc{font-family:'Gentium Plus',Georgia,serif;font-weight:700;color:var(--blue);font-size:17px;margin-right:4px}\n.gpx .sum{font-size:14px;color:var(--muted);font-weight:700}\n.gpx fieldset.fs{border:1px solid var(--line);border-radius:6px;margin:0 0 14px;padding:8px 14px 12px;background:var(--card)}\n.gpx fieldset.fs legend{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);padding:0 6px}\n.gpx .fs label{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:5px 0;font-size:15px;cursor:pointer}\n.gpx .fs label.sp{flex-wrap:nowrap;align-items:flex-start}\n.gpx .fs details.rules{margin:0 0 10px 28px;font-size:13px;color:var(--slate);line-height:1.5}\n.gpx .fs details.rules summary{cursor:pointer;color:var(--blue);font-weight:700;font-size:13px}\n.gpx .fs details.rules ol,.gpx .fs details.rules ul{margin:4px 0 6px;padding-left:20px}\n.gpx .fs details.rules p{margin:6px 0 2px}\n.gpx .fs label.sp small{font-size:13px;color:var(--slate);line-height:1.45;display:block;margin-top:2px}\n.gpx .fs .row2{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0 6px 28px;font-size:14px}\n.gpx .fs input[type=number]{width:72px;font:inherit;font-size:15px;border:1px solid var(--line);border-radius:6px;padding:7px 8px}\n.gpx .err{color:#a21d1d;font-weight:700;font-size:14px;margin:0 0 10px}\n.gpx .rmeta{font-size:14px;color:var(--slate);margin:0 0 12px;padding:10px 12px;background:var(--callout);border-left:4px solid var(--cyan);border-radius:6px}\n.gpx .rlist{max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:6px}\n.gpx .rv{padding:9px 12px;border-bottom:1px solid var(--line)}\n.gpx .rv:last-child{border-bottom:0}\n.gpx .rv .rr{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}\n.gpx .rv .rt{font-family:'Gentium Plus',Georgia,serif;font-size:19px;line-height:1.55}\n.gpx .rv .rg{font-family:'Gentium Plus',Georgia,serif;font-size:18px;line-height:1.5;padding-left:0}\n.gpx .rv .rt small{font-family:Arial,sans-serif;font-size:12px;color:var(--muted);margin-right:8px;letter-spacing:.06em;text-transform:uppercase}\n.gpx .rv .rl{margin-right:.25em}\n.gpx .rv .rm{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:4px}\n.gpx .rv .rl{font-weight:700;color:var(--blue)}\n.gpx .rmore{padding:10px 12px;font-size:14px;color:var(--muted)}\n.gpx{--black:#050505;--cyan:#20A9ED;--blue:#0877AB;--white:#FFFFFF;--card:#F7F8FA;--callout:#EDF8FF;--text:#202124;--slate:#555D65;--muted:#616B75;--line:#DFE3E7;--pale:#D8DDE1;font-family:Arial,Helvetica,sans-serif}\nbody.gpmopen{overflow:hidden}\n.gpmodal{position:fixed;inset:0;z-index:100000;background:rgba(5,5,5,.62);display:flex;align-items:flex-start;justify-content:center;padding:4vh 14px;overflow:auto}\n.gpmodal[hidden]{display:none}\n.gpmodal .gpbox{background:#fff;color:#202124;width:100%;max-width:740px;border-radius:6px;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;font-size:16px;line-height:1.5;text-align:left}\n.gpx a{color:var(--blue)}\n.gpx button{font-family:inherit}\n.gpx .mhead h3{font-family:inherit;color:#fff}\n.gpx .fs label{align-items:center}\n.gpx-pop{font-size:14px;line-height:1.5}\n.gpx-pop .gref{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-faint,#888);margin-bottom:4px}\n.gpx-pop .gref .msflag{background:#0877AB;color:#fff;border-radius:4px;padding:1px 7px;margin-left:6px;font-family:inherit}\n.gpx-pop .glem{font-weight:600;margin:2px 0 6px;font-size:16px}.gpx-pop .glem small{font-weight:400;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint,#888);margin-right:6px}\n.gpx-pop .gg{margin:3px 0;font-size:15px}.gpx-pop .glab{font-weight:700;color:#0877AB;margin-right:.25em}\n.gpx-pop .gms{margin-top:8px;padding-top:6px;border-top:1px solid var(--line,#ddd);color:var(--ink-soft,#555)}\n.gpx-pop .gms b{font-size:11px;letter-spacing:.1em;text-transform:uppercase}\n.gpx-pop .gsrc{margin-top:8px;font-size:11px;color:var(--ink-faint,#888)}\n.gpx-pop i,.gpx .rv .rg i,.gpx .rv .rt i{font-style:italic}\n.gpx-pop sup.ms-s,sup.ms-s{font-size:.68em;line-height:0;font-weight:400;font-style:normal;vertical-align:super}\n#gpx-printarea{display:none}\n@media print{\n  body.gpprinting>*{display:none!important}\n  body.gpprinting>#gpx-printarea{display:block!important;font-size:10.5pt;line-height:1.4;color:#000;font-family:Georgia,serif}\n  #gpx-printarea h1{font-size:16pt;margin:0 0 4pt}\n  #gpx-printarea .rv{break-inside:avoid;padding:5pt 0;border-bottom:.5pt solid #bbb}\n  #gpx-printarea .rv .rr{font-size:9pt;font-weight:700;text-transform:uppercase}\n  #gpx-printarea .rv .rt,#gpx-printarea .rv .rg{font-size:11pt}\n  #gpx-printarea .rmeta{background:none;border:0;border-left:2pt solid #999;font-size:9.5pt;padding:4pt 8pt;margin:0 0 8pt}\n  #gpx-printarea .rv .rm{font-size:8.5pt;font-weight:700;text-transform:uppercase;margin-top:3pt}\n}\n",
+  init:function(o){if(o.text)TEXT=o.text;if(o.notes){NOTES=o.notes;NLIST={}}if(o.host)for(var k in o.host)HOST[k]=o.host[k];FV++},
+  mark:function(book,n){var nv=noteView(n,book);return nv?(nv.hasMs?'ms':'ed'):null},
+  popup:popHtml,
+  editions:function(){edDialog()},
+  report:function(){reportDialog()},
+  compare:function(){cmpDialog()},
+  filtered:filtered,
+  label:function(){return 'Editions'+(filtered()?' ('+(edFiltered()?selCount()+'/'+ALLIDS.length:'')+(edFiltered()&&VL?', ':'')+(VL===1?'no orthographic':VL===2?'no minor':VL===3?'translatable only':'')+')':'')},
+  stats:function(book,c){return{total:chapterTotal(book,c),shown:chapterNotes(book,c).length}}
+};
+})();
+
+</script>
 <script>
 (function(){
   var STORAGE_KEY = 'miscellanies-app-v4'; // bump this key whenever seed data changes, to force a fresh load for existing test installs
@@ -3369,15 +4195,36 @@ var watsonDict = null;
     if(gpgntParseData){ setTimeout(cb, 0); return; }
     fetch('gpgnt_parse.json?v=2').then(function(r){ return r.json(); }).then(function(d){ gpgntParseData = d; cb(); }).catch(function(){ cb(); });
   }
+  // Apparatus engine (edition filter, variant filters, TC-ENT filter, report, compare): see the gpx-engine script.
+  var gpxReady = false;
+  function gpxInit(){
+    if(!window.GPX || !gpgntNotesData || !readerTextCache['gpgnt.json']) return;
+    if(gpxReady) return;
+    gpxReady = true;
+    var st = document.createElement('style'); st.id = 'gpx-css'; st.textContent = GPX.css; document.head.appendChild(st);
+    GPX.init({
+      text: readerTextCache['gpgnt.json'],
+      notes: gpgntNotesData,
+      host: {
+        cur: function(){ var r = readerStateFor('bk_gpgnt'); return { b: r.book, c: r.chapter }; },
+        go: function(b, c, v){ jumpToBibleVerse('bk_gpgnt', b, Number(c), v); },
+        rerender: function(){ if(activeTabId === READER_TAB_ID) renderOpenBook(); }
+      }
+    });
+  }
   var GPGNT_GREEK_RE = /[\u0370-\u03ff\u1f00-\u1fff]/;
   var GPGNT_TOKEN_RE = /(\u2020(\d+)\u2060)|(\s+)|(\u2014)|([^\s\u2020\u2014]+)/g;
-  function renderGpgntVerse(text, parseStr){
+  function renderGpgntVerse(text, parseStr, gBook, gCh, gV){
     if(!text) return '';
     var ents = parseStr ? parseStr.split(';') : null;
     var out = '', wi = 0, m;
     GPGNT_TOKEN_RE.lastIndex = 0;
     while((m = GPGNT_TOKEN_RE.exec(text))){
-      if(m[1]){ out += '<sup class="tcent-fn-mark" data-fnidx="'+(parseInt(m[2],10)-1)+'" title="Apparatus note &mdash; click to read">&dagger;</sup>'; }
+      if(m[1]){
+        var gNote = gpgntNotesData && gpgntNotesData[gBook] && gpgntNotesData[gBook][gCh] && gpgntNotesData[gBook][gCh][gV] ? gpgntNotesData[gBook][gCh][gV][parseInt(m[2],10)-1] : null;
+        var gMark = (gNote && window.GPX) ? GPX.mark(gBook, gNote) : 'ed';
+        if(gMark) out += '<sup class="tcent-fn-mark" data-fnidx="'+(parseInt(m[2],10)-1)+'" title="'+(gMark==='ms' ? 'Apparatus with manuscript data' : 'Apparatus')+' &mdash; click to read"'+(gMark==='ms' ? ' style="color:var(--accent-2,#0877AB); font-weight:900;"' : '')+'>'+(gMark==='ms' ? '&Dagger;' : '&dagger;')+'</sup>';
+      }
       else if(m[3] || m[4]){ out += escapeHtml(m[0]); }
       else {
         var tok = m[5];
@@ -3926,6 +4773,13 @@ var watsonDict = null;
       setTimeout(function(){ openNewEntry(); }, 20);
       return;
     }
+    var gpxBtn = target.closest('#gpxEdBtn, #gpxRptBtn, #gpxCmpBtn');
+    if(gpxBtn && window.GPX){
+      e.preventDefault();
+      gpxInit();
+      if(gpxBtn.id === 'gpxEdBtn') GPX.editions(); else if(gpxBtn.id === 'gpxRptBtn') GPX.report(); else GPX.compare();
+      return;
+    }
     var tcentFnMark = target.closest('.tcent-fn-mark');
     if(tcentFnMark){
       e.preventDefault();
@@ -3937,7 +4791,7 @@ var watsonDict = null;
       var notesSet = isGpMark ? gpgntNotesData : tcentNotesData;
       var fnList = notesSet && rsT && notesSet[rsT.book] && notesSet[rsT.book][rsT.chapter] && notesSet[rsT.book][rsT.chapter][vNum];
       var fn = fnList && fnList[fnIdx];
-      showWordPopup(renderTcentFootnotePopup(fn, isGpMark), e.clientX, e.clientY);
+      showWordPopup((isGpMark && window.GPX && fn) ? GPX.popup(fn, rsT.book) : renderTcentFootnotePopup(fn, isGpMark), e.clientX, e.clientY);
       return;
     }
     if(target.closest('.word-more')){ e.preventDefault(); var wp = document.getElementById('wordPopup'); if(wp && wp._fullDef){ var wb = wp.querySelector('.word-body'); if(wb) wb.textContent = wp._fullDef; var wm = wp.querySelector('.word-more-wrap'); if(wm) wm.remove(); repositionWordPopup(); } return; }
@@ -5394,6 +6248,12 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     html += '<button class="btn small" id="readerPrevBtn"'+(atStart?' disabled':'')+'>&larr; prev</button>';
     html += '<button class="btn small" id="readerNextBtn"'+(atEnd?' disabled':'')+'>next &rarr;</button>';
     html += '<button class="btn small'+(rs.bibleSearchOpen?' active':'')+'" id="readerBibleSearchToggle">&#128269; search this book</button>';
+    if(isGpgnt && window.GPX){
+      gpxInit();
+      html += '<button class="btn small'+(GPX.filtered()?' active':'')+'" id="gpxEdBtn" title="Choose which editions appear in the apparatus, and which kinds of variant">'+GPX.label()+'</button>';
+      html += '<button class="btn small" id="gpxRptBtn" title="List the variants for a passage; copy or print">Report</button>';
+      html += '<button class="btn small" id="gpxCmpBtn" title="See how closely the editions agree with the Byzantine text and with each other">Compare</button>';
+    }
     html += '</div>';
 
     if(rs.bibleSearchOpen){
@@ -5447,7 +6307,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
     // requested as extra visibility beyond the masthead credit line + Guide mention
     // (not a legal requirement — his CC BY 4.0 terms are already satisfied elsewhere).
     if(isGpgnt){
-      html += '<div style="position:sticky; top:0; z-index:5; background:var(--paper); border-bottom:1px solid var(--line); padding:6px 2px; margin:0 0 14px; font-size:11.5px; color:var(--ink-faint); text-align:center;">The Greek New Testament According to the Byzantine Text, Guardian Press 2026 &middot; public domain &middot; tap a &dagger; for the apparatus</div>';
+      html += '<div style="position:sticky; top:0; z-index:5; background:var(--paper); border-bottom:1px solid var(--line); padding:6px 2px; margin:0 0 14px; font-size:11.5px; color:var(--ink-faint); text-align:center;">The Greek New Testament According to the Byzantine Text, Guardian Press 2026 &middot; public domain &middot; tap a &dagger; for the apparatus &middot; the <b>Editions</b> button filters it; its &ldquo;translatable differences&rdquo; choice uses footnote locations from <i>The Text-Critical English New Testament</i>, &copy; Robert Adam Boyd, CC BY 4.0</div>';
     }
     if(src.file === 'tcent.json' || src.file === 'asvbt.json'){
       var boydLabel = (src.file === 'tcent.json')
@@ -5470,7 +6330,7 @@ paint('<span style="font-style:italic;">looking up&hellip;</span>');
       var vEntries = (hasStrongs && activeStrongsData && activeStrongsData[rs.book] && activeStrongsData[rs.book][rs.chapter]) ? activeStrongsData[rs.book][rs.chapter][v] : null;
       var hebEntries = (isHebrewOt && hebrewStrongsData && hebrewStrongsData[rs.book] && hebrewStrongsData[rs.book][rs.chapter]) ? hebrewStrongsData[rs.book][rs.chapter][v] : null;
 var appNotesForVerse = (src.file === 'sblgnt.json' && sblgntApparatusData && sblgntApparatusData[rs.book] && sblgntApparatusData[rs.book][rs.chapter]) ? sblgntApparatusData[rs.book][rs.chapter][v] : null;
-            var verseHtml = (isKjvs && vEntries) ? renderKjvsVerseWords(chapterData[v], vEntries) : (vEntries ? renderGreekVerseWords(chapterData[v], vEntries, appNotesForVerse) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isGpgnt ? renderGpgntVerse(chapterData[v], gpgntParseData && gpgntParseData[rs.book] && gpgntParseData[rs.book][rs.chapter] ? gpgntParseData[rs.book][rs.chapter][v] : '') : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v])))));
+            var verseHtml = (isKjvs && vEntries) ? renderKjvsVerseWords(chapterData[v], vEntries) : (vEntries ? renderGreekVerseWords(chapterData[v], vEntries, appNotesForVerse) : (hebEntries ? renderHebrewVerseWords(chapterData[v], hebEntries) : (isGpgnt ? renderGpgntVerse(chapterData[v], gpgntParseData && gpgntParseData[rs.book] && gpgntParseData[rs.book][rs.chapter] ? gpgntParseData[rs.book][rs.chapter][v] : '', rs.book, rs.chapter, v) : (isTcent ? renderTcentVerseText(chapterData[v]) : escapeHtml(chapterData[v])))));
       var vhlColor = getVerseHighlight(rs.book, rs.chapter, v);
       var vhlClass = vhlColor ? (' vhl-'+vhlColor) : '';
       // Task #39: tapping the verse number opens a small Highlight/Add Note menu instead of
